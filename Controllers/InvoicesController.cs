@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EJCFitnessGym.Controllers
 {
-    [Authorize(Roles = "Staff,Finance,BranchAdmin,SuperAdmin")]
+    [Authorize(Roles = "Staff,Admin,Finance,SuperAdmin")]
     public class InvoicesController : Controller
     {
         private readonly ApplicationDbContext _db;
@@ -38,7 +38,7 @@ namespace EJCFitnessGym.Controllers
             return View(invoices);
         }
 
-        [Authorize(Roles = "Staff,Finance,BranchAdmin,SuperAdmin")]
+        [Authorize(Roles = "Staff,Admin,Finance,SuperAdmin")]
         public async Task<IActionResult> Create()
         {
             var members = await _userManager.GetUsersInRoleAsync("Member");
@@ -54,7 +54,7 @@ namespace EJCFitnessGym.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Staff,Finance,BranchAdmin,SuperAdmin")]
+        [Authorize(Roles = "Staff,Admin,Finance,SuperAdmin")]
         public async Task<IActionResult> Create(Invoice invoice)
         {
             if (!ModelState.IsValid)

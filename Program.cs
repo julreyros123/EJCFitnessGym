@@ -31,10 +31,10 @@ builder.Services
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminAccess", policy =>
-        policy.RequireRole("Admin", "BranchAdmin", "Finance", "SuperAdmin"));
+        policy.RequireRole("Admin", "Finance", "SuperAdmin"));
 
     options.AddPolicy("StaffAccess", policy =>
-        policy.RequireRole("Staff", "Admin", "BranchAdmin", "SuperAdmin"));
+        policy.RequireRole("Staff", "Admin", "SuperAdmin"));
 });
 
 builder.Services.AddRazorPages(options =>
@@ -71,7 +71,7 @@ using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
-    var roles = new[] { "Member", "Staff", "Finance", "Admin", "BranchAdmin", "SuperAdmin" };
+    var roles = new[] { "Member", "Staff", "Finance", "Admin", "SuperAdmin" };
     foreach (var role in roles)
     {
         if (!await roleManager.RoleExistsAsync(role))
@@ -89,7 +89,6 @@ using (var scope = app.Services.CreateScope())
             ("staff@ejcfit.local", "Staff"),
             ("finance@ejcfit.local", "Finance"),
             ("admin@ejcfit.local", "Admin"),
-            ("branchadmin@ejcfit.local", "BranchAdmin"),
             ("superadmin@ejcfit.local", "SuperAdmin"),
         };
 

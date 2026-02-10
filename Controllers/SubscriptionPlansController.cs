@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EJCFitnessGym.Controllers
 {
-    [Authorize(Roles = "Finance,BranchAdmin,SuperAdmin")]
+    [Authorize(Roles = "Admin,Finance,SuperAdmin")]
     public class SubscriptionPlansController : Controller
     {
         private readonly ApplicationDbContext _db;

@@ -8,7 +8,7 @@ namespace EJCFitnessGym.Controllers
     {
         public IActionResult Index()
         {
-            if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Finance") || User.IsInRole("BranchAdmin"))
+            if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Finance"))
             {
                 return RedirectToPage("/Admin/Dashboard");
             }
