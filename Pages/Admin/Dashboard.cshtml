@@ -1,0 +1,51 @@
+@page
+@model EJCFitnessGym.Pages.Admin.DashboardModel
+@{
+    ViewData["Title"] = "Admin Dashboard";
+}
+
+<div class="container py-4">
+    <h1 class="h3 mb-3">Admin Dashboard</h1>
+
+    <div class="row g-3">
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Members</h5>
+                    <p class="text-muted">Manage members and profiles.</p>
+                    <a class="btn btn-outline-primary" asp-page="/Admin/Members">Open</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Payments</h5>
+                    <p class="text-muted">Invoices and payment tracking.</p>
+                    <a class="btn btn-outline-primary" asp-page="/Admin/Payments">Open</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Inventory</h5>
+                    <p class="text-muted">Stock items and services.</p>
+                    <a class="btn btn-outline-primary" asp-page="/Admin/Inventory">Open</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Reports</h5>
+                    <p class="text-muted">Revenue and attendance.</p>
+                    <a class="btn btn-outline-primary" asp-page="/Staff/Reports">Open</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

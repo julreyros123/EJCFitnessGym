@@ -1,0 +1,58 @@
+@model IEnumerable<EJCFitnessGym.Models.Billing.Invoice>
+@{
+    ViewData["Title"] = "Invoices";
+    var status = ViewBag.Status as EJCFitnessGym.Models.Billing.InvoiceStatus?;
+}
+
+<div class="d-flex justify-content-between align-items-center mt-4 mb-3">
+    <h1 class="h3 mb-0">Invoices</h1>
+    <a class="btn btn-primary" asp-action="Create">Create Invoice</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-sm @(status == null ? "btn-dark" : "btn-outline-dark")" asp-action="Index">All</a>
+            @foreach (var s in Enum.GetValues(typeof(EJCFitnessGym.Models.Billing.InvoiceStatus)).Cast<EJCFitnessGym.Models.Billing.InvoiceStatus>())
+            {
+                <a class="btn btn-sm @(status == s ? "btn-dark" : "btn-outline-dark")" asp-action="Index" asp-route-status="@s">@s</a>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Member</th>
+                        <th>Issue</th>
+                        <th>Due</th>
+                        <th class="text-end">Amount</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var inv in Model)
+                {
+                    <tr>
+                        <td>@inv.InvoiceNumber</td>
+                        <td>@inv.MemberUserId</td>
+                        <td>@inv.IssueDateUtc.ToString("yyyy-MM-dd")</td>
+                        <td>@inv.DueDateUtc.ToString("yyyy-MM-dd")</td>
+                        <td class="text-end">@inv.Amount.ToString("0.00")</td>
+                        <td>@inv.Status</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@inv.Id">View</a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

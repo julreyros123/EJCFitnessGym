@@ -1,0 +1,20 @@
+@page
+@model EJCFitnessGym.Pages.Admin.PaymentsModel
+@{
+    ViewData["Title"] = "Payments";
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">Payments</h1>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary" href="/SubscriptionPlans">Plans (MVC)</a>
+            <a class="btn btn-primary" href="/Invoices">Invoices (MVC)</a>
+        </div>
+    </div>
+
+    <div class="alert alert-secondary mb-0">
+        This Razor Page acts as a module entry point. Billing screens are currently implemented as MVC pages:
+        <strong>Subscription Plans</strong> and <strong>Invoices</strong>.
+    </div>
+</div>

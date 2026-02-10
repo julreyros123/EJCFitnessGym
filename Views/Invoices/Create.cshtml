@@ -1,0 +1,48 @@
+@model EJCFitnessGym.Models.Billing.Invoice
+@{
+    ViewData["Title"] = "Create Invoice";
+}
+
+<h1 class="h3 mt-4 mb-3">Create Invoice</h1>
+
+<div class="card">
+    <div class="card-body">
+        <form asp-action="Create" method="post">
+            <div class="mb-3">
+                <label asp-for="MemberUserId" class="form-label">Member</label>
+                <select asp-for="MemberUserId" class="form-select" asp-items="ViewBag.MemberUserId"></select>
+                <span asp-validation-for="MemberUserId" class="text-danger"></span>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Amount" class="form-label"></label>
+                    <input asp-for="Amount" class="form-control" />
+                    <span asp-validation-for="Amount" class="text-danger"></span>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label asp-for="IssueDateUtc" class="form-label">Issue Date (UTC)</label>
+                    <input asp-for="IssueDateUtc" type="date" class="form-control" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label asp-for="DueDateUtc" class="form-label">Due Date (UTC)</label>
+                    <input asp-for="DueDateUtc" type="date" class="form-control" />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Notes" class="form-label"></label>
+                <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Create</button>
+                <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

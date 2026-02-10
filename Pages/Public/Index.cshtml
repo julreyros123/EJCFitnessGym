@@ -1,0 +1,31 @@
+@page
+@model EJCFitnessGym.Pages.Public.IndexModel
+@{
+    ViewData["Title"] = "Welcome";
+}
+
+<div class="py-5">
+    <div class="container">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-7">
+                <h1 class="display-5 fw-bold">EJC Fitness Gym</h1>
+                <p class="lead">Train smarter. Track memberships, billing, and day-to-day operations in one system.</p>
+                <div class="d-flex gap-2">
+                    <a class="btn btn-primary btn-lg" asp-area="Identity" asp-page="/Account/Login">Login</a>
+                    <a class="btn btn-outline-secondary btn-lg" asp-page="/Public/Pricing">View Pricing</a>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Quick Links</h5>
+                        <div class="list-group">
+                            <a class="list-group-item list-group-item-action" asp-page="/Public/About">About</a>
+                            <a class="list-group-item list-group-item-action" asp-page="/Public/Pricing">Pricing</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

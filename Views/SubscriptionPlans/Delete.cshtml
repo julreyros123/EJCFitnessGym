@@ -1,0 +1,18 @@
+@model EJCFitnessGym.Models.Billing.SubscriptionPlan
+@{
+    ViewData["Title"] = "Delete Plan";
+}
+
+<h1 class="h3 mt-4 mb-3">Delete Plan</h1>
+
+<div class="alert alert-warning">
+    Are you sure you want to delete <strong>@Model.Name</strong>?
+</div>
+
+<form asp-action="Delete" method="post">
+    <input type="hidden" asp-for="Id" />
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-danger">Delete</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
+    </div>
+</form>
