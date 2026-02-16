@@ -1,0 +1,60 @@
+@page
+@model EJCFitnessGym.Pages.Staff.PlanStatusModel
+@{
+    ViewData["Title"] = "Plan Status";
+}
+
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Front Desk</span>
+            <h1 class="h2 mb-1">Member Plan Status</h1>
+            <p class="ejc-muted mb-0">Verify active plans, flag expirations, and escalate overdue memberships.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Plan Monitoring</h5>
+            <span class="text-muted small">Current members</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Member</th>
+                            <th>Plan</th>
+                            <th>Renewal Date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Jose Tan</td>
+                            <td>Premium Annual</td>
+                            <td>Dec 14, 2026</td>
+                            <td><span class="badge ejc-badge">Active</span></td>
+                            <td><button class="btn btn-sm btn-outline-primary">View</button></td>
+                        </tr>
+                        <tr>
+                            <td>Maria Reyes</td>
+                            <td>Monthly Flex</td>
+                            <td>Mar 05, 2026</td>
+                            <td><span class="badge bg-warning text-dark">Expiring Soon</span></td>
+                            <td><button class="btn btn-sm btn-outline-primary">Notify</button></td>
+                        </tr>
+                        <tr>
+                            <td>Luis Javier</td>
+                            <td>Monthly Flex</td>
+                            <td>Feb 20, 2026</td>
+                            <td><span class="badge bg-danger">Overdue</span></td>
+                            <td><button class="btn btn-sm btn-outline-primary">Escalate</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

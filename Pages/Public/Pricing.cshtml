@@ -2,43 +2,86 @@
 @model EJCFitnessGym.Pages.Public.PricingModel
 @{
     ViewData["Title"] = "Pricing";
+    var pricingReturnUrl = Url.Page("/Public/Pricing");
 }
 
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="h3 mb-0">Pricing</h1>
+<section class="enterprise-section">
+    <div class="enterprise-section-head enterprise-section-head-inline">
+        <div>
+            <span class="enterprise-eyebrow">Membership Options</span>
+            <h2>Choose the right monthly tier for your gym routine.</h2>
+            <p class="enterprise-plan-sub mb-0">All plans are billed monthly. Cancel anytime.</p>
+        </div>
+        @if (User?.Identity?.IsAuthenticated == true && User.IsInRole("Member"))
+        {
+            <a class="btn enterprise-btn-secondary" asp-controller="Dashboard" asp-action="Member">Open Member Portal</a>
+        }
+        else
+        {
+            <a class="btn enterprise-btn-secondary" asp-area="Identity" asp-page="/Account/Register" asp-route-returnUrl="@pricingReturnUrl">Join Now</a>
+        }
     </div>
 
-    <div class="row g-3">
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Basic</h5>
-                    <p class="text-muted">Monthly access</p>
-                    <div class="display-6 fw-bold">₱0</div>
-                    <p class="text-muted">(Replace with real plans once seeded)</p>
-                </div>
-            </div>
+    @if (Model.PlanCards.Count == 0)
+    {
+        <article class="enterprise-value-card">
+            <span class="enterprise-value-icon"><i class="bi bi-info-circle"></i></span>
+            <h3>No active monthly plans yet</h3>
+            <p>Please check back soon or contact the team for available memberships.</p>
+        </article>
+    }
+    else
+    {
+        <div class="enterprise-plan-grid">
+            @foreach (var card in Model.PlanCards)
+            {
+                var buttonClass = card.IsFeatured ? "btn enterprise-btn-primary w-100" : "btn btn-outline-primary w-100";
+                var returnToPlanUrl = Url.Page("/Public/Pricing", values: new { planId = card.PlanId });
+                <article class="enterprise-plan-card @((card.IsFeatured || Model.SelectedPlanId == card.PlanId) ? "is-featured" : null)">
+                    @if (!string.IsNullOrWhiteSpace(card.Badge))
+                    {
+                        <span class="enterprise-plan-tag">@card.Badge</span>
+                    }
+                    @if (Model.SelectedPlanId == card.PlanId)
+                    {
+                        <span class="enterprise-plan-tag">Selected</span>
+                    }
+                    <h3>@card.Name</h3>
+                    <p class="enterprise-plan-sub">@card.Subtitle</p>
+                    <div class="enterprise-plan-price">PHP @card.Price.ToString("N0") <small>/ month</small></div>
+                    <ul>
+                        @foreach (var benefit in card.Benefits)
+                        {
+                            <li><i class="bi bi-check2-circle"></i>@benefit</li>
+                        }
+                    </ul>
+                    <div class="mt-auto">
+                        @if (User?.Identity?.IsAuthenticated == true && User.IsInRole("Member"))
+                        {
+                            <form method="post" asp-page-handler="Subscribe">
+                                <input type="hidden" name="planId" value="@card.PlanId" />
+                                <button type="submit" class="@buttonClass">@(Model.SelectedPlanId == card.PlanId ? $"Continue with {card.Name}" : $"Choose {card.Name}")</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <div class="d-grid gap-2">
+                                <a class="btn btn-outline-primary w-100" asp-area="Identity" asp-page="/Account/Register" asp-route-planId="@card.PlanId" asp-route-returnUrl="@returnToPlanUrl">Create account</a>
+                                <a class="btn btn-outline-light w-100" asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@returnToPlanUrl">Login to Subscribe</a>
+                            </div>
+                        }
+                    </div>
+                </article>
+            }
         </div>
-        <div class="col-md-4">
-            <div class="card h-100 border-primary">
-                <div class="card-body">
-                    <h5 class="card-title">Standard</h5>
-                    <p class="text-muted">Most popular</p>
-                    <div class="display-6 fw-bold">₱0</div>
-                    <p class="text-muted">(Replace with real plans once seeded)</p>
-                </div>
-            </div>
+    }
+
+    <article class="enterprise-contact-card mt-4">
+        <h2>Need help choosing a tier?</h2>
+        <p>Talk to our team and we will recommend the best plan based on your schedule and training goals.</p>
+        <div class="enterprise-contact-actions">
+            <a class="btn enterprise-btn-primary" href="tel:+639000000000">Call Us</a>
+            <a class="btn enterprise-btn-secondary" asp-page="/Public/Contact">Message Team</a>
         </div>
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Pro</h5>
-                    <p class="text-muted">Best value</p>
-                    <div class="display-6 fw-bold">₱0</div>
-                    <p class="text-muted">(Replace with real plans once seeded)</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+    </article>
+</section>

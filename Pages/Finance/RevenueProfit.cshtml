@@ -1,0 +1,151 @@
+@page
+@{
+    ViewData["Title"] = "Revenue & Profit";
+}
+
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Finance Module</span>
+            <h1 class="h2 mb-1">Revenue &amp; Profit</h1>
+            <p class="ejc-muted mb-0">Track monthly revenue performance, gross profit, net profit, and margin trend.</p>
+        </div>
+        <div class="ejc-actions">
+            <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Back to Overview</a>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Revenue and Profit Summary</h5>
+                    <span class="text-muted small">Current cycle</span>
+                </div>
+                <div class="card-body">
+                    <div class="ejc-finance-stat">
+                        <span class="ejc-muted">Total Revenue</span>
+                        <strong>PHP 1,842,300</strong>
+                    </div>
+                    <div class="ejc-finance-stat">
+                        <span class="ejc-muted">Cost of Goods / Services</span>
+                        <strong>PHP 745,600</strong>
+                    </div>
+                    <div class="ejc-finance-stat">
+                        <span class="ejc-muted">Gross Profit</span>
+                        <strong>PHP 1,096,700</strong>
+                    </div>
+                    <div class="ejc-finance-stat">
+                        <span class="ejc-muted">Operating Expenses</span>
+                        <strong>PHP 484,300</strong>
+                    </div>
+                    <div class="ejc-finance-stat mb-3">
+                        <span class="ejc-muted">Net Profit</span>
+                        <strong class="text-success">PHP 612,400</strong>
+                    </div>
+
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="ejc-muted">Gross Margin</span>
+                            <span>59.5%</span>
+                        </div>
+                        <div class="progress"><div class="progress-bar bg-info" style="width: 59.5%"></div></div>
+                    </div>
+
+                    <div>
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="ejc-muted">Net Margin</span>
+                            <span>33.2%</span>
+                        </div>
+                        <div class="progress"><div class="progress-bar bg-success" style="width: 33.2%"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Revenue, Gross Profit, and Net Profit Analytics</h5>
+                    <span class="text-muted small">Last 6 months + next month projection</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0 ejc-finance-table ejc-table-sticky"
+                               data-ejc-page-size="6"
+                               data-ejc-search-placeholder="Search period, trend, or amount">
+                            <thead>
+                                <tr>
+                                    <th>Period</th>
+                                    <th class="text-end">Revenue</th>
+                                    <th class="text-end">Gross Profit</th>
+                                    <th class="text-end">Net Profit</th>
+                                    <th class="text-end">Net Margin</th>
+                                    <th>Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Sep 2025</td>
+                                    <td class="text-end text-nowrap">PHP 1,521,000</td>
+                                    <td class="text-end text-nowrap">PHP 881,100</td>
+                                    <td class="text-end text-nowrap">PHP 463,400</td>
+                                    <td class="text-end">30.5%</td>
+                                    <td><span class="badge bg-secondary">Baseline</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Oct 2025</td>
+                                    <td class="text-end text-nowrap">PHP 1,603,800</td>
+                                    <td class="text-end text-nowrap">PHP 938,000</td>
+                                    <td class="text-end text-nowrap">PHP 501,200</td>
+                                    <td class="text-end">31.2%</td>
+                                    <td><span class="badge ejc-badge">Up</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Nov 2025</td>
+                                    <td class="text-end text-nowrap">PHP 1,645,100</td>
+                                    <td class="text-end text-nowrap">PHP 972,300</td>
+                                    <td class="text-end text-nowrap">PHP 519,600</td>
+                                    <td class="text-end">31.6%</td>
+                                    <td><span class="badge ejc-badge">Up</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Dec 2025</td>
+                                    <td class="text-end text-nowrap">PHP 1,713,900</td>
+                                    <td class="text-end text-nowrap">PHP 1,024,500</td>
+                                    <td class="text-end text-nowrap">PHP 554,900</td>
+                                    <td class="text-end">32.4%</td>
+                                    <td><span class="badge ejc-badge">Up</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Jan 2026</td>
+                                    <td class="text-end text-nowrap">PHP 1,788,600</td>
+                                    <td class="text-end text-nowrap">PHP 1,067,900</td>
+                                    <td class="text-end text-nowrap">PHP 596,800</td>
+                                    <td class="text-end">33.4%</td>
+                                    <td><span class="badge ejc-badge">Up</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Feb 2026</td>
+                                    <td class="text-end text-nowrap">PHP 1,842,300</td>
+                                    <td class="text-end text-nowrap">PHP 1,096,700</td>
+                                    <td class="text-end text-nowrap">PHP 612,400</td>
+                                    <td class="text-end">33.2%</td>
+                                    <td><span class="badge ejc-badge">Stable</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Mar 2026 (Projected)</td>
+                                    <td class="text-end text-nowrap">PHP 1,906,000</td>
+                                    <td class="text-end text-nowrap">PHP 1,132,400</td>
+                                    <td class="text-end text-nowrap">PHP 648,900</td>
+                                    <td class="text-end">34.0%</td>
+                                    <td><span class="badge bg-info text-dark">Forecast</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

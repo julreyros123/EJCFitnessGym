@@ -3,31 +3,36 @@
     ViewData["Title"] = "Plan Details";
 }
 
-<div class="d-flex justify-content-between align-items-center mt-4 mb-3">
-    <h1 class="h3 mb-0">Plan Details</h1>
-    <div class="d-flex gap-2">
-        <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
-        <a class="btn btn-outline-secondary" asp-action="Index">Back</a>
+<div class="container py-5">
+    <div class="ejc-table-toolbar mb-3">
+        <div>
+            <h1 class="display-6 mb-0">Plan Details</h1>
+            <p class="ejc-muted mb-0">Review plan configuration and status.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
+            <a class="btn btn-outline-secondary" asp-action="Index">Back</a>
+        </div>
     </div>
-</div>
 
-<div class="card">
-    <div class="card-body">
-        <dl class="row mb-0">
-            <dt class="col-sm-3">Name</dt>
-            <dd class="col-sm-9">@Model.Name</dd>
+    <div class="card">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Name</dt>
+                <dd class="col-sm-9">@Model.Name</dd>
 
-            <dt class="col-sm-3">Description</dt>
-            <dd class="col-sm-9">@Model.Description</dd>
+                <dt class="col-sm-3">Description</dt>
+                <dd class="col-sm-9">@Model.Description</dd>
 
-            <dt class="col-sm-3">Price</dt>
-            <dd class="col-sm-9">@Model.Price.ToString("0.00")</dd>
+                <dt class="col-sm-3">Price</dt>
+                <dd class="col-sm-9">@Model.Price.ToString("0.00")</dd>
 
-            <dt class="col-sm-3">Billing Cycle</dt>
-            <dd class="col-sm-9">@Model.BillingCycle</dd>
+                <dt class="col-sm-3">Billing Cycle</dt>
+                <dd class="col-sm-9">@Model.BillingCycle</dd>
 
-            <dt class="col-sm-3">Status</dt>
-            <dd class="col-sm-9">@(Model.IsActive ? "Active" : "Inactive")</dd>
-        </dl>
+                <dt class="col-sm-3">Status</dt>
+                <dd class="col-sm-9">@(Model.IsActive ? "Active" : "Inactive")</dd>
+            </dl>
+        </div>
     </div>
 </div>

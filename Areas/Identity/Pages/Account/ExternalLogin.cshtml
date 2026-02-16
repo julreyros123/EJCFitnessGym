@@ -1,0 +1,45 @@
+@page
+@model ExternalLoginModel
+@{
+    ViewData["Title"] = "External Login";
+}
+
+<section class="ejc-auth ejc-auth-login">
+    <div class="ejc-auth-card">
+        <div class="ejc-auth-form">
+            <div class="ejc-auth-brand">
+                <div>
+                    <span class="ejc-eyebrow">External Sign In</span>
+                    <h1 class="h2 mb-1">Complete your account</h1>
+                    <p class="ejc-muted mb-0">
+                        You authenticated with <strong>@Model.ProviderDisplayName</strong>.
+                        Confirm your email to finish onboarding.
+                    </p>
+                </div>
+            </div>
+
+            <form asp-page-handler="Confirmation" asp-route-returnUrl="@Model.ReturnUrl" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <div class="form-floating mb-3 ejc-auth-input">
+                    <input asp-for="Input.Email" class="form-control" autocomplete="email" />
+                    <label asp-for="Input.Email">Email address</label>
+                    <span asp-validation-for="Input.Email" class="text-danger"></span>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 ejc-auth-submit">Continue</button>
+                <div class="ejc-auth-links">
+                    <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Back to sign in</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="ejc-auth-aside">
+            <span class="ejc-eyebrow">Role Safety</span>
+            <h2 class="h3 mt-2">Member-only onboarding</h2>
+            <p class="ejc-muted">External sign-in from this page is restricted to member account onboarding.</p>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,102 @@
+@page
+@model EJCFitnessGym.Pages.Staff.CommunicationHubModel
+@{
+    ViewData["Title"] = "Communication Hub";
+}
+
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Front Desk</span>
+            <h1 class="h2 mb-1">Communication Hub</h1>
+            <p class="ejc-muted mb-0">Manage calls, member concerns, and communication handoffs between members and the front desk team.</p>
+        </div>
+        <div class="ejc-actions">
+            <button class="btn btn-primary">Log New Concern</button>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <span class="ejc-muted small">Incoming Calls</span>
+                    <h2 class="h3 mb-0">12</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <span class="ejc-muted small">Open Complaints</span>
+                    <h2 class="h3 mb-0">5</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <span class="ejc-muted small">Escalated to Admin</span>
+                    <h2 class="h3 mb-0">2</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <span class="ejc-muted small">Resolved Today</span>
+                    <h2 class="h3 mb-0">9</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Member Concern Queue</h5>
+            <span class="text-muted small">Needs response</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Member</th>
+                            <th>Channel</th>
+                            <th>Concern</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>08:20 AM</td>
+                            <td>Angela Cruz</td>
+                            <td>Phone</td>
+                            <td>Plan renewal clarification</td>
+                            <td><span class="badge bg-warning text-dark">Medium</span></td>
+                            <td><span class="badge bg-info text-dark">Open</span></td>
+                        </tr>
+                        <tr>
+                            <td>08:52 AM</td>
+                            <td>Luis Javier</td>
+                            <td>Desk</td>
+                            <td>Locker issue</td>
+                            <td><span class="badge bg-danger">High</span></td>
+                            <td><span class="badge bg-secondary">Escalated</span></td>
+                        </tr>
+                        <tr>
+                            <td>09:10 AM</td>
+                            <td>Nina Santos</td>
+                            <td>Phone</td>
+                            <td>Check-in history request</td>
+                            <td><span class="badge ejc-badge">Low</span></td>
+                            <td><span class="badge ejc-badge">Resolved</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

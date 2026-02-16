@@ -1,0 +1,65 @@
+@{
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+    var principal = User;
+    var logoutReturnUrl = principal?.IsInRole("SuperAdmin") == true
+        ? "/Identity/Account/SuperAdminLogin"
+        : principal?.IsInRole("Finance") == true
+            ? "/Identity/Account/FinanceLogin"
+            : "/Identity/Account/AdminLogin";
+    string ActiveIfPrefix(params string[] prefixes)
+    {
+        foreach (var prefix in prefixes)
+        {
+            if (currentPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return "active";
+            }
+        }
+
+        return string.Empty;
+    }
+}
+
+<nav class="ejc-admin-nav" aria-label="Admin navigation">
+    <div class="ejc-admin-nav-group">
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/Dashboard")" asp-page="/Admin/Dashboard" title="Dashboard">
+            <i class="bi bi-house-door-fill"></i>
+            <span class="ejc-admin-nav-text">Dashboard</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/MemberAccounts", "/Admin/Members")" asp-controller="MemberAccounts" asp-action="Index" title="Members">
+            <i class="bi bi-people-fill"></i>
+            <span class="ejc-admin-nav-text">Members</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/Payments")" asp-page="/Admin/Payments" title="Payments">
+            <i class="bi bi-credit-card-2-front-fill"></i>
+            <span class="ejc-admin-nav-text">Payments</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Invoices")" asp-controller="Invoices" asp-action="Index" title="Invoices">
+            <i class="bi bi-receipt-cutoff"></i>
+            <span class="ejc-admin-nav-text">Invoices</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/Inventory")" asp-page="/Admin/Inventory" title="Inventory">
+            <i class="bi bi-box-seam-fill"></i>
+            <span class="ejc-admin-nav-text">Inventory</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/Reports")" asp-page="/Admin/Reports" title="Reports">
+            <i class="bi bi-graph-up-arrow"></i>
+            <span class="ejc-admin-nav-text">Reports</span>
+        </a>
+    </div>
+
+    <div class="ejc-admin-nav-divider"></div>
+
+    <div class="ejc-admin-nav-group">
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/Settings")" asp-page="/Admin/Settings" title="Settings">
+            <i class="bi bi-gear-fill"></i>
+            <span class="ejc-admin-nav-text">Settings</span>
+        </a>
+        <form class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
+            <button type="submit" class="ejc-admin-nav-link ejc-admin-nav-link-button" title="Logout">
+                <i class="bi bi-box-arrow-right"></i>
+                <span class="ejc-admin-nav-text">Logout</span>
+            </button>
+        </form>
+    </div>
+</nav>

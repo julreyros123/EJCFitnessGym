@@ -1,76 +1,233 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - EJCFitnessGym</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/EJCFitnessGym.styles.css" asp-append-version="true" />
 </head>
-<body>
+@{
+    var principal = User;
+    var isAuthenticated = principal?.Identity?.IsAuthenticated == true;
+    var isBackOffice =
+        (principal?.IsInRole("Staff") ?? false) ||
+        (principal?.IsInRole("Finance") ?? false) ||
+        (principal?.IsInRole("Admin") ?? false) ||
+        (principal?.IsInRole("SuperAdmin") ?? false);
+    var isMemberPortalUser = isAuthenticated && !isBackOffice;
+}
+<body class="@(isBackOffice ? "ejc-admin-body" : "")" data-ejc-authenticated="@(isAuthenticated ? "true" : "false")">
+@if (isBackOffice)
+{
+    <partial name="_AdminTopbar" />
+}
+else
+{
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">EJCFitnessGym</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+        <nav class="navbar navbar-expand-lg navbar-dark ejc-navbar">
+            <div class="container-fluid ejc-nav-shell">
+                <a class="navbar-brand ejc-brand" asp-area="" asp-controller="Home" asp-action="Index" aria-label="EJC Fitness Gym home">
+                    <img class="ejc-brand-logo" src="~/images/logo-nav-transparent.png" asp-append-version="true" alt="EJC Fitness Gym logo" />
+                </a>
+                <button class="navbar-toggler ejc-nav-trigger" type="button" data-bs-toggle="offcanvas" data-bs-target="#ejcNavSidebar" aria-controls="ejcNavSidebar"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                        @if (User?.Identity?.IsAuthenticated == true)
+                <div class="offcanvas offcanvas-end ejc-nav-offcanvas" tabindex="-1" id="ejcNavSidebar" aria-label="Site navigation">
+                    <div class="offcanvas-header d-lg-none">
+                        <div class="ejc-nav-offcanvas-brand">
+                            <img class="ejc-brand-logo-offcanvas" src="~/images/logo-nav-transparent.png" asp-append-version="true" alt="EJC Fitness Gym logo" />
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                    </div>
+                    <div class="offcanvas-body ejc-nav-body">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0 ejc-main-nav">
+                        @if (isMemberPortalUser)
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+                                <a class="nav-link ejc-main-link" asp-area="" asp-controller="Dashboard" asp-action="Member">
+                                    <i class="bi bi-grid-1x2-fill ejc-nav-icon" aria-hidden="true"></i>
+                                    <span class="ejc-nav-label">My Portal</span>
+                                </a>
                             </li>
-
-                            @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+                            <li class="nav-item">
+                                <a class="nav-link ejc-main-link" asp-area="" asp-controller="Dashboard" asp-action="Profile">
+                                    <i class="bi bi-person-circle ejc-nav-icon" aria-hidden="true"></i>
+                                    <span class="ejc-nav-label">My Profile</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link ejc-main-link" asp-page="/Public/Pricing">
+                                    <i class="bi bi-card-checklist ejc-nav-icon" aria-hidden="true"></i>
+                                    <span class="ejc-nav-label">Memberships</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link ejc-main-link" asp-page="/Public/Contact">
+                                    <i class="bi bi-life-preserver ejc-nav-icon" aria-hidden="true"></i>
+                                    <span class="ejc-nav-label">Support</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link ejc-main-link" asp-page="/Public/About">
+                                    <i class="bi bi-info-circle ejc-nav-icon" aria-hidden="true"></i>
+                                    <span class="ejc-nav-label">About</span>
+                                </a>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link ejc-main-link" asp-area="" asp-controller="Home" asp-action="Index" asp-fragment="home">
+                                    <i class="bi bi-house-door ejc-nav-icon" aria-hidden="true"></i>
+                                    <span class="ejc-nav-label">Home</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link ejc-main-link" asp-area="" asp-controller="Home" asp-action="Index" asp-fragment="memberships">
+                                    <i class="bi bi-card-checklist ejc-nav-icon" aria-hidden="true"></i>
+                                    <span class="ejc-nav-label">Memberships</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link ejc-main-link" asp-area="" asp-controller="Home" asp-action="Index" asp-fragment="contact">
+                                    <i class="bi bi-chat-dots ejc-nav-icon" aria-hidden="true"></i>
+                                    <span class="ejc-nav-label">Contact</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link ejc-main-link" asp-page="/Public/About">
+                                    <i class="bi bi-info-circle ejc-nav-icon" aria-hidden="true"></i>
+                                    <span class="ejc-nav-label">About</span>
+                                </a>
+                            </li>
+                            @if (isAuthenticated)
                             {
                                 <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-page="/Admin/Dashboard">Admin Dashboard</a>
+                                    <a class="nav-link ejc-main-link" asp-area="" asp-controller="Dashboard" asp-action="Index">
+                                        <i class="bi bi-speedometer2 ejc-nav-icon" aria-hidden="true"></i>
+                                        <span class="ejc-nav-label">Control Hub</span>
+                                    </a>
                                 </li>
-                            }
 
-                            @if (User.IsInRole("Staff") || User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-page="/Staff/CheckIn">Staff</a>
-                                </li>
-                            }
+                                @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+                                {
+                                    <li class="nav-item">
+                                        <a class="nav-link ejc-main-link" asp-page="/Admin/Dashboard">
+                                            <i class="bi bi-shield-lock ejc-nav-icon" aria-hidden="true"></i>
+                                            <span class="ejc-nav-label">Ops</span>
+                                        </a>
+                                    </li>
+                                }
 
-                            @if (User.IsInRole("Member"))
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-area="" asp-controller="Dashboard" asp-action="Member">Member Portal</a>
-                                </li>
+                                @if (User.IsInRole("Finance") || User.IsInRole("SuperAdmin"))
+                                {
+                                    <li class="nav-item">
+                                        <a class="nav-link ejc-main-link" asp-page="/Finance/Dashboard">
+                                            <i class="bi bi-cash-coin ejc-nav-icon" aria-hidden="true"></i>
+                                            <span class="ejc-nav-label">Revenue</span>
+                                        </a>
+                                    </li>
+                                }
+
+                                @if (User.IsInRole("Staff") || User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+                                {
+                                    <li class="nav-item">
+                                        <a class="nav-link ejc-main-link" asp-page="/Staff/CheckIn">
+                                            <i class="bi bi-people ejc-nav-icon" aria-hidden="true"></i>
+                                            <span class="ejc-nav-label">Floor Team</span>
+                                        </a>
+                                    </li>
+                                }
                             }
                         }
                     </ul>
-                    <partial name="_LoginPartial" />
+                    <div class="d-flex align-items-center gap-2 ejc-nav-auth-wrap">
+                        <partial name="_LoginPartial" />
+                    </div>
+                    </div>
                 </div>
             </div>
         </nav>
     </header>
-    <div class="container">
+}
+
+    <div class="container app-shell">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
+@if (!isBackOffice)
+{
+    <footer class="footer ejc-footer">
         <div class="container">
-            &copy; 2026 - EJCFitnessGym - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+            <div class="ejc-footer-main">
+                <section class="ejc-footer-col ejc-footer-brand ejc-reveal ejc-reveal-delay-1" data-ejc-reveal>
+                    <h2>EJC Fitness Gym</h2>
+                    <p>Your neighborhood gym for strength, cardio, and consistent progress.</p>
+                    <div class="ejc-footer-social" aria-label="Social media links">
+                        <a href="https://x.com" target="_blank" rel="noopener noreferrer" aria-label="X">
+                            <i class="bi bi-twitter-x"></i>
+                        </a>
+                        <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                            <i class="bi bi-instagram"></i>
+                        </a>
+                        <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                            <i class="bi bi-facebook"></i>
+                        </a>
+                        <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+                            <i class="bi bi-youtube"></i>
+                        </a>
+                    </div>
+                </section>
+
+                <nav class="ejc-footer-col ejc-reveal ejc-reveal-delay-2" aria-label="Gym quick links" data-ejc-reveal>
+                    <h3>Quick Links</h3>
+                    <div class="ejc-footer-links">
+                        <a asp-area="" asp-controller="Home" asp-action="Index" asp-fragment="home">Home</a>
+                        <a asp-area="" asp-controller="Home" asp-action="Index" asp-fragment="memberships">Membership Plans</a>
+                        <a asp-page="/Public/About">About the Gym</a>
+                        <a asp-page="/Public/Contact">Contact Us</a>
+                    </div>
+                </nav>
+
+                <nav class="ejc-footer-col ejc-reveal ejc-reveal-delay-3" aria-label="Member support links" data-ejc-reveal>
+                    <h3>Member Support</h3>
+                    <div class="ejc-footer-links">
+                        <a asp-area="Identity" asp-page="/Account/Register">Join Now</a>
+                        <a asp-area="Identity" asp-page="/Account/Login">My Account</a>
+                        <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy Policy</a>
+                        <a asp-page="/Public/Contact">Support & Questions</a>
+                    </div>
+                </nav>
+
+                <aside class="ejc-footer-notes ejc-reveal ejc-reveal-delay-4" aria-label="Member notes" data-ejc-reveal>
+                    <h3>Member Notes</h3>
+                    <ul>
+                        <li>Need plan guidance? Ask for a starter recommendation at the front desk.</li>
+                        <li>For billing or account questions, use the support link for faster help.</li>
+                        <li>New members should create an account first to access portal features.</li>
+                    </ul>
+                </aside>
+            </div>
+            <div class="ejc-footer-bottom ejc-reveal ejc-reveal-delay-4" data-ejc-reveal>
+                <span>&copy; 2026 EJC Fitness Gym</span>
+                <div class="ejc-footer-bottom-links">
+                    <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                    <a asp-page="/Public/Contact">Contact</a>
+                </div>
+            </div>
         </div>
     </footer>
+}
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+    <script src="~/js/realtime-events.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

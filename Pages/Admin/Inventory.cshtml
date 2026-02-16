@@ -4,9 +4,155 @@
     ViewData["Title"] = "Inventory";
 }
 
-<div class="container py-4">
-    <h1 class="h3 mb-3">Inventory</h1>
-    <div class="alert alert-warning mb-0">
-        Inventory module is not implemented yet. Next, we can add Inventory Items and Services tables + sales integration.
+<section class="ejc-admin-page">
+    <div class="ejc-admin-layout" data-admin-layout>
+        <partial name="/Pages/Shared/_AdminSidebar.cshtml" />
+
+        <div class="ejc-admin-content">
+            <div class="ejc-page-header">
+                <div>
+                    <span class="ejc-eyebrow">Stockroom</span>
+                    <h1 class="display-6 mb-0">Inventory</h1>
+                    <p class="ejc-muted mb-0">Manage stock with a controlled flow: Staff request, Admin receiving confirmation, then Finance invoice, payment, and audit.</p>
+                </div>
+                <div class="ejc-actions">
+                    <a class="btn btn-primary" asp-page="/Admin/Inventory">Add Item</a>
+                </div>
+            </div>
+
+            <div class="alert alert-info py-2 px-3 mb-4">
+                <span class="small">
+                    Workflow stages:
+                    <strong>Requested</strong> ->
+                    <strong>Approved</strong> ->
+                    <strong>Ordered</strong> ->
+                    <strong>Received Draft</strong> ->
+                    <strong>Received Confirmed</strong> ->
+                    <strong>Invoiced</strong> ->
+                    <strong>Paid</strong> ->
+                    <strong>Audited</strong>
+                </span>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-xl-7">
+                    <div class="card h-100">
+                        <div class="card-header d-flex align-items-center justify-content-between">
+                            <h5 class="mb-0">Current Stock</h5>
+                            <span class="text-muted small">Low-stock watch</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped table-hover align-middle mb-0"
+                                       data-ejc-page-size="6"
+                                       data-ejc-search-placeholder="Search SKU, item, category, or status">
+                                    <thead>
+                                        <tr>
+                                            <th>SKU</th>
+                                            <th>Item</th>
+                                            <th>Category</th>
+                                            <th class="text-end">On Hand</th>
+                                            <th class="text-end">Reorder</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var stock in Model.StockItems)
+                                        {
+                                            <tr>
+                                                <td>@stock.Sku</td>
+                                                <td>@stock.Item</td>
+                                                <td>@stock.Category</td>
+                                                <td class="text-end">@stock.OnHand</td>
+                                                <td class="text-end">@stock.ReorderLevel</td>
+                                                <td><span class="@InventoryModel.StockStatusBadge(stock.Status)">@stock.Status</span></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-5">
+                    <div class="card h-100">
+                        <div class="card-header d-flex align-items-center justify-content-between">
+                            <h5 class="mb-0">Role Ownership Matrix</h5>
+                            <span class="text-muted small">Request to audit</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover align-middle mb-0"
+                                       data-ejc-page-size="8"
+                                       data-ejc-search-placeholder="Search stage, role, or action">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Stage</th>
+                                            <th>Primary Role</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var step in Model.WorkflowOwners)
+                                        {
+                                            <tr>
+                                                <td class="text-nowrap">@(step.Sequence.ToString("00"))</td>
+                                                <td><span class="@InventoryModel.WorkflowStageBadge(step.Stage)">@step.Stage</span></td>
+                                                <td><span class="@InventoryModel.RoleBadge(step.PrimaryRole)">@step.PrimaryRole</span></td>
+                                                <td>@step.Description</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Open Supply Workflow Tracker</h5>
+                    <span class="text-muted small">Live handoff status</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped table-hover align-middle mb-0"
+                               data-ejc-page-size="7"
+                               data-ejc-search-placeholder="Search request, branch, item, stage, or role">
+                            <thead>
+                                <tr>
+                                    <th>Request #</th>
+                                    <th>Branch</th>
+                                    <th>Item</th>
+                                    <th>Qty</th>
+                                    <th>Current Stage</th>
+                                    <th>Owner</th>
+                                    <th>Next Owner</th>
+                                    <th class="text-nowrap">Last Updated</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var flow in Model.WorkflowEntries)
+                                {
+                                    <tr>
+                                        <td>@flow.RequestNo</td>
+                                        <td>@flow.Branch</td>
+                                        <td>@flow.Item</td>
+                                        <td class="text-nowrap">@flow.Quantity</td>
+                                        <td><span class="@InventoryModel.WorkflowStageBadge(flow.CurrentStage)">@flow.CurrentStage</span></td>
+                                        <td><span class="@InventoryModel.RoleBadge(flow.CurrentOwner)">@flow.CurrentOwner</span></td>
+                                        <td><span class="@InventoryModel.RoleBadge(flow.NextOwner)">@flow.NextOwner</span></td>
+                                        <td class="text-nowrap">@flow.LastUpdated</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
+</section>

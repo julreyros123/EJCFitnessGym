@@ -1,0 +1,71 @@
+@page
+@{
+    ViewData["Title"] = "Cost Damage";
+}
+
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Finance Module</span>
+            <h1 class="h2 mb-1">Cost Damage Reports</h1>
+            <p class="ejc-muted mb-0">Track damaged equipment costs and follow each incident through approval and resolution.</p>
+        </div>
+        <div class="ejc-actions">
+            <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Back to Overview</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Damage Incident Log</h5>
+            <span class="text-muted small">This month</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 ejc-finance-table ejc-table-sticky"
+                       data-ejc-page-size="6"
+                       data-ejc-search-placeholder="Search item, branch, date, or status">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Branch</th>
+                            <th>Incident Date</th>
+                            <th class="text-end">Cost</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Treadmill console</td>
+                            <td>North Branch</td>
+                            <td>Feb 04, 2026</td>
+                            <td class="text-end text-nowrap">PHP 18,500</td>
+                            <td><span class="badge bg-warning text-dark">Under Review</span></td>
+                        </tr>
+                        <tr>
+                            <td>Barbell rack weld</td>
+                            <td>Central Branch</td>
+                            <td>Feb 06, 2026</td>
+                            <td class="text-end text-nowrap">PHP 7,200</td>
+                            <td><span class="badge ejc-badge">Approved</span></td>
+                        </tr>
+                        <tr>
+                            <td>Water purifier leak</td>
+                            <td>West Branch</td>
+                            <td>Feb 08, 2026</td>
+                            <td class="text-end text-nowrap">PHP 4,600</td>
+                            <td><span class="badge bg-secondary">Logged</span></td>
+                        </tr>
+                        <tr>
+                            <td>POS drawer jam</td>
+                            <td>East Branch</td>
+                            <td>Feb 10, 2026</td>
+                            <td class="text-end text-nowrap">PHP 2,900</td>
+                            <td><span class="badge bg-info text-dark">Scheduled</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

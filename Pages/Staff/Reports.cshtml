@@ -4,26 +4,43 @@
     ViewData["Title"] = "Reports";
 }
 
-<div class="container py-4">
-    <h1 class="h3 mb-3">Reports</h1>
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Analytics</span>
+            <h1 class="h2 mb-1">Front Desk Reports</h1>
+            <p class="ejc-muted mb-0">Generate shift reports for check-ins, complaints, and member service actions.</p>
+        </div>
+        <div class="ejc-actions">
+            <button class="btn btn-primary">Generate Report</button>
+        </div>
+    </div>
 
-    <div class="row g-3">
-        <div class="col-lg-6">
-            <div class="card">
+    <div class="row g-4">
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title">Revenue</h5>
-                    <p class="text-muted">View income from subscriptions and payments.</p>
-                    <a class="btn btn-outline-primary" href="/Invoices">Open Invoices</a>
+                    <h5 class="card-title">Attendance Trends</h5>
+                    <p class="ejc-muted">Review peak check-in windows and no-show rates.</p>
+                    <a class="btn btn-outline-primary" href="#">Open</a>
                 </div>
             </div>
         </div>
-
-        <div class="col-lg-6">
-            <div class="card">
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title">Attendance</h5>
-                    <p class="text-muted">Member visits and check-in metrics.</p>
-                    <a class="btn btn-outline-primary" asp-page="/Staff/Attendance">Open Attendance</a>
+                    <h5 class="card-title">Communication Summary</h5>
+                    <p class="ejc-muted">Phone calls, member concerns, and resolution times.</p>
+                    <a class="btn btn-outline-primary" href="#">Open</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Product Sales</h5>
+                    <p class="ejc-muted">Track desk-level product purchases and payment methods.</p>
+                    <a class="btn btn-outline-primary" href="#">Open</a>
                 </div>
             </div>
         </div>

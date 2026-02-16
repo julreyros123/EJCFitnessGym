@@ -1,12 +1,111 @@
 @page
 @model EJCFitnessGym.Pages.Staff.CheckInModel
 @{
-    ViewData["Title"] = "Check-In";
+    ViewData["Title"] = "Check-In / Out";
 }
 
-<div class="container py-4">
-    <h1 class="h3 mb-3">Check-In</h1>
-    <div class="alert alert-info mb-0">
-        This page will handle member check-ins (scan QR / search member / record attendance).
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Front Desk</span>
+            <h1 class="h2 mb-1">Member Check-In / Check-Out</h1>
+            <p class="ejc-muted mb-0">Handle entry and exit logs, verify plan validity, and assist members at the desk.</p>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-8">
+            <div class="card">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Scan or Search Member</h5>
+                    <span class="text-muted small">Front desk flow</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Member ID / Name</label>
+                            <input class="form-control" placeholder="Scan QR or type member name" />
+                        </div>
+                        <div class="col-md-3 d-grid">
+                            <label class="form-label d-none d-md-block">&nbsp;</label>
+                            <button class="btn btn-primary">Check In</button>
+                        </div>
+                        <div class="col-md-3 d-grid">
+                            <label class="form-label d-none d-md-block">&nbsp;</label>
+                            <button class="btn btn-outline-primary">Check Out</button>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mt-3 mb-0">
+                        Replace this with scanner integration and check-in service logic.
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Shift Snapshot</h5>
+                    <span class="text-muted small">Live</span>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2"><span class="ejc-muted">Checked-In Now</span><strong>46</strong></div>
+                    <div class="d-flex justify-content-between mb-2"><span class="ejc-muted">Checked-Out</span><strong>112</strong></div>
+                    <div class="d-flex justify-content-between mb-2"><span class="ejc-muted">Plan Expiring Today</span><strong>7</strong></div>
+                    <div class="d-flex justify-content-between"><span class="ejc-muted">Open Complaints</span><strong>3</strong></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Recent Front Desk Activity</h5>
+            <span class="text-muted small">Latest actions</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Member</th>
+                            <th>Action</th>
+                            <th>Handled By</th>
+                            <th>Plan Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>08:12 AM</td>
+                            <td>Jose Tan</td>
+                            <td>Check In</td>
+                            <td>Front Desk A</td>
+                            <td><span class="badge ejc-badge">Active</span></td>
+                        </tr>
+                        <tr>
+                            <td>08:26 AM</td>
+                            <td>Angela Cruz</td>
+                            <td>Check In</td>
+                            <td>Front Desk A</td>
+                            <td><span class="badge bg-warning text-dark">Expiring Soon</span></td>
+                        </tr>
+                        <tr>
+                            <td>09:04 AM</td>
+                            <td>Ken Lim</td>
+                            <td>Check Out</td>
+                            <td>Front Desk B</td>
+                            <td><span class="badge ejc-badge">Active</span></td>
+                        </tr>
+                        <tr>
+                            <td>09:19 AM</td>
+                            <td>Maria Reyes</td>
+                            <td>Plan Inquiry</td>
+                            <td>Front Desk B</td>
+                            <td><span class="badge bg-secondary">On Hold</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>

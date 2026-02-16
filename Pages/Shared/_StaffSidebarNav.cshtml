@@ -1,0 +1,60 @@
+@{
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+    var principal = User;
+    var logoutReturnUrl = principal?.IsInRole("SuperAdmin") == true
+        ? "/Identity/Account/SuperAdminLogin"
+        : principal?.IsInRole("Admin") == true
+            ? "/Identity/Account/AdminLogin"
+            : "/Identity/Account/StaffLogin";
+    string ActiveIfPrefix(string prefix) =>
+        currentPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+}
+
+<nav class="ejc-admin-nav" aria-label="Front desk navigation">
+    <div class="ejc-admin-nav-group">
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/CheckIn")" asp-page="/Staff/CheckIn" title="Check-In">
+            <i class="bi bi-person-check-fill"></i>
+            <span class="ejc-admin-nav-text">Check-In</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/PlanStatus")" asp-page="/Staff/PlanStatus" title="Plan Status">
+            <i class="bi bi-card-checklist"></i>
+            <span class="ejc-admin-nav-text">Plan Status</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/SuppliesPayments")" asp-page="/Staff/SuppliesPayments" title="Product Sales">
+            <i class="bi bi-cash-coin"></i>
+            <span class="ejc-admin-nav-text">Product Sales</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/CommunicationHub")" asp-page="/Staff/CommunicationHub" title="Comms Hub">
+            <i class="bi bi-telephone-forward-fill"></i>
+            <span class="ejc-admin-nav-text">Comms Hub</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/ActivityLogs")" asp-page="/Staff/ActivityLogs" title="Activity Logs">
+            <i class="bi bi-clipboard2-data-fill"></i>
+            <span class="ejc-admin-nav-text">Activity</span>
+        </a>
+    </div>
+
+    <div class="ejc-admin-nav-divider"></div>
+
+    <div class="ejc-admin-nav-group">
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/Attendance")" asp-page="/Staff/Attendance" title="Attendance">
+            <i class="bi bi-people-fill"></i>
+            <span class="ejc-admin-nav-text">Attendance</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/Reports")" asp-page="/Staff/Reports" title="Reports">
+            <i class="bi bi-graph-up-arrow"></i>
+            <span class="ejc-admin-nav-text">Reports</span>
+        </a>
+    </div>
+
+    <div class="ejc-admin-nav-divider"></div>
+
+    <div class="ejc-admin-nav-group">
+        <form class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
+            <button type="submit" class="ejc-admin-nav-link ejc-admin-nav-link-button" title="Logout">
+                <i class="bi bi-box-arrow-right"></i>
+                <span class="ejc-admin-nav-text">Logout</span>
+            </button>
+        </form>
+    </div>
+</nav>

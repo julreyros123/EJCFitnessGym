@@ -1,0 +1,26 @@
+@{
+    var principal = User;
+    var displayName = principal?.Identity?.IsAuthenticated == true ? principal.Identity?.Name : "Admin";
+    var logoutReturnUrl = principal?.IsInRole("SuperAdmin") == true
+        ? "/Identity/Account/SuperAdminLogin"
+        : principal?.IsInRole("Finance") == true
+            ? "/Identity/Account/FinanceLogin"
+            : "/Identity/Account/AdminLogin";
+}
+
+<header class="ejc-admin-topbar">
+    <div class="ejc-admin-topbar-inner">
+        <div class="ejc-admin-topbar-brand">
+            <span class="ejc-brand-badge">EJ</span>
+            <div>
+                <div class="ejc-admin-topbar-title">EJC Fitness Gym</div>
+            </div>
+        </div>
+        <div class="ejc-admin-topbar-actions">
+            <span class="ejc-admin-topbar-user">@displayName</span>
+            <form class="d-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
+                <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+            </form>
+        </div>
+    </div>
+</header>

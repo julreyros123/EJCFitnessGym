@@ -1,0 +1,30 @@
+@model EJCFitnessGym.Models.Admin.MemberAccountFormViewModel
+@{
+    ViewData["Title"] = "Create Member";
+}
+
+<div class="py-4">
+    <div class="ejc-table-toolbar mb-3">
+        <div>
+            <h1 class="display-6 mb-0">Create Member Account</h1>
+            <p class="ejc-muted mb-0">Create login credentials and assign membership plan.</p>
+        </div>
+        <a class="btn btn-outline-secondary" asp-action="Index">Back</a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form asp-action="Create" method="post">
+                <partial name="_MemberForm" model="Model" />
+                <div class="mt-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Create Member</button>
+                    <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -4,17 +4,78 @@
     ViewData["Title"] = "Payments";
 }
 
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="h3 mb-0">Payments</h1>
-        <div class="d-flex gap-2">
-            <a class="btn btn-outline-secondary" href="/SubscriptionPlans">Plans (MVC)</a>
-            <a class="btn btn-primary" href="/Invoices">Invoices (MVC)</a>
+<section class="ejc-admin-page">
+    <div class="ejc-admin-layout" data-admin-layout>
+        <partial name="/Pages/Shared/_AdminSidebar.cshtml" />
+
+        <div class="ejc-admin-content">
+            <div class="ejc-page-header">
+                <div>
+                    <span class="ejc-eyebrow">Billing</span>
+                    <h1 class="display-6 mb-0">Payments</h1>
+                    <p class="ejc-muted mb-0">Track collections, verify invoice status, and resolve pending dues.</p>
+                </div>
+                <div class="ejc-actions">
+                    <a class="btn btn-primary" asp-controller="Invoices" asp-action="Create">Create Invoice</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Recent Transactions</h5>
+                    <span class="text-muted small">Updated today</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Invoice</th>
+                                    <th>Member</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>INV-2412</td>
+                                    <td>Maria Reyes</td>
+                                    <td>PHP 2,000</td>
+                                    <td>GCash</td>
+                                    <td>Feb 12, 2026</td>
+                                    <td><span class="badge bg-success">Paid</span></td>
+                                </tr>
+                                <tr>
+                                    <td>INV-2411</td>
+                                    <td>Luis Javier</td>
+                                    <td>PHP 1,500</td>
+                                    <td>Card</td>
+                                    <td>Feb 12, 2026</td>
+                                    <td><span class="badge bg-warning text-dark">Pending</span></td>
+                                </tr>
+                                <tr>
+                                    <td>INV-2409</td>
+                                    <td>Ken Lim</td>
+                                    <td>PHP 3,800</td>
+                                    <td>Bank Transfer</td>
+                                    <td>Feb 11, 2026</td>
+                                    <td><span class="badge bg-success">Paid</span></td>
+                                </tr>
+                                <tr>
+                                    <td>INV-2406</td>
+                                    <td>Angela Cruz</td>
+                                    <td>PHP 2,500</td>
+                                    <td>Cash</td>
+                                    <td>Feb 10, 2026</td>
+                                    <td><span class="badge bg-secondary">On Hold</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-
-    <div class="alert alert-secondary mb-0">
-        This Razor Page acts as a module entry point. Billing screens are currently implemented as MVC pages:
-        <strong>Subscription Plans</strong> and <strong>Invoices</strong>.
-    </div>
-</div>
+</section>

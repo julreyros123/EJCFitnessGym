@@ -1,0 +1,47 @@
+@page
+@model RegisterConfirmationModel
+@{
+    ViewData["Title"] = "Confirm Email";
+}
+
+<section class="ejc-auth ejc-auth-register">
+    <div class="ejc-auth-card">
+        <div class="ejc-auth-form">
+            <div class="ejc-auth-brand">
+                <div>
+                    <span class="ejc-eyebrow">Account Verification</span>
+                    <h1 class="h2 mb-1">Check your email</h1>
+                    <p class="ejc-muted mb-0">We sent a verification link to <strong>@Model.Email</strong>.</p>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+            {
+                <div class="alert alert-info">@Model.StatusMessage</div>
+            }
+
+            <p class="ejc-muted">
+                Confirm your email to activate secure member access and finish onboarding.
+            </p>
+
+            <div class="d-grid gap-2">
+                <a class="btn btn-primary" asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Go to sign in</a>
+                <a class="btn btn-outline-light" asp-page="./ResendEmailConfirmation" asp-route-email="@Model.Email">Resend confirmation email</a>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Model.ConfirmationLink))
+            {
+                <div class="alert alert-warning mt-3 mb-0">
+                    Development shortcut:
+                    <a href="@Model.ConfirmationLink">confirm account now</a>.
+                </div>
+            }
+        </div>
+
+        <div class="ejc-auth-aside">
+            <span class="ejc-eyebrow">Security</span>
+            <h2 class="h3 mt-2">Verified member identity</h2>
+            <p class="ejc-muted">Email verification protects member billing and account recovery workflows.</p>
+        </div>
+    </div>
+</section>

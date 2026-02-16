@@ -1,0 +1,167 @@
+@page
+@{
+    ViewData["Title"] = "Fund Requests";
+}
+
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Finance Module</span>
+            <h1 class="h2 mb-1">Supply Requests, AP, and Audit</h1>
+            <p class="ejc-muted mb-0">Track the full supply pipeline and execute finance checks from invoice validation to final audit signoff.</p>
+        </div>
+        <div class="ejc-actions">
+            <button class="btn btn-primary">Create Fund Request</button>
+            <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Back to Overview</a>
+        </div>
+    </div>
+
+    <div class="alert alert-info py-2 px-3 mb-4">
+        <span class="small">
+            Finance ownership starts after <strong>Received Confirmed</strong> (Admin verified stock posting).
+            Finance performs <strong>3-way match</strong>: PO + delivery receipt + supplier invoice.
+        </span>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Operational Supply Flow Reference</h5>
+            <span class="text-muted small">Role handoff visibility</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 ejc-finance-table ejc-table-sticky"
+                       data-ejc-page-size="7"
+                       data-ejc-search-placeholder="Search stage, role, or notes">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Stage</th>
+                            <th>Primary Role</th>
+                            <th>System Control</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>01</td>
+                            <td><span class="badge bg-secondary">Requested</span></td>
+                            <td><span class="badge bg-info text-dark">Staff</span></td>
+                            <td>Staff submits item, qty, and reason</td>
+                        </tr>
+                        <tr>
+                            <td>02</td>
+                            <td><span class="badge ejc-badge">Approved</span></td>
+                            <td><span class="badge ejc-badge">Admin</span></td>
+                            <td>Admin approves request and budget allocation</td>
+                        </tr>
+                        <tr>
+                            <td>03</td>
+                            <td><span class="badge bg-primary">Ordered</span></td>
+                            <td><span class="badge ejc-badge">Admin</span></td>
+                            <td>Admin creates PO and supplier schedule</td>
+                        </tr>
+                        <tr>
+                            <td>04</td>
+                            <td><span class="badge bg-info text-dark">Received Draft</span></td>
+                            <td><span class="badge bg-info text-dark">Staff</span></td>
+                            <td>Staff records actual received quantity and condition</td>
+                        </tr>
+                        <tr>
+                            <td>05</td>
+                            <td><span class="badge bg-success">Received Confirmed</span></td>
+                            <td><span class="badge ejc-badge">Admin</span></td>
+                            <td>Admin confirms receipt and posts stock</td>
+                        </tr>
+                        <tr>
+                            <td>06</td>
+                            <td><span class="badge bg-warning text-dark">Invoiced</span></td>
+                            <td><span class="badge bg-warning text-dark">Finance</span></td>
+                            <td>Finance logs supplier invoice against request</td>
+                        </tr>
+                        <tr>
+                            <td>07</td>
+                            <td><span class="badge bg-success">Paid</span></td>
+                            <td><span class="badge bg-warning text-dark">Finance</span></td>
+                            <td>Finance releases and records payment</td>
+                        </tr>
+                        <tr>
+                            <td>08</td>
+                            <td><span class="badge bg-dark">Audited</span></td>
+                            <td><span class="badge bg-dark">Finance Audit</span></td>
+                            <td>Audit verifies full document trail and variances</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Finance Match, Payment, and Audit Queue</h5>
+            <span class="text-muted small">Post-receipt finance stages</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 ejc-finance-table ejc-table-sticky"
+                       data-ejc-page-size="7"
+                       data-ejc-search-placeholder="Search request, stage, match, amount, or owner">
+                    <thead>
+                        <tr>
+                            <th>Request #</th>
+                            <th>Branch</th>
+                            <th>Document Reference</th>
+                            <th>Current Stage</th>
+                            <th>3-Way Match</th>
+                            <th class="text-end">Amount</th>
+                            <th>Owner</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>SR-2205</td>
+                            <td>North Branch</td>
+                            <td>PO-9941 / DR-3319 / INV-7782</td>
+                            <td><span class="badge bg-warning text-dark">Invoiced</span></td>
+                            <td><span class="badge bg-success">Matched</span></td>
+                            <td class="text-end text-nowrap">PHP 24,800</td>
+                            <td><span class="badge bg-warning text-dark">Finance</span></td>
+                            <td><span class="badge bg-info text-dark">For Payment</span></td>
+                        </tr>
+                        <tr>
+                            <td>SR-2197</td>
+                            <td>Central Branch</td>
+                            <td>PO-9924 / DR-3291 / INV-7760</td>
+                            <td><span class="badge bg-warning text-dark">Invoiced</span></td>
+                            <td><span class="badge bg-warning text-dark">Variance</span></td>
+                            <td class="text-end text-nowrap">PHP 18,200</td>
+                            <td><span class="badge bg-warning text-dark">Finance</span></td>
+                            <td><span class="badge bg-danger">Needs Review</span></td>
+                        </tr>
+                        <tr>
+                            <td>SR-2194</td>
+                            <td>West Branch</td>
+                            <td>PO-9911 / DR-3278 / INV-7739</td>
+                            <td><span class="badge bg-success">Paid</span></td>
+                            <td><span class="badge bg-success">Matched</span></td>
+                            <td class="text-end text-nowrap">PHP 6,900</td>
+                            <td><span class="badge bg-warning text-dark">Finance</span></td>
+                            <td><span class="badge bg-secondary">Awaiting Audit</span></td>
+                        </tr>
+                        <tr>
+                            <td>SR-2189</td>
+                            <td>East Branch</td>
+                            <td>PO-9899 / DR-3255 / INV-7714</td>
+                            <td><span class="badge bg-dark">Audited</span></td>
+                            <td><span class="badge bg-success">Matched</span></td>
+                            <td class="text-end text-nowrap">PHP 14,600</td>
+                            <td><span class="badge bg-dark">Finance Audit</span></td>
+                            <td><span class="badge bg-success">Closed</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

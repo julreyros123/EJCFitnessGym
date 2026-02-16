@@ -1,0 +1,295 @@
+@page
+@model EJCFitnessGym.Pages.Finance.DashboardModel
+@{
+    ViewData["Title"] = "Finance Dashboard";
+}
+
+<div class="py-4" data-finance-dashboard>
+    <div class="ejc-page-header">
+        <div class="ejc-finance-header-intro">
+            <span class="ejc-eyebrow">Finance Hub</span>
+            <h1 class="h2 mb-1">Finance Overview</h1>
+            <p class="ejc-muted mb-0 ejc-finance-header-copy">Use filters and analytics for quick monitoring. Open modules for full transaction details.</p>
+            <div class="ejc-finance-header-state" data-fin-header-state>
+                <i class="bi bi-calendar-range"></i>
+                <span>Last 30 days • Month to month</span>
+            </div>
+        </div>
+        <div class="ejc-actions ejc-finance-actions">
+            <button type="button"
+                    class="btn btn-outline-primary ejc-filter-trigger ejc-finance-filter-trigger"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#financeFilterPanel"
+                    aria-controls="financeFilterPanel"
+                    title="Open finance filter">
+                <i class="bi bi-funnel-fill"></i>
+            </button>
+            <div class="ejc-finance-link-actions">
+                <a class="btn btn-primary" asp-page="/Finance/FundRequests">Fund Requests</a>
+                <a class="btn btn-outline-primary" asp-page="/Finance/RevenueProfit">Revenue &amp; Profit</a>
+                <a class="btn btn-outline-primary" asp-controller="Invoices" asp-action="Index">Open Invoices</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="ejc-admin-metrics">
+        <article class="ejc-admin-metric ejc-finance-metric">
+            <div class="ejc-admin-metric-link">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="ejc-admin-metric-label">Gross Revenue</span>
+                    <span class="ejc-admin-metric-icon"><i class="bi bi-currency-exchange"></i></span>
+                </div>
+                <strong data-fin-kpi-value="grossRevenue">PHP 1,842,300</strong>
+                <span class="ejc-admin-metric-meta text-success" data-fin-kpi-meta="grossRevenue">+8.4% vs previous period</span>
+            </div>
+        </article>
+        <article class="ejc-admin-metric ejc-finance-metric">
+            <div class="ejc-admin-metric-link">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="ejc-admin-metric-label">Gross Profit</span>
+                    <span class="ejc-admin-metric-icon"><i class="bi bi-graph-up"></i></span>
+                </div>
+                <strong data-fin-kpi-value="grossProfit">PHP 1,096,700</strong>
+                <span class="ejc-admin-metric-meta" data-fin-kpi-meta="grossProfit">Gross margin 59.5%</span>
+            </div>
+        </article>
+        <article class="ejc-admin-metric ejc-finance-metric">
+            <div class="ejc-admin-metric-link">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="ejc-admin-metric-label">Net Profit</span>
+                    <span class="ejc-admin-metric-icon"><i class="bi bi-wallet2"></i></span>
+                </div>
+                <strong data-fin-kpi-value="netProfit">PHP 612,400</strong>
+                <span class="ejc-admin-metric-meta" data-fin-kpi-meta="netProfit">Net margin 33.2%</span>
+            </div>
+        </article>
+        <article class="ejc-admin-metric ejc-finance-metric">
+            <div class="ejc-admin-metric-link">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="ejc-admin-metric-label">Projected Net Profit</span>
+                    <span class="ejc-admin-metric-icon"><i class="bi bi-calculator"></i></span>
+                </div>
+                <strong data-fin-kpi-value="projectedNetProfit">PHP 648,900</strong>
+                <span class="ejc-admin-metric-meta" data-fin-kpi-meta="projectedNetProfit">Next 30 days forecast</span>
+            </div>
+        </article>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xxl-8">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Revenue vs Net Profit Trend</h5>
+                    <span class="text-muted small" data-fin-trend-subtitle>Sep 2025 to Mar 2026</span>
+                </div>
+                <div class="card-body">
+                    <div class="ejc-finance-chart-wrap">
+                        <canvas id="financeTrendChart" aria-label="Revenue and net profit trend chart"></canvas>
+                    </div>
+                    <p class="ejc-muted mb-0 mt-3" data-fin-trend-summary>Performance line for the last 6 months plus next-month projection.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xxl-4">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Profit Composition</h5>
+                    <span class="text-muted small" data-fin-mix-subtitle>Current cycle</span>
+                </div>
+                <div class="card-body">
+                    <div class="ejc-finance-chart-wrap ejc-finance-chart-wrap-sm mb-3">
+                        <canvas id="financeMixChart" aria-label="Profit composition chart"></canvas>
+                    </div>
+                    <div class="ejc-finance-stat">
+                        <span class="ejc-muted">Cost of Goods / Services</span>
+                        <strong data-fin-mix-value="cogsShare">40.5%</strong>
+                    </div>
+                    <div class="ejc-finance-stat">
+                        <span class="ejc-muted">Operating Expenses</span>
+                        <strong data-fin-mix-value="opexShare">26.3%</strong>
+                    </div>
+                    <div class="ejc-finance-stat mb-0">
+                        <span class="ejc-muted">Net Profit Margin</span>
+                        <strong class="text-success" data-fin-mix-value="netMargin">33.2%</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-5">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Fund Request Pipeline</h5>
+                    <span class="text-muted small" data-fin-pipeline-subtitle>Current workload</span>
+                </div>
+                <div class="card-body">
+                    <div class="ejc-finance-chart-wrap ejc-finance-chart-wrap-sm ejc-finance-pipeline-chart">
+                        <canvas id="financePipelineChart" aria-label="Fund request pipeline chart"></canvas>
+                    </div>
+                    <div class="ejc-finance-pipeline-breakdown mt-3">
+                        <div class="ejc-finance-pipeline-chip is-review">
+                            <span>For Review</span>
+                            <div>
+                                <strong data-fin-pipeline-value="forReview">0</strong>
+                                <small data-fin-pipeline-share="forReview">0%</small>
+                            </div>
+                        </div>
+                        <div class="ejc-finance-pipeline-chip is-pending">
+                            <span>Pending</span>
+                            <div>
+                                <strong data-fin-pipeline-value="pending">0</strong>
+                                <small data-fin-pipeline-share="pending">0%</small>
+                            </div>
+                        </div>
+                        <div class="ejc-finance-pipeline-chip is-queued">
+                            <span>Queued</span>
+                            <div>
+                                <strong data-fin-pipeline-value="queued">0</strong>
+                                <small data-fin-pipeline-share="queued">0%</small>
+                            </div>
+                        </div>
+                        <div class="ejc-finance-pipeline-chip is-approved">
+                            <span>Approved</span>
+                            <div>
+                                <strong data-fin-pipeline-value="approved">0</strong>
+                                <small data-fin-pipeline-share="approved">0%</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mt-3">
+                        <p class="ejc-muted mb-0 small" data-fin-pipeline-note>Detailed request entries are available in the Fund Requests module.</p>
+                        <a class="btn btn-sm btn-outline-primary" asp-page="/Finance/FundRequests">View Queue</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-7">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Finance Modules</h5>
+                    <span class="text-muted small">Open detailed tables</span>
+                </div>
+                <div class="card-body">
+                    <div class="ejc-finance-module-grid">
+                        <a class="ejc-finance-module-link" asp-page="/Finance/FundRequests">
+                            <span class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold">Fund Requests</span>
+                                <i class="bi bi-cash-stack"></i>
+                            </span>
+                            <span class="ejc-muted small">Pending approvals, priorities, and branch request details.</span>
+                        </a>
+                        <a class="ejc-finance-module-link" asp-page="/Finance/OperatingExpenses">
+                            <span class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold">Operating Expenses</span>
+                                <i class="bi bi-wallet-fill"></i>
+                            </span>
+                            <span class="ejc-muted small">Encode recurring and one-time costs for smarter net forecasts.</span>
+                        </a>
+                        <a class="ejc-finance-module-link" asp-page="/Finance/RevenueProfit">
+                            <span class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold">Revenue &amp; Profit</span>
+                                <i class="bi bi-graph-up-arrow"></i>
+                            </span>
+                            <span class="ejc-muted small">Monthly revenue, gross profit, net profit, and trend table.</span>
+                        </a>
+                        <a class="ejc-finance-module-link" asp-page="/Finance/NetForecast">
+                            <span class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold">Net Forecast</span>
+                                <i class="bi bi-calculator-fill"></i>
+                            </span>
+                            <span class="ejc-muted small">Forecast inputs, assumptions, and projected net-profit output.</span>
+                        </a>
+                        <a class="ejc-finance-module-link" asp-page="/Finance/CostDamage">
+                            <span class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold">Cost Damage</span>
+                                <i class="bi bi-shield-exclamation"></i>
+                            </span>
+                            <span class="ejc-muted small">Damage incident costs, status tracking, and risk overview.</span>
+                        </a>
+                        <a class="ejc-finance-module-link" asp-page="/Finance/EquipmentAssets">
+                            <span class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold">Equipment Assets</span>
+                                <i class="bi bi-hdd-stack"></i>
+                            </span>
+                            <span class="ejc-muted small">Track total equipment count, investment value, and depreciation impact on profit.</span>
+                        </a>
+                        <a class="ejc-finance-module-link" asp-page="/Finance/Alerts">
+                            <span class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold">Finance Alerts</span>
+                                <i class="bi bi-bell-fill"></i>
+                            </span>
+                            <span class="ejc-muted small">Review risk/anomaly alerts and verify realtime/email delivery audit history.</span>
+                        </a>
+                        <a class="ejc-finance-module-link" asp-page="/Finance/IntegrationOps">
+                            <span class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold">Integration Ops</span>
+                                <i class="bi bi-diagram-3-fill"></i>
+                            </span>
+                            <span class="ejc-muted small">Retry failed events, inspect webhooks, and replay PayMongo events from UI.</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="offcanvas offcanvas-end ejc-filter-offcanvas" tabindex="-1" id="financeFilterPanel" aria-labelledby="financeFilterPanelLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="financeFilterPanelLabel">Finance Filter</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <p class="ejc-muted small mb-3">
+                Filter by date range and trend mode. KPI cards and finance analytics update together.
+            </p>
+
+            <div class="mb-3">
+                <label class="form-label small text-uppercase text-muted mb-2">Quick Range</label>
+                <div class="d-grid gap-2">
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Quick date range row 1">
+                        <button type="button" class="btn btn-outline-primary" data-fin-filter-quick="today">Today</button>
+                        <button type="button" class="btn btn-outline-primary" data-fin-filter-quick="7">Last 7D</button>
+                        <button type="button" class="btn btn-outline-primary" data-fin-filter-quick="30">Last 30D</button>
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Quick date range row 2">
+                        <button type="button" class="btn btn-outline-primary" data-fin-filter-quick="ytd">YTD</button>
+                        <button type="button" class="btn btn-outline-primary" data-fin-filter-quick="365">Last 1Y</button>
+                        <button type="button" class="btn btn-outline-primary" data-fin-filter-quick="730">Last 2Y</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="financeFilterStartDate" class="form-label">From</label>
+                <input id="financeFilterStartDate" type="date" class="form-control" data-fin-filter-start />
+            </div>
+
+            <div class="mb-3">
+                <label for="financeFilterEndDate" class="form-label">To</label>
+                <input id="financeFilterEndDate" type="date" class="form-control" data-fin-filter-end />
+            </div>
+
+            <div class="mb-4">
+                <label for="financeFilterTrendMode" class="form-label">Trend Mode</label>
+                <select id="financeFilterTrendMode" class="form-select" data-fin-trend-mode>
+                    <option value="monthly">Month to month</option>
+                    <option value="yearly">Year to year</option>
+                </select>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="button" class="btn btn-primary" data-fin-filter-apply>Apply Filter</button>
+                <button type="button" class="btn btn-outline-light" data-fin-filter-reset>Reset to Last 30 Days</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="~/js/finance-dashboard.js" asp-append-version="true"></script>
+}

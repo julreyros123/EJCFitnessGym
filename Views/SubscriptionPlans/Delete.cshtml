@@ -3,16 +3,23 @@
     ViewData["Title"] = "Delete Plan";
 }
 
-<h1 class="h3 mt-4 mb-3">Delete Plan</h1>
-
-<div class="alert alert-warning">
-    Are you sure you want to delete <strong>@Model.Name</strong>?
-</div>
-
-<form asp-action="Delete" method="post">
-    <input type="hidden" asp-for="Id" />
-    <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-danger">Delete</button>
-        <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
+<div class="container py-5">
+    <div class="ejc-table-toolbar mb-3">
+        <div>
+            <h1 class="display-6 mb-0">Delete Plan</h1>
+            <p class="ejc-muted mb-0">This action cannot be undone.</p>
+        </div>
     </div>
-</form>
+
+    <div class="alert alert-warning">
+        Are you sure you want to delete <strong>@Model.Name</strong>?
+    </div>
+
+    <form asp-action="Delete" method="post">
+        <input type="hidden" asp-for="Id" />
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-danger">Delete</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
+        </div>
+    </form>
+</div>

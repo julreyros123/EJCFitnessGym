@@ -2,7 +2,72 @@
     ViewData["Title"] = "Super Admin";
 }
 
-<div class="container">
-    <h1 class="mt-4">Super Admin</h1>
-    <p>Welcome, @User.Identity?.Name</p>
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h1 class="display-5 mb-1">Super Admin</h1>
+            <p class="ejc-muted mb-0">Welcome, @User.Identity?.Name</p>
+        </div>
+        <span class="badge ejc-badge">System Overview</span>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="ejc-stat">
+                <h3 class="h2">12</h3>
+                <p class="ejc-muted mb-0">Active branches</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="ejc-stat">
+                <h3 class="h2">1,284</h3>
+                <p class="ejc-muted mb-0">Total members</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="ejc-stat">
+                <h3 class="h2">₱0</h3>
+                <p class="ejc-muted mb-0">Monthly revenue</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="ejc-card-icon mb-3">
+                        <span class="ejc-icon"><i class="bi bi-gear-fill"></i></span>
+                        <h5 class="card-title mb-0">Admin Control</h5>
+                    </div>
+                    <p class="ejc-muted">Manage branches, front desk roles, and system settings.</p>
+                    <a class="btn btn-outline-primary" asp-page="/Admin/Dashboard">Open Admin</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="ejc-card-icon mb-3">
+                        <span class="ejc-icon"><i class="bi bi-cash-coin"></i></span>
+                        <h5 class="card-title mb-0">Finance Hub</h5>
+                    </div>
+                    <p class="ejc-muted">Oversee invoices, plans, and revenue performance.</p>
+                    <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Open Finance</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="ejc-card-icon mb-3">
+                        <span class="ejc-icon"><i class="bi bi-activity"></i></span>
+                        <h5 class="card-title mb-0">Operations</h5>
+                    </div>
+                    <p class="ejc-muted">Check-ins, attendance, and front desk reporting.</p>
+                    <a class="btn btn-outline-primary" asp-page="/Staff/Reports">View Reports</a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

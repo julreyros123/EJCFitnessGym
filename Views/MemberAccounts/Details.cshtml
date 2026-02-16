@@ -1,0 +1,49 @@
+@model EJCFitnessGym.Models.Admin.MemberAccountDetailsViewModel
+@{
+    ViewData["Title"] = "Member Details";
+}
+
+<div class="py-4">
+    <div class="ejc-table-toolbar mb-3">
+        <div>
+            <h1 class="display-6 mb-0">Member Details</h1>
+            <p class="ejc-muted mb-0">Review account information and subscription assignment.</p>
+        </div>
+        <a class="btn btn-outline-secondary" asp-action="Index">Back</a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Name</dt>
+                <dd class="col-sm-9">@Model.FullName</dd>
+
+                <dt class="col-sm-3">Email</dt>
+                <dd class="col-sm-9">@Model.Email</dd>
+
+                <dt class="col-sm-3">Phone</dt>
+                <dd class="col-sm-9">@(!string.IsNullOrWhiteSpace(Model.PhoneNumber) ? Model.PhoneNumber : "-")</dd>
+
+                <dt class="col-sm-3">Plan</dt>
+                <dd class="col-sm-9">@Model.PlanName</dd>
+
+                <dt class="col-sm-3">Status</dt>
+                <dd class="col-sm-9">@Model.SubscriptionStatus</dd>
+
+                <dt class="col-sm-3">Start Date</dt>
+                <dd class="col-sm-9">@Model.StartDateUtc?.ToString("yyyy-MM-dd")</dd>
+
+                <dt class="col-sm-3">End Date</dt>
+                <dd class="col-sm-9">@(Model.EndDateUtc?.ToString("yyyy-MM-dd") ?? "-")</dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="mt-3 d-flex gap-2">
+        <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.UserId">Edit</a>
+        @if (User.IsInRole("SuperAdmin"))
+        {
+            <a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@Model.UserId">Delete</a>
+        }
+    </div>
+</div>

@@ -1,0 +1,33 @@
+@page
+@model ConfirmEmailModel
+@{
+    ViewData["Title"] = "Email Confirmation";
+}
+
+<section class="ejc-auth ejc-auth-login">
+    <div class="ejc-auth-card">
+        <div class="ejc-auth-form">
+            <div class="ejc-auth-brand">
+                <div>
+                    <span class="ejc-eyebrow">Account Verification</span>
+                    <h1 class="h2 mb-1">Email confirmation</h1>
+                    <p class="ejc-muted mb-0">@Model.StatusMessage</p>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 mt-3">
+                <a class="btn btn-primary" asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Continue to sign in</a>
+                @if (!Model.IsSuccess)
+                {
+                    <a class="btn btn-outline-light" asp-page="./ResendEmailConfirmation">Resend confirmation email</a>
+                }
+            </div>
+        </div>
+
+        <div class="ejc-auth-aside">
+            <span class="ejc-eyebrow">Next step</span>
+            <h2 class="h3 mt-2">Activate membership</h2>
+            <p class="ejc-muted">After signing in, continue to membership setup and payment activation.</p>
+        </div>
+    </div>
+</section>

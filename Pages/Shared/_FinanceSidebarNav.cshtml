@@ -1,0 +1,84 @@
+@{
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+    var principal = User;
+    var logoutReturnUrl = principal?.IsInRole("SuperAdmin") == true
+        ? "/Identity/Account/SuperAdminLogin"
+        : "/Identity/Account/FinanceLogin";
+    string ActiveIfPrefix(params string[] prefixes)
+    {
+        foreach (var prefix in prefixes)
+        {
+            if (currentPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return "active";
+            }
+        }
+
+        return string.Empty;
+    }
+}
+
+<nav class="ejc-admin-nav" aria-label="Finance navigation">
+    <div class="ejc-admin-nav-group">
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/Dashboard")" asp-page="/Finance/Dashboard" title="Dashboard">
+            <i class="bi bi-speedometer2"></i>
+            <span class="ejc-admin-nav-text">Dashboard</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/FundRequests")" asp-page="/Finance/FundRequests" title="Fund Requests">
+            <i class="bi bi-cash-stack"></i>
+            <span class="ejc-admin-nav-text">Fund Requests</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/OperatingExpenses")" asp-page="/Finance/OperatingExpenses" title="Operating Expenses">
+            <i class="bi bi-wallet-fill"></i>
+            <span class="ejc-admin-nav-text">Operating Expenses</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/RevenueProfit")" asp-page="/Finance/RevenueProfit" title="Revenue & Profit">
+            <i class="bi bi-graph-up-arrow"></i>
+            <span class="ejc-admin-nav-text">Revenue &amp; Profit</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/NetForecast")" asp-page="/Finance/NetForecast" title="Net Forecast">
+            <i class="bi bi-calculator-fill"></i>
+            <span class="ejc-admin-nav-text">Net Forecast</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/CostDamage")" asp-page="/Finance/CostDamage" title="Cost Damage">
+            <i class="bi bi-shield-exclamation"></i>
+            <span class="ejc-admin-nav-text">Cost Damage</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/EquipmentAssets")" asp-page="/Finance/EquipmentAssets" title="Equipment Assets">
+            <i class="bi bi-hdd-stack"></i>
+            <span class="ejc-admin-nav-text">Equipment Assets</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/Alerts")" asp-page="/Finance/Alerts" title="Finance Alerts">
+            <i class="bi bi-bell-fill"></i>
+            <span class="ejc-admin-nav-text">Finance Alerts</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/IntegrationOps")" asp-page="/Finance/IntegrationOps" title="Integration Ops">
+            <i class="bi bi-diagram-3-fill"></i>
+            <span class="ejc-admin-nav-text">Integration Ops</span>
+        </a>
+    </div>
+
+    <div class="ejc-admin-nav-divider"></div>
+
+    <div class="ejc-admin-nav-group">
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Invoices")" asp-controller="Invoices" asp-action="Index" title="Invoices">
+            <i class="bi bi-receipt-cutoff"></i>
+            <span class="ejc-admin-nav-text">Invoices</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/SubscriptionPlans")" asp-controller="SubscriptionPlans" asp-action="Index" title="Plans">
+            <i class="bi bi-journal-text"></i>
+            <span class="ejc-admin-nav-text">Plans</span>
+        </a>
+    </div>
+
+    <div class="ejc-admin-nav-divider"></div>
+
+    <div class="ejc-admin-nav-group">
+        <form class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
+            <button type="submit" class="ejc-admin-nav-link ejc-admin-nav-link-button" title="Logout">
+                <i class="bi bi-box-arrow-right"></i>
+                <span class="ejc-admin-nav-text">Logout</span>
+            </button>
+        </form>
+    </div>
+</nav>

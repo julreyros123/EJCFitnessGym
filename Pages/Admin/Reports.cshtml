@@ -1,0 +1,44 @@
+@page
+@{
+    ViewData["Title"] = "Reports";
+}
+
+<section class="ejc-admin-page">
+    <div class="ejc-admin-layout" data-admin-layout>
+        <partial name="/Pages/Shared/_AdminSidebar.cshtml" />
+
+        <div class="ejc-admin-content">
+            <div class="ejc-page-header">
+                <div>
+                    <span class="ejc-eyebrow">Insights</span>
+                    <h1 class="h2 mb-1">Reports</h1>
+                    <p class="ejc-muted mb-0">Track operational performance across attendance, revenue, and retention.</p>
+                </div>
+                <div class="ejc-actions">
+                    <button type="button" class="btn btn-primary">Generate Report</button>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Attendance Summary</h5>
+                            <p class="text-muted mb-3">Daily check-ins and peak-hour patterns.</p>
+                            <a class="btn btn-outline-primary btn-sm" asp-page="/Staff/Attendance">Open Attendance</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Revenue Summary</h5>
+                            <p class="text-muted mb-3">Payments, dues, and recurring membership income.</p>
+                            <a class="btn btn-outline-primary btn-sm" asp-page="/Admin/Payments">Open Payments</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

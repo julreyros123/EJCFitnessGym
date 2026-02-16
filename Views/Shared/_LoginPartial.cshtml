@@ -1,26 +1,162 @@
-﻿@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using System.Collections.Generic
+@using EJCFitnessGym.Data
 @inject SignInManager<IdentityUser> SignInManager
 @inject UserManager<IdentityUser> UserManager
+@inject ApplicationDbContext Db
 
-<ul class="navbar-nav">
+@{
+    var accountDisplayName = User.Identity?.Name ?? "Account";
+    var avatarPath = string.Empty;
+    var avatarInitials = "AC";
+    var updateCount = 0;
+    var updateMessages = new List<string>();
+
+    if (SignInManager.IsSignedIn(User))
+    {
+        var currentUser = await UserManager.GetUserAsync(User);
+        if (currentUser is not null)
+        {
+            var profile = await Db.MemberProfiles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.UserId == currentUser.Id);
+
+            var fullName = string.Join(' ', new[] { profile?.FirstName, profile?.LastName }
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!.Trim()));
+
+            accountDisplayName = !string.IsNullOrWhiteSpace(fullName)
+                ? fullName
+                : currentUser.Email ?? currentUser.UserName ?? "Account";
+
+            avatarPath = profile?.ProfileImagePath ?? string.Empty;
+
+            if (profile is null)
+            {
+                updateMessages.Add("Complete your profile to unlock personalized member tools.");
+                updateCount++;
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(profile.FirstName) || string.IsNullOrWhiteSpace(profile.LastName))
+                {
+                    updateMessages.Add("Add your full name in My Account.");
+                    updateCount++;
+                }
+
+                if (string.IsNullOrWhiteSpace(profile.ProfileImagePath))
+                {
+                    updateMessages.Add("Upload a profile photo for faster recognition at the gym.");
+                    updateCount++;
+                }
+
+                if (string.IsNullOrWhiteSpace(profile.PhoneNumber))
+                {
+                    updateMessages.Add("Add your phone number for schedule and membership updates.");
+                    updateCount++;
+                }
+            }
+        }
+
+        var parts = accountDisplayName
+            .Split(new[] { ' ', '.', '-', '_' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(value => value.Trim())
+            .Where(value => value.Length > 0)
+            .ToArray();
+
+        if (parts.Length >= 2)
+        {
+            avatarInitials = $"{parts[0][0]}{parts[1][0]}".ToUpperInvariant();
+        }
+        else if (parts.Length == 1)
+        {
+            avatarInitials = (parts[0].Length >= 2
+                ? parts[0].Substring(0, 2)
+                : parts[0].Substring(0, 1)).ToUpperInvariant();
+        }
+    }
+
+    if (updateMessages.Count == 0)
+    {
+        updateMessages.Add("No new updates right now. You are all set.");
+    }
+}
+
+<ul class="navbar-nav align-items-lg-center ejc-nav-auth">
 @if (SignInManager.IsSignedIn(User))
 {
-    <li class="nav-item">
-        <a  class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">Hello @User.Identity?.Name!</a>
-    </li>
-    <li class="nav-item">
-        <form  class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
-            <button  type="submit" class="nav-link btn btn-link text-dark">Logout</button>
-        </form>
+    <li class="nav-item ejc-nav-account-shell">
+        <div class="dropdown ejc-nav-notify-menu-shell">
+            <button class="btn btn-sm ejc-nav-notify-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+                <i class="bi bi-bell" aria-hidden="true"></i>
+                @if (updateCount > 0)
+                {
+                    <span class="ejc-nav-notify-badge">@updateCount</span>
+                }
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end ejc-nav-notify-menu">
+                <li class="ejc-nav-notify-title">Updates</li>
+                @foreach (var message in updateMessages)
+                {
+                    <li><span class="dropdown-item-text ejc-nav-notify-item">@message</span></li>
+                }
+            </ul>
+        </div>
+
+        <span class="ejc-nav-account-separator" aria-hidden="true"></span>
+
+        <a class="nav-link ejc-nav-user" asp-area="Identity" asp-page="/Account/Manage/Index" title="My Account">
+            <span class="ejc-nav-avatar" aria-hidden="true">
+                @if (!string.IsNullOrWhiteSpace(avatarPath))
+                {
+                    <img src="@avatarPath" alt="" loading="lazy" />
+                }
+                else
+                {
+                    <span class="ejc-nav-avatar-fallback">@avatarInitials</span>
+                }
+            </span>
+            <span class="ejc-nav-user-name">@accountDisplayName</span>
+        </a>
+
+        <div class="dropdown ejc-nav-dot-menu">
+            <button class="btn btn-sm ejc-nav-dot-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account menu">
+                <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end ejc-nav-user-menu">
+                <li>
+                    <a class="dropdown-item" asp-area="Identity" asp-page="/Account/Manage/Index">
+                        <i class="bi bi-person-circle ejc-nav-auth-icon" aria-hidden="true"></i>
+                        <span>My Account</span>
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider" /></li>
+                <li>
+                    <form class="ejc-nav-logout-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
+                        <button type="submit" class="dropdown-item">
+                            <i class="bi bi-box-arrow-right ejc-nav-auth-icon" aria-hidden="true"></i>
+                            <span>Logout</span>
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </div>
     </li>
 }
 else
 {
     <li class="nav-item">
-        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Register">Register</a>
+        <a class="btn btn-primary btn-sm ejc-nav-signup" asp-area="Identity" asp-page="/Account/Register">
+            <i class="bi bi-person-plus ejc-nav-auth-icon" aria-hidden="true"></i>
+            <span>Join Now</span>
+        </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Login">Login</a>
+        <a class="btn btn-outline-primary btn-sm ejc-nav-login" asp-area="Identity" asp-page="/Account/Login">
+            <i class="bi bi-door-open ejc-nav-auth-icon" aria-hidden="true"></i>
+            <span>My Account</span>
+        </a>
     </li>
 }
 </ul>

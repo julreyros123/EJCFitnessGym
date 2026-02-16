@@ -4,9 +4,67 @@
     ViewData["Title"] = "Attendance";
 }
 
-<div class="container py-4">
-    <h1 class="h3 mb-3">Attendance</h1>
-    <div class="alert alert-info mb-0">
-        This page will show daily attendance and member visit history.
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Analytics</span>
+            <h1 class="h2 mb-1">Attendance Monitor</h1>
+            <p class="ejc-muted mb-0">Track member traffic, late arrivals, and peak floor hours.</p>
+        </div>
+        <div class="ejc-actions">
+            <button class="btn btn-outline-primary">Export</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Daily Attendance Log</h5>
+            <span class="text-muted small">Today</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Member</th>
+                            <th>Check-In</th>
+                            <th>Check-Out</th>
+                            <th>Duration</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Jose Tan</td>
+                            <td>07:40 AM</td>
+                            <td>09:02 AM</td>
+                            <td>1h 22m</td>
+                            <td><span class="badge ejc-badge">Completed</span></td>
+                        </tr>
+                        <tr>
+                            <td>Maria Reyes</td>
+                            <td>08:18 AM</td>
+                            <td>-</td>
+                            <td>In Progress</td>
+                            <td><span class="badge bg-info text-dark">On Floor</span></td>
+                        </tr>
+                        <tr>
+                            <td>Ken Lim</td>
+                            <td>09:07 AM</td>
+                            <td>-</td>
+                            <td>In Progress</td>
+                            <td><span class="badge bg-info text-dark">On Floor</span></td>
+                        </tr>
+                        <tr>
+                            <td>Angela Cruz</td>
+                            <td>09:22 AM</td>
+                            <td>-</td>
+                            <td>In Progress</td>
+                            <td><span class="badge bg-warning text-dark">Plan Expiring</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>

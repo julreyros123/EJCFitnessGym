@@ -1,0 +1,137 @@
+@page
+@model EJCFitnessGym.Pages.Finance.OperatingExpensesModel
+@{
+    ViewData["Title"] = "Operating Expenses";
+}
+
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Finance Module</span>
+            <h1 class="h2 mb-1">Operating Expenses</h1>
+            <p class="ejc-muted mb-0">Encode recurring and one-time costs used by smart forecast and anomaly detection.</p>
+        </div>
+        <div class="ejc-actions d-flex gap-2">
+            <form method="post" asp-page-handler="SeedTemplate">
+                <button type="submit" class="btn btn-outline-primary">Seed 6-Month Template</button>
+            </form>
+            <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Back to Overview</a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="alert alert-info py-2 px-3">@Model.StatusMessage</div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Expense (Last 30 Days)</div><div class="h4 mb-0">PHP @Model.TotalExpenseLast30Days.ToString("N2")</div></div></div>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Expense (Current Month)</div><div class="h4 mb-0">PHP @Model.TotalExpenseCurrentMonth.ToString("N2")</div></div></div>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Active Expense Records</div><div class="h4 mb-0">@Model.Expenses.Count(x => x.IsActive)</div></div></div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-5">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0">Add Expense</h5></div>
+                <div class="card-body">
+                    <form method="post" asp-page-handler="Add" class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Input.Name" class="form-label"></label>
+                            <input asp-for="Input.Name" class="form-control" />
+                            <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.Category" class="form-label"></label>
+                            <input asp-for="Input.Category" class="form-control" placeholder="Payroll / Rent / Utilities" />
+                            <span asp-validation-for="Input.Category" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.Amount" class="form-label"></label>
+                            <input asp-for="Input.Amount" class="form-control" />
+                            <span asp-validation-for="Input.Amount" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.ExpenseDateUtc" class="form-label"></label>
+                            <input asp-for="Input.ExpenseDateUtc" class="form-control" />
+                            <span asp-validation-for="Input.ExpenseDateUtc" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.Notes" class="form-label"></label>
+                            <input asp-for="Input.Notes" class="form-control" />
+                            <span asp-validation-for="Input.Notes" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12 d-flex flex-wrap gap-3">
+                            <div class="form-check">
+                                <input asp-for="Input.IsRecurring" class="form-check-input" />
+                                <label asp-for="Input.IsRecurring" class="form-check-label"></label>
+                            </div>
+                            <div class="form-check">
+                                <input asp-for="Input.IsActive" class="form-check-input" />
+                                <label asp-for="Input.IsActive" class="form-check-label"></label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">Save Expense</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-7">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Expense Records</h5>
+                    <span class="text-muted small">@Model.Expenses.Count item(s)</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped table-hover align-middle mb-0"
+                               data-ejc-page-size="8"
+                               data-ejc-search-placeholder="Search expense, category, or notes">
+                            <thead>
+                                <tr>
+                                    <th>Date (UTC)</th>
+                                    <th>Expense</th>
+                                    <th>Category</th>
+                                    <th class="text-end">Amount</th>
+                                    <th>Recurring</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Expenses)
+                                {
+                                    <tr>
+                                        <td class="text-nowrap">@item.ExpenseDateUtc.ToString("MMM dd, yyyy")</td>
+                                        <td>
+                                            <div class="fw-semibold">@item.Name</div>
+                                            <div class="small text-muted">@(string.IsNullOrWhiteSpace(item.Notes) ? "-" : item.Notes)</div>
+                                        </td>
+                                        <td>@item.Category</td>
+                                        <td class="text-end text-nowrap">PHP @item.Amount.ToString("N2")</td>
+                                        <td>@(item.IsRecurring ? "Yes" : "No")</td>
+                                        <td>
+                                            <span class="badge @(item.IsActive ? "bg-success" : "bg-secondary")">@(item.IsActive ? "Active" : "Inactive")</span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

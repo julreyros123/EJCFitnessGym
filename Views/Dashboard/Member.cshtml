@@ -1,8 +1,110 @@
+@model EJCFitnessGym.Models.Member.MemberDashboardViewModel
 @{
-    ViewData["Title"] = "Member Portal";
+    ViewData["Title"] = "Member";
+
+    var membershipStart = Model.MembershipStartDateUtc?.ToString("MMM dd, yyyy") ?? "Not started";
+    var membershipEnd = Model.MembershipEndDateUtc?.ToString("MMM dd, yyyy") ?? "No end date";
+    var nextDue = Model.NextPaymentDueDateUtc?.ToString("MMM dd, yyyy") ?? "No pending invoices";
 }
 
-<div class="container">
-    <h1 class="mt-4">Member Portal</h1>
-    <p>Welcome, @User.Identity?.Name</p>
+<div class="container ejc-page">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Member Portal</span>
+            <h1 class="display-5 mb-1 ejc-member-title">
+                <span class="ejc-member-greeting">Welcome back,</span>
+                <span class="ejc-member-name">@Model.MemberDisplayName</span>
+            </h1>
+            <p class="ejc-muted mb-0">Track your membership status, billing, and account readiness in one place.</p>
+        </div>
+        <div class="ejc-actions">
+            <a class="btn btn-outline-light" asp-action="Profile">Complete Profile</a>
+            <a class="btn btn-primary" asp-page="/Public/Pricing">Manage Membership</a>
+            <a class="btn btn-outline-primary" asp-page="/Public/Contact">Support</a>
+        </div>
+    </div>
+
+    <div class="ejc-stat-grid">
+        <div class="ejc-stat">
+            <h3 class="h2">@Model.ProfileCompletionPercent%</h3>
+            <p class="ejc-muted mb-0">Profile completion</p>
+        </div>
+        <div class="ejc-stat">
+            <h3 class="h4 mb-1">@Model.CurrentPlanName</h3>
+            <p class="ejc-muted mb-0">Current plan</p>
+        </div>
+        <div class="ejc-stat">
+            <h3 class="h2">@Model.OpenInvoiceCount</h3>
+            <p class="ejc-muted mb-0">Open invoices</p>
+        </div>
+        <div class="ejc-stat">
+            <h3 class="h2">PHP @Model.LifetimeSpend.ToString("N0")</h3>
+            <p class="ejc-muted mb-0">Lifetime spend</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                        <div class="ejc-card-icon mb-0">
+                            <span class="ejc-icon"><i class="bi bi-shield-check"></i></span>
+                            <h5 class="card-title mb-0">Current Plan Status</h5>
+                        </div>
+                        <span class="badge @Model.MembershipStatusBadgeClass">@Model.MembershipStatusLabel</span>
+                    </div>
+
+                    @if (Model.HasSubscriptionRecord)
+                    {
+                        <ul class="ejc-list mb-0">
+                            <li><strong>Plan</strong> <span>@Model.CurrentPlanName</span></li>
+                            <li><strong>Started</strong> <span>@membershipStart</span></li>
+                            <li><strong>Ends</strong> <span>@membershipEnd</span></li>
+                            <li><strong>Next payment</strong> <span>@nextDue</span></li>
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="ejc-muted mb-0">
+                            You have not activated a membership plan yet. Select a plan to unlock scheduling and full member services.
+                        </p>
+                    }
+
+                    <div class="mt-3 d-flex flex-wrap gap-2">
+                        <a class="btn btn-primary" asp-page="/Public/Pricing">
+                            @(Model.HasActiveMembership ? "Upgrade or Change Plan" : "Activate Membership")
+                        </a>
+                        <a class="btn btn-outline-light" asp-action="Profile">Update Profile</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="ejc-card-icon mb-3">
+                        <span class="ejc-icon"><i class="bi bi-receipt"></i></span>
+                        <h5 class="card-title mb-0">Billing Snapshot</h5>
+                    </div>
+                    <p class="ejc-muted">
+                        Next due date: <strong>@nextDue</strong>
+                    </p>
+                    <div class="ejc-stat">
+                        <h3 class="h2 mb-1">PHP @Model.OutstandingBalance.ToString("N0")</h3>
+                        <p class="ejc-muted mb-0">Outstanding balance</p>
+                    </div>
+                    <ul class="ejc-list mt-3 mb-0">
+                        <li><strong>Total invoices</strong> <span>@Model.TotalInvoices</span></li>
+                        <li><strong>Paid invoices</strong> <span>@Model.PaidInvoiceCount</span></li>
+                        <li><strong>Open invoices</strong> <span>@Model.OpenInvoiceCount</span></li>
+                    </ul>
+                    <div class="mt-3 d-flex flex-wrap gap-2">
+                        <a class="btn btn-outline-primary" asp-page="/Public/Contact">Billing Support</a>
+                        <a class="btn btn-outline-light" asp-page="/Public/Pricing">Update Plan</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

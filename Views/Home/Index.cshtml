@@ -1,8 +1,168 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@{
+    ViewData["Title"] = "Home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<section class="enterprise-landing" id="home">
+    <div class="enterprise-hero-shell enterprise-reveal">
+        <div class="enterprise-hero-grid">
+            <div class="enterprise-hero-copy">
+                <span class="enterprise-kicker">EJC Fitness Gym ERP</span>
+                <h1>Run your gym better and keep members consistent.</h1>
+                <p>
+                    Manage memberships, billing, check-ins, coaching, and daily operations in one place built for real gym flow.
+                </p>
+                <div class="enterprise-hero-actions">
+                    <a asp-area="Identity" asp-page="/Account/Register" class="btn enterprise-btn-primary btn-lg">Start Membership</a>
+                    <a asp-page="/Public/Pricing" class="btn enterprise-btn-secondary btn-lg">View Plans</a>
+                </div>
+                <div class="enterprise-hero-chips" aria-label="Platform highlights">
+                    <span><i class="bi bi-shield-lock"></i>Role-secured access</span>
+                    <span><i class="bi bi-cash-coin"></i>Revenue visibility</span>
+                    <span><i class="bi bi-clipboard2-check"></i>Faster onboarding</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="enterprise-section">
+    <div class="enterprise-section-head">
+        <span class="enterprise-eyebrow">Why Choose Us</span>
+        <h2>Everything your gym needs to keep members on track.</h2>
+        <p>From front desk to training floor, your team works faster and your members get a smoother experience.</p>
+    </div>
+
+    <div class="enterprise-value-grid">
+        <article class="enterprise-value-card enterprise-reveal">
+            <span class="enterprise-value-icon"><i class="bi bi-person-vcard"></i></span>
+            <h3>Member Progress in One Place</h3>
+            <p>View attendance, payments, plan details, and coaching notes from one clear profile.</p>
+        </article>
+
+        <article class="enterprise-value-card enterprise-reveal enterprise-reveal-delay-1">
+            <span class="enterprise-value-icon"><i class="bi bi-graph-up-arrow"></i></span>
+            <h3>Coach and Front-Desk Visibility</h3>
+            <p>Track active members, renewals, and class usage so your team can act quickly every day.</p>
+        </article>
+
+        <article class="enterprise-value-card enterprise-reveal enterprise-reveal-delay-2">
+            <span class="enterprise-value-icon"><i class="bi bi-calendar2-check"></i></span>
+            <h3>Smoother Daily Operations</h3>
+            <p>Handle check-ins, billing reminders, and renewals without jumping between separate tools.</p>
+        </article>
+
+        <article class="enterprise-story-card enterprise-reveal enterprise-reveal-delay-3">
+            <div class="enterprise-story-image">
+                <img src="~/images/gym-hero.jpg" alt="Coach guiding member workout session" loading="lazy" />
+            </div>
+            <div class="enterprise-story-copy">
+                <span>Gym Experience</span>
+                <h3>Built for better workouts and better retention.</h3>
+                <p>
+                    When schedules, plans, and follow-ups stay synced, members train more consistently and staff work with less friction.
+                </p>
+            </div>
+        </article>
+    </div>
+</section>
+
+<section class="enterprise-section" id="memberships">
+    <div class="enterprise-section-head enterprise-section-head-inline">
+        <div>
+            <span class="enterprise-eyebrow">Membership Options</span>
+            <h2>Simple monthly tiers built for real gym goals.</h2>
+            <p class="enterprise-plan-sub mb-0">All plans are billed monthly. Cancel anytime.</p>
+        </div>
+        <a class="btn btn-outline-primary" asp-page="/Public/Pricing">See Full Plans</a>
+    </div>
+
+    <div class="enterprise-plan-grid">
+        <article class="enterprise-plan-card enterprise-reveal">
+            <h3>Starter</h3>
+            <p class="enterprise-plan-sub">For beginners and regular workouts</p>
+            <div class="enterprise-plan-price">PHP 1,299 <small>/ month</small></div>
+            <ul>
+                <li><i class="bi bi-check2-circle"></i>Full gym access</li>
+                <li><i class="bi bi-check2-circle"></i>Basic progress tracking</li>
+                <li><i class="bi bi-check2-circle"></i>Cancel anytime</li>
+            </ul>
+            <a class="btn btn-outline-primary w-100" asp-page="/Public/Pricing">Choose Starter</a>
+        </article>
+
+        <article class="enterprise-plan-card is-featured enterprise-reveal enterprise-reveal-delay-1">
+            <span class="enterprise-plan-tag">Most Popular</span>
+            <h3>Pro</h3>
+            <p class="enterprise-plan-sub">For measurable weekly progression</p>
+            <div class="enterprise-plan-price">PHP 1,899 <small>/ month</small></div>
+            <ul>
+                <li><i class="bi bi-check2-circle"></i>Everything in Starter</li>
+                <li><i class="bi bi-check2-circle"></i>2 coach check-ins per month</li>
+                <li><i class="bi bi-check2-circle"></i>Priority class booking</li>
+                <li><i class="bi bi-check2-circle"></i>Cancel anytime</li>
+            </ul>
+            <a class="btn enterprise-btn-primary w-100" asp-page="/Public/Pricing">Choose Pro</a>
+        </article>
+
+        <article class="enterprise-plan-card enterprise-reveal enterprise-reveal-delay-2">
+            <h3>Elite</h3>
+            <p class="enterprise-plan-sub">For complete coaching support</p>
+            <div class="enterprise-plan-price">PHP 2,699 <small>/ month</small></div>
+            <ul>
+                <li><i class="bi bi-check2-circle"></i>Everything in Pro</li>
+                <li><i class="bi bi-check2-circle"></i>Weekly coach sessions</li>
+                <li><i class="bi bi-check2-circle"></i>Nutrition consultations</li>
+                <li><i class="bi bi-check2-circle"></i>Cancel anytime</li>
+            </ul>
+            <a class="btn btn-outline-primary w-100" asp-page="/Public/Pricing">Choose Elite</a>
+        </article>
+    </div>
+</section>
+
+<section class="enterprise-section enterprise-contact-shell" id="contact">
+    <div class="enterprise-contact-grid">
+        <article class="enterprise-contact-card enterprise-reveal">
+            <span class="enterprise-eyebrow">Contact</span>
+            <h2>Talk to the EJC team.</h2>
+            <p>We can walk you through membership fit, coaching support, and the best plan for your training schedule.</p>
+            <div class="enterprise-contact-meta">
+                <div>
+                    <small>Phone</small>
+                    <strong>+63 900 000 0000</strong>
+                </div>
+                <div>
+                    <small>Email</small>
+                    <strong>support@ejcfitnessgym.com</strong>
+                </div>
+                <div>
+                    <small>Schedule</small>
+                    <strong>Open 24 Hours</strong>
+                </div>
+            </div>
+            <div class="enterprise-contact-actions">
+                <a class="btn enterprise-btn-primary" href="tel:+639000000000">Call Now</a>
+                <a class="btn enterprise-btn-secondary" asp-page="/Public/Contact">Message Team</a>
+            </div>
+        </article>
+
+        <div class="enterprise-testimonial-stack">
+            <article class="enterprise-testimonial-card enterprise-reveal enterprise-reveal-delay-1">
+                <i class="bi bi-quote"></i>
+                <p>"Progress tracking became clearer for both members and coaches. We now move faster at the front desk."</p>
+                <strong>Daniel S.</strong>
+                <span>Senior Coach</span>
+            </article>
+            <article class="enterprise-testimonial-card enterprise-reveal enterprise-reveal-delay-2">
+                <i class="bi bi-quote"></i>
+                <p>"The billing and renewal flow reduced missed payments and made our monthly reporting easier."</p>
+                <strong>Mae R.</strong>
+                <span>Operations Team</span>
+            </article>
+        </div>
+    </div>
+</section>
+
+<div class="enterprise-mobile-cta d-md-none">
+    <a asp-area="Identity" asp-page="/Account/Register" class="btn enterprise-btn-primary btn-sm">Join Now</a>
+    <a asp-page="/Public/Pricing" class="btn enterprise-btn-secondary btn-sm">Plans</a>
 </div>
+<div class="enterprise-mobile-spacer d-md-none"></div>

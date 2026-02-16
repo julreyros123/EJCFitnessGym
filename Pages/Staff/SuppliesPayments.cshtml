@@ -1,0 +1,235 @@
+@page
+@model EJCFitnessGym.Pages.Staff.SuppliesPaymentsModel
+@{
+    ViewData["Title"] = "Product Sales & Payments";
+}
+
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Front Desk</span>
+            <h1 class="h2 mb-1">Product Sales &amp; Payments</h1>
+            <p class="ejc-muted mb-0">Process counter sales for bands, drinks, creatine, and protein products.</p>
+        </div>
+        <div class="ejc-actions">
+            <button class="btn btn-primary">Create Sale</button>
+            <button class="btn btn-outline-primary">Print Receipt</button>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-7">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">New Counter Sale</h5>
+                    <span class="text-muted small">POS</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Customer</label>
+                            <input class="form-control" placeholder="Member name or walk-in guest" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Payment Method</label>
+                            <select class="form-select">
+                                <option>Cash</option>
+                                <option>GCash</option>
+                                <option>Card</option>
+                                <option>Charge to Account</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Desk</label>
+                            <input class="form-control" value="Counter A" />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Product</label>
+                            <select class="form-select">
+                                @foreach (var product in Model.RetailProducts)
+                                {
+                                    <option>@product.Name - PHP @product.UnitPrice.ToString("N2")</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Qty</label>
+                            <input class="form-control" type="number" min="1" value="1" />
+                        </div>
+                        <div class="col-md-2 d-grid">
+                            <label class="form-label d-none d-md-block">&nbsp;</label>
+                            <button class="btn btn-outline-primary">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-5">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Product Catalog</h5>
+                    <span class="text-muted small">@Model.RetailProducts.Count items</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0 ejc-staff-table ejc-product-catalog-table">
+                            <colgroup>
+                                <col style="width: 40%;" />
+                                <col style="width: 24%;" />
+                                <col style="width: 18%;" />
+                                <col style="width: 18%;" />
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Category</th>
+                                    <th class="text-end">Price</th>
+                                    <th class="text-end">Stock</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var product in Model.RetailProducts)
+                                {
+                                    <tr>
+                                        <td>@product.Name</td>
+                                        <td>@product.Category</td>
+                                        <td class="text-end">PHP @product.UnitPrice.ToString("N2")</td>
+                                        <td class="text-end">@product.Stock @product.Unit</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Supply Request Intake (Staff)</h5>
+            <span class="text-muted small">Staff encodes request and receiving draft only</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 ejc-staff-table"
+                       data-ejc-page-size="6"
+                       data-ejc-search-placeholder="Search request, item, branch, stage, or owner">
+                    <thead>
+                        <tr>
+                            <th>Request #</th>
+                            <th>Branch</th>
+                            <th>Item</th>
+                            <th>Qty</th>
+                            <th>Stage</th>
+                            <th>Owner</th>
+                            <th>Next Owner</th>
+                            <th class="text-nowrap">Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var request in Model.SupplyRequests)
+                        {
+                            <tr>
+                                <td>@request.RequestNo</td>
+                                <td>@request.Branch</td>
+                                <td>@request.Item</td>
+                                <td class="text-nowrap">@request.Quantity</td>
+                                <td><span class="@SuppliesPaymentsModel.SupplyStageBadge(request.Stage)">@request.Stage</span></td>
+                                <td><span class="@SuppliesPaymentsModel.SupplyRoleBadge(request.CurrentOwner)">@request.CurrentOwner</span></td>
+                                <td><span class="@SuppliesPaymentsModel.SupplyRoleBadge(request.NextOwner)">@request.NextOwner</span></td>
+                                <td class="text-nowrap">@request.UpdatedAt</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Current Sale Cart</h5>
+            <span class="text-muted small">@Model.CartItemCount items | PHP @Model.CartTotal.ToString("N2")</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 ejc-staff-table ejc-sale-cart-table">
+                    <colgroup>
+                        <col style="width: 46%;" />
+                        <col style="width: 12%;" />
+                        <col style="width: 21%;" />
+                        <col style="width: 21%;" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th class="text-end text-nowrap">Qty</th>
+                            <th class="text-end text-nowrap">Unit Price</th>
+                            <th class="text-end text-nowrap">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var line in Model.CurrentSaleLines)
+                        {
+                            <tr>
+                                <td>@line.Product</td>
+                                <td class="text-end text-nowrap">@line.Quantity</td>
+                                <td class="text-end text-nowrap">PHP @line.UnitPrice.ToString("N2")</td>
+                                <td class="text-end text-nowrap">PHP @line.LineTotal.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Recent Product Payments</h5>
+            <span class="text-muted small">Today</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 ejc-staff-table ejc-product-payments-table">
+                    <colgroup>
+                        <col style="width: 10%;" />
+                        <col style="width: 12%;" />
+                        <col style="width: 16%;" />
+                        <col style="width: 28%;" />
+                        <col style="width: 12%;" />
+                        <col style="width: 12%;" />
+                        <col style="width: 10%;" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Receipt #</th>
+                            <th>Customer</th>
+                            <th>Items</th>
+                            <th>Method</th>
+                            <th class="text-end text-nowrap">Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var payment in Model.RecentPayments)
+                        {
+                            <tr>
+                                <td>@payment.Time</td>
+                                <td>@payment.ReceiptNo</td>
+                                <td>@payment.Customer</td>
+                                <td>@payment.Items</td>
+                                <td>@payment.Method</td>
+                                <td class="text-end text-nowrap">PHP @payment.Amount.ToString("N2")</td>
+                                <td><span class="@SuppliesPaymentsModel.PaymentStatusBadge(payment.Status)">@payment.Status</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

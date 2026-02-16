@@ -1,0 +1,79 @@
+@page "/Member/Dashboard"
+@model EJCFitnessGym.Pages.Member.DashboardModel
+@{
+    ViewData["Title"] = "Member Dashboard";
+    Layout = "_Layout"; // Or a custom member layout
+}
+
+<section class="ejc-member-portal">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">EJC Fitness Member Portal</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#memberNavbar">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="memberNavbar">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" asp-page="/Member/Dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-page="/Member/Profile">Profile</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-page="/Member/Subscriptions">Subscriptions</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-page="/Member/Payments">Payments</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="accountDropdown" role="button" data-bs-toggle="dropdown">
+                            Account
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" asp-page="/Identity/Account/Manage/Index">Manage Account</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><form method="post" asp-page-handler="Logout" asp-route-returnUrl="/"><button type="submit" class="dropdown-item">Logout</button></form></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h1 class="h3 mb-4">Welcome to Your Member Dashboard</h1>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="bi bi-calendar-check-fill fs-1 text-primary"></i>
+                        <h5 class="card-title mt-2">Book Classes</h5>
+                        <p class="card-text">Schedule your fitness classes.</p>
+                        <a href="#" class="btn btn-primary">View Classes</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="bi bi-graph-up fs-1 text-success"></i>
+                        <h5 class="card-title mt-2">Track Progress</h5>
+                        <p class="card-text">Monitor your fitness goals.</p>
+                        <a href="#" class="btn btn-success">View Progress</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="bi bi-credit-card fs-1 text-warning"></i>
+                        <h5 class="card-title mt-2">Manage Billing</h5>
+                        <p class="card-text">View invoices and payments.</p>
+                        <a href="#" class="btn btn-warning">View Billing</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

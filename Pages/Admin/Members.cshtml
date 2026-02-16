@@ -4,9 +4,90 @@
     ViewData["Title"] = "Members";
 }
 
-<div class="container py-4">
-    <h1 class="h3 mb-3">Members</h1>
-    <div class="alert alert-info mb-0">
-        This page will list members (Identity users with the Member role) and allow admin actions.
+<section class="ejc-admin-page">
+    <div class="ejc-admin-layout" data-admin-layout>
+        <partial name="/Pages/Shared/_AdminSidebar.cshtml" />
+
+        <div class="ejc-admin-content">
+            <div class="ejc-page-header">
+                <div>
+                    <span class="ejc-eyebrow">Members</span>
+                    <h1 class="display-6 mb-0">Member Directory</h1>
+                    <p class="ejc-muted mb-0">Manage profile status, plan tier, and retention notes.</p>
+                </div>
+                <div class="ejc-actions">
+                    @if (User.IsInRole("SuperAdmin"))
+                    {
+                        <a class="btn btn-primary" asp-page="/Admin/Members">Add Member</a>
+                    }
+                    <button type="button" class="btn btn-outline-primary">Export CSV</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Members List</h5>
+                    <span class="text-muted small">Total: 1,248</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Member ID</th>
+                                    <th>Name</th>
+                                    <th>Contact</th>
+                                    <th>Plan</th>
+                                    <th>Renewal</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>#M-1001</td>
+                                    <td>Jose Tan</td>
+                                    <td>0917-300-1001</td>
+                                    <td>Premium Annual</td>
+                                    <td>Dec 14, 2026</td>
+                                    <td><span class="badge ejc-badge">Active</span></td>
+                                </tr>
+                                <tr>
+                                    <td>#M-1002</td>
+                                    <td>Maria Reyes</td>
+                                    <td>0918-553-7721</td>
+                                    <td>Monthly Flex</td>
+                                    <td>Mar 05, 2026</td>
+                                    <td><span class="badge bg-warning text-dark">Expiring Soon</span></td>
+                                </tr>
+                                <tr>
+                                    <td>#M-1003</td>
+                                    <td>Ken Lim</td>
+                                    <td>0919-120-8874</td>
+                                    <td>Starter 3-Month</td>
+                                    <td>Apr 19, 2026</td>
+                                    <td><span class="badge ejc-badge">Active</span></td>
+                                </tr>
+                                <tr>
+                                    <td>#M-1004</td>
+                                    <td>Angela Cruz</td>
+                                    <td>0915-620-4029</td>
+                                    <td>Premium Annual</td>
+                                    <td>Paused</td>
+                                    <td><span class="badge bg-secondary">On Hold</span></td>
+                                </tr>
+                                <tr>
+                                    <td>#M-1005</td>
+                                    <td>Luis Javier</td>
+                                    <td>0917-994-2012</td>
+                                    <td>Monthly Flex</td>
+                                    <td>Feb 20, 2026</td>
+                                    <td><span class="badge bg-danger">Past Due</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
+</section>

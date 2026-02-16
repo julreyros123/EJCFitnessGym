@@ -1,0 +1,197 @@
+@page
+@model EJCFitnessGym.Pages.Finance.IntegrationOpsModel
+@{
+    ViewData["Title"] = "Integration Ops";
+}
+
+<div class="py-4" data-integration-ops>
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Reliability Ops</span>
+            <h1 class="h2 mb-1">Integration Operations</h1>
+            <p class="ejc-muted mb-0">Manage outbox retries, dead-letter handling, and PayMongo webhook replay without Postman.</p>
+        </div>
+        <div class="ejc-actions d-flex gap-2">
+            <button type="button" class="btn btn-outline-primary" data-outbox-refresh>
+                <i class="bi bi-arrow-repeat me-1"></i>Refresh
+            </button>
+            <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Back to Overview</a>
+        </div>
+    </div>
+
+    <div class="alert d-none py-2 px-3 mb-3" role="alert" data-ops-alert></div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card h-100">
+                <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <h5 class="mb-0">Integration Outbox Queue</h5>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <label class="small text-muted mb-0" for="outboxStatusFilter">Status</label>
+                        <select id="outboxStatusFilter" class="form-select form-select-sm" style="min-width: 150px;" data-outbox-status>
+                            <option value="">All</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Processing">Processing</option>
+                            <option value="Processed">Processed</option>
+                            <option value="Failed">Failed</option>
+                        </select>
+
+                        <label class="small text-muted mb-0" for="outboxTake">Rows</label>
+                        <input id="outboxTake"
+                               class="form-control form-control-sm"
+                               type="number"
+                               min="1"
+                               max="500"
+                               step="1"
+                               value="100"
+                               style="max-width: 90px;"
+                               data-outbox-take />
+
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-outbox-refresh>
+                            Load
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning" data-outbox-retry-failed>
+                            Retry Failed
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Status</th>
+                                    <th>Target</th>
+                                    <th>Event</th>
+                                    <th>Message</th>
+                                    <th>Attempts</th>
+                                    <th>Next Attempt (UTC)</th>
+                                    <th>Error</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody data-outbox-body>
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted py-4">Loading outbox messages...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12 col-xxl-5">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Replay PayMongo Webhook</h5>
+                </div>
+                <div class="card-body">
+                    <form data-replay-form class="row g-3">
+                        <div class="col-12">
+                            <label for="replayEventKey" class="form-label">Event Key</label>
+                            <input id="replayEventKey"
+                                   type="text"
+                                   class="form-control"
+                                   placeholder="evt_xxx or stored event key"
+                                   data-replay-event-key />
+                            <div class="form-text">Optional when reference is provided.</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="replayReference" class="form-label">Reference</label>
+                            <input id="replayReference"
+                                   type="text"
+                                   class="form-control"
+                                   placeholder="checkout_session_id or gateway_payment_id"
+                                   data-replay-reference />
+                            <div class="form-text">Use this if event key is unavailable.</div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input id="replayForce" type="checkbox" class="form-check-input" data-replay-force />
+                                <label for="replayForce" class="form-check-label">Force replay even if receipt is processed</label>
+                            </div>
+                        </div>
+
+                        <div class="col-12 d-flex flex-wrap gap-2">
+                            <button type="submit" class="btn btn-primary" data-replay-submit>
+                                Queue Replay
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" data-replay-clear>
+                                Clear
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xxl-7">
+            <div class="card h-100">
+                <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <h5 class="mb-0">PayMongo Webhook Receipts</h5>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <label class="small text-muted mb-0" for="receiptStatusFilter">Status</label>
+                        <select id="receiptStatusFilter" class="form-select form-select-sm" style="min-width: 140px;" data-receipts-status>
+                            <option value="">All</option>
+                            <option value="Processing">Processing</option>
+                            <option value="Processed">Processed</option>
+                            <option value="Failed">Failed</option>
+                            <option value="Ignored">Ignored</option>
+                        </select>
+
+                        <input class="form-control form-control-sm"
+                               type="text"
+                               placeholder="Filter by reference"
+                               style="min-width: 180px;"
+                               data-receipts-reference />
+
+                        <input class="form-control form-control-sm"
+                               type="number"
+                               min="1"
+                               max="500"
+                               value="100"
+                               style="max-width: 90px;"
+                               data-receipts-take />
+
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-receipts-refresh>
+                            Load
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Status</th>
+                                    <th>Event Key</th>
+                                    <th>Type</th>
+                                    <th>Reference</th>
+                                    <th>Attempts</th>
+                                    <th>Updated (UTC)</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody data-receipts-body>
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">Loading webhook receipts...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/integration-ops.js" asp-append-version="true"></script>
+}

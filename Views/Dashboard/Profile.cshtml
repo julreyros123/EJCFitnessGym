@@ -1,0 +1,143 @@
+@model EJCFitnessGym.Controllers.MemberProfileInputModel
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="container ejc-page">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Member Portal</span>
+            <h1 class="display-5 mb-1">Complete Your Profile</h1>
+            <p class="ejc-muted mb-0">Add your personal details so coaches and the front desk team can support you better.</p>
+        </div>
+    </div>
+
+    @if (TempData["StatusMessage"] is string status && !string.IsNullOrWhiteSpace(status))
+    {
+        <div class="alert alert-success mb-4">@status</div>
+    }
+
+    <div class="card ejc-profile-card">
+        <div class="card-body p-4">
+            <div class="ejc-profile-progress mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="mb-0">Profile Completion</h5>
+                    <span class="ejc-profile-progress-value">@Model.CompletionPercent%</span>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar bg-success" role="progressbar" style="width: @Model.CompletionPercent%" aria-valuenow="@Model.CompletionPercent" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+
+            <form asp-action="Profile" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="row g-4">
+                    <div class="col-lg-4">
+                        <div class="ejc-profile-photo-wrap">
+                            @if (!string.IsNullOrWhiteSpace(Model.ExistingImagePath))
+                            {
+                                <img src="@Model.ExistingImagePath" alt="Profile photo" class="ejc-profile-photo" />
+                            }
+                            else
+                            {
+                                <div class="ejc-profile-avatar-fallback">No Photo</div>
+                            }
+                        </div>
+                        <label asp-for="ProfileImage" class="form-label mt-3"></label>
+                        <input asp-for="ProfileImage" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/*" />
+                        <span asp-validation-for="ProfileImage" class="text-danger"></span>
+                        <div class="form-text">Accepted formats: JPG, PNG, WEBP. Max size: 2 MB.</div>
+                    </div>
+
+                    <div class="col-lg-8">
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input value="@Model.Email" class="form-control" readonly />
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="FirstName" class="form-label"></label>
+                                <input asp-for="FirstName" class="form-control" />
+                                <span asp-validation-for="FirstName" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="LastName" class="form-label"></label>
+                                <input asp-for="LastName" class="form-control" />
+                                <span asp-validation-for="LastName" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="Age" class="form-label"></label>
+                                <input asp-for="Age" class="form-control" />
+                                <span asp-validation-for="Age" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-8">
+                                <label asp-for="PhoneNumber" class="form-label"></label>
+                                <input asp-for="PhoneNumber" class="form-control" />
+                                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="HeightCm" class="form-label"></label>
+                                <input asp-for="HeightCm" class="form-control" />
+                                <span asp-validation-for="HeightCm" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="WeightKg" class="form-label"></label>
+                                <input asp-for="WeightKg" class="form-control" />
+                                <span asp-validation-for="WeightKg" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="Bmi" class="form-label"></label>
+                                <input asp-for="Bmi" class="form-control" readonly />
+                                <span asp-validation-for="Bmi" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 d-flex gap-2 flex-wrap">
+                            <button type="submit" class="btn btn-primary">Save Profile</button>
+                            <a asp-action="Member" class="btn btn-outline-light">Back to Portal</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const heightInput = document.getElementById('HeightCm');
+            const weightInput = document.getElementById('WeightKg');
+            const bmiInput = document.getElementById('Bmi');
+
+            if (!heightInput || !weightInput || !bmiInput) {
+                return;
+            }
+
+            function parseValue(value) {
+                if (!value) return NaN;
+                return parseFloat(value.toString().replace(',', '.'));
+            }
+
+            function computeBmi() {
+                const heightCm = parseValue(heightInput.value);
+                const weightKg = parseValue(weightInput.value);
+                if (!Number.isFinite(heightCm) || !Number.isFinite(weightKg) || heightCm <= 0 || weightKg <= 0) {
+                    bmiInput.value = '';
+                    return;
+                }
+
+                const heightM = heightCm / 100;
+                const bmi = weightKg / (heightM * heightM);
+                bmiInput.value = bmi.toFixed(2);
+            }
+
+            heightInput.addEventListener('input', computeBmi);
+            weightInput.addEventListener('input', computeBmi);
+            computeBmi();
+        })();
+    </script>
+}

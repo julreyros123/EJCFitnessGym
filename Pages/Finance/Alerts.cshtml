@@ -1,0 +1,279 @@
+@page
+@using EJCFitnessGym.Models.Finance
+@model EJCFitnessGym.Pages.Finance.AlertsModel
+@{
+    ViewData["Title"] = "Finance Alerts";
+}
+
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Finance Module</span>
+            <h1 class="h2 mb-1">Finance Alerts</h1>
+            <p class="ejc-muted mb-0">Acknowledge, resolve, or reopen risk/anomaly alerts with full audit visibility.</p>
+        </div>
+        <div class="ejc-actions d-flex gap-2">
+            <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Back to Overview</a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="alert alert-info py-2 px-3 mb-3">@Model.StatusMessage</div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="small text-muted">Returned Alerts</div>
+                    <div class="h4 mb-0">@Model.TotalReturned</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="small text-muted">High Severity</div>
+                    <div class="h4 mb-0">@Model.HighSeverityCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="small text-muted">Realtime Published</div>
+                    <div class="h4 mb-0">@Model.RealtimePublishedCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="small text-muted">Email Succeeded</div>
+                    <div class="h4 mb-0">@Model.EmailSucceededCount</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Filters</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-6 col-xl-2">
+                    <label asp-for="FromUtc" class="form-label">From (UTC)</label>
+                    <input asp-for="FromUtc" type="date" class="form-control" />
+                </div>
+                <div class="col-md-6 col-xl-2">
+                    <label asp-for="ToUtc" class="form-label">To (UTC)</label>
+                    <input asp-for="ToUtc" type="date" class="form-control" />
+                </div>
+                <div class="col-md-6 col-xl-2">
+                    <label asp-for="Severity" class="form-label">Severity</label>
+                    <select asp-for="Severity" class="form-select">
+                        <option value="">All</option>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+                <div class="col-md-6 col-xl-2">
+                    <label asp-for="State" class="form-label">State</label>
+                    <select asp-for="State" class="form-select">
+                        <option value="">All</option>
+                        <option value="@FinanceAlertState.New">New</option>
+                        <option value="@FinanceAlertState.Acknowledged">Acknowledged</option>
+                        <option value="@FinanceAlertState.Resolved">Resolved</option>
+                        <option value="@FinanceAlertState.FalsePositive">False Positive</option>
+                    </select>
+                </div>
+                <div class="col-md-6 col-xl-2">
+                    <label asp-for="AlertType" class="form-label">Alert Type</label>
+                    <input asp-for="AlertType" class="form-control" placeholder="FinanceRiskHigh" />
+                </div>
+                <div class="col-md-6 col-xl-2">
+                    <label asp-for="Trigger" class="form-label">Trigger</label>
+                    <input asp-for="Trigger" class="form-control" placeholder="finance.alerts.worker" />
+                </div>
+                <div class="col-md-6 col-xl-2">
+                    <label asp-for="Take" class="form-label">Rows</label>
+                    <input asp-for="Take" type="number" min="1" max="500" class="form-control" />
+                </div>
+                <div class="col-12 d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    <a asp-page="/Finance/Alerts" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Alert History</h5>
+            <span class="text-muted small">@Model.TotalReturned row(s)</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>UTC Time</th>
+                            <th>Alert Type</th>
+                            <th>Trigger</th>
+                            <th>Severity</th>
+                            <th>State</th>
+                            <th>Message</th>
+                            <th>Channels</th>
+                            <th>Payload</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Alerts.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">No alerts matched the selected filters.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            foreach (var alert in Model.Alerts)
+                            {
+                                <tr>
+                                    <td class="text-nowrap">@alert.CreatedUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                    <td class="text-nowrap fw-semibold">@alert.AlertType</td>
+                                    <td class="text-nowrap">@(string.IsNullOrWhiteSpace(alert.Trigger) ? "-" : alert.Trigger)</td>
+                                    <td>
+                                        <span class="badge @(alert.Severity.Equals("High", StringComparison.OrdinalIgnoreCase) ? "bg-danger" : alert.Severity.Equals("Medium", StringComparison.OrdinalIgnoreCase) ? "bg-warning text-dark" : "bg-secondary")">
+                                            @alert.Severity
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @{
+                                            var stateClass = alert.State switch
+                                            {
+                                                FinanceAlertState.New => "bg-primary",
+                                                FinanceAlertState.Acknowledged => "bg-info text-dark",
+                                                FinanceAlertState.Resolved => "bg-success",
+                                                FinanceAlertState.FalsePositive => "bg-secondary",
+                                                _ => "bg-secondary"
+                                            };
+                                        }
+                                        <span class="badge @stateClass">@alert.State</span>
+                                        @if (alert.StateUpdatedUtc.HasValue)
+                                        {
+                                            <div class="small text-muted">@alert.StateUpdatedUtc.Value.ToString("yyyy-MM-dd HH:mm")</div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div>@alert.Message</div>
+                                        @if (!string.IsNullOrWhiteSpace(alert.ResolutionNote))
+                                        {
+                                            <div class="small text-muted mt-1">Note: @alert.ResolutionNote</div>
+                                        }
+                                        @if (alert.AcknowledgedUtc.HasValue || alert.ResolvedUtc.HasValue)
+                                        {
+                                            <div class="small text-muted mt-1">
+                                                @if (alert.AcknowledgedUtc.HasValue)
+                                                {
+                                                    <div>Ack: @alert.AcknowledgedUtc.Value.ToString("yyyy-MM-dd HH:mm") (@(string.IsNullOrWhiteSpace(alert.AcknowledgedBy) ? "unknown" : alert.AcknowledgedBy))</div>
+                                                }
+                                                @if (alert.ResolvedUtc.HasValue)
+                                                {
+                                                    <div>Resolved: @alert.ResolvedUtc.Value.ToString("yyyy-MM-dd HH:mm") (@(string.IsNullOrWhiteSpace(alert.ResolvedBy) ? "unknown" : alert.ResolvedBy))</div>
+                                                }
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="small">
+                                            <div>Realtime: @(alert.RealtimePublished ? "Yes" : "No")</div>
+                                            <div>Email: @(alert.EmailAttempted ? (alert.EmailSucceeded ? "Sent" : "Failed") : "Not attempted")</div>
+                                        </div>
+                                    </td>
+                                    <td style="min-width: 240px;">
+                                        @if (string.IsNullOrWhiteSpace(alert.PayloadJson))
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                        else
+                                        {
+                                            <details>
+                                                <summary class="small">@alert.PayloadPreview</summary>
+                                                <pre class="small mb-0 mt-2">@alert.PayloadJson</pre>
+                                            </details>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="d-flex flex-column align-items-end gap-1">
+                                            @if (alert.State == FinanceAlertState.New)
+                                            {
+                                                <form method="post" asp-page-handler="Acknowledge" class="d-inline">
+                                                    <input type="hidden" name="id" value="@alert.Id" />
+                                                    <input type="hidden" name="FromUtc" value="@(Model.FromUtc?.ToString("yyyy-MM-dd"))" />
+                                                    <input type="hidden" name="ToUtc" value="@(Model.ToUtc?.ToString("yyyy-MM-dd"))" />
+                                                    <input type="hidden" name="Severity" value="@Model.Severity" />
+                                                    <input type="hidden" name="State" value="@Model.State" />
+                                                    <input type="hidden" name="AlertType" value="@Model.AlertType" />
+                                                    <input type="hidden" name="Trigger" value="@Model.Trigger" />
+                                                    <input type="hidden" name="Take" value="@Model.Take" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary">Acknowledge</button>
+                                                </form>
+                                            }
+
+                                            @if (alert.State == FinanceAlertState.New || alert.State == FinanceAlertState.Acknowledged)
+                                            {
+                                                <form method="post" asp-page-handler="Resolve" class="d-inline">
+                                                    <input type="hidden" name="id" value="@alert.Id" />
+                                                    <input type="hidden" name="falsePositive" value="false" />
+                                                    <input type="hidden" name="FromUtc" value="@(Model.FromUtc?.ToString("yyyy-MM-dd"))" />
+                                                    <input type="hidden" name="ToUtc" value="@(Model.ToUtc?.ToString("yyyy-MM-dd"))" />
+                                                    <input type="hidden" name="Severity" value="@Model.Severity" />
+                                                    <input type="hidden" name="State" value="@Model.State" />
+                                                    <input type="hidden" name="AlertType" value="@Model.AlertType" />
+                                                    <input type="hidden" name="Trigger" value="@Model.Trigger" />
+                                                    <input type="hidden" name="Take" value="@Model.Take" />
+                                                    <button type="submit" class="btn btn-sm btn-success">Resolve</button>
+                                                </form>
+                                                <form method="post" asp-page-handler="Resolve" class="d-inline">
+                                                    <input type="hidden" name="id" value="@alert.Id" />
+                                                    <input type="hidden" name="falsePositive" value="true" />
+                                                    <input type="hidden" name="FromUtc" value="@(Model.FromUtc?.ToString("yyyy-MM-dd"))" />
+                                                    <input type="hidden" name="ToUtc" value="@(Model.ToUtc?.ToString("yyyy-MM-dd"))" />
+                                                    <input type="hidden" name="Severity" value="@Model.Severity" />
+                                                    <input type="hidden" name="State" value="@Model.State" />
+                                                    <input type="hidden" name="AlertType" value="@Model.AlertType" />
+                                                    <input type="hidden" name="Trigger" value="@Model.Trigger" />
+                                                    <input type="hidden" name="Take" value="@Model.Take" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-secondary">False Positive</button>
+                                                </form>
+                                            }
+
+                                            @if (alert.State == FinanceAlertState.Resolved || alert.State == FinanceAlertState.FalsePositive)
+                                            {
+                                                <form method="post" asp-page-handler="Reopen" class="d-inline">
+                                                    <input type="hidden" name="id" value="@alert.Id" />
+                                                    <input type="hidden" name="FromUtc" value="@(Model.FromUtc?.ToString("yyyy-MM-dd"))" />
+                                                    <input type="hidden" name="ToUtc" value="@(Model.ToUtc?.ToString("yyyy-MM-dd"))" />
+                                                    <input type="hidden" name="Severity" value="@Model.Severity" />
+                                                    <input type="hidden" name="State" value="@Model.State" />
+                                                    <input type="hidden" name="AlertType" value="@Model.AlertType" />
+                                                    <input type="hidden" name="Trigger" value="@Model.Trigger" />
+                                                    <input type="hidden" name="Take" value="@Model.Take" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-warning">Reopen</button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

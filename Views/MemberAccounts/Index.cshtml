@@ -1,0 +1,76 @@
+@model IEnumerable<EJCFitnessGym.Models.Admin.MemberAccountListItemViewModel>
+@{
+    ViewData["Title"] = "Members";
+}
+
+<div class="py-4">
+    <div class="ejc-table-toolbar mb-3">
+        <div>
+            <h1 class="display-6 mb-0">Member Accounts</h1>
+            @if (User.IsInRole("SuperAdmin"))
+            {
+                <p class="ejc-muted mb-0">SuperAdmin has view-only access to all member account records and subscription data.</p>
+            }
+            else if (User.IsInRole("Admin"))
+            {
+                <p class="ejc-muted mb-0">Admin has view-only access and cannot create or edit member accounts.</p>
+            }
+            else
+            {
+                <p class="ejc-muted mb-0">Create and manage member accounts with membership plan assignment.</p>
+            }
+        </div>
+        @if (User.IsInRole("Finance"))
+        {
+            <a class="btn btn-primary" asp-action="Create">Create Member</a>
+        }
+    </div>
+
+    @if (TempData["StatusMessage"] is string status && !string.IsNullOrWhiteSpace(status))
+    {
+        <div class="alert alert-info">@status</div>
+    }
+
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Plan</th>
+                            <th>Start</th>
+                            <th>End</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var member in Model)
+                    {
+                        <tr>
+                            <td>@member.FullName</td>
+                            <td>@member.Email</td>
+                            <td>@(string.IsNullOrWhiteSpace(member.PhoneNumber) ? "-" : member.PhoneNumber)</td>
+                            <td>@member.PlanName</td>
+                            <td>@(member.StartDateUtc?.ToString("yyyy-MM-dd") ?? "-")</td>
+                            <td>@(member.EndDateUtc?.ToString("yyyy-MM-dd") ?? "-")</td>
+                            <td>@(member.SubscriptionStatus?.ToString() ?? "None")</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@member.UserId">View</a>
+                                @if (User.IsInRole("Finance"))
+                                {
+                                    <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@member.UserId">Edit</a>
+                                    <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@member.UserId">Delete</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

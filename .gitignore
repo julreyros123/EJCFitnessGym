@@ -4,6 +4,10 @@
 # Build outputs
 bin/
 obj/
+_buildtest/
+_efbuild/
+_verifybuild/
+.codex-build/
 
 # User-specific files
 *.user

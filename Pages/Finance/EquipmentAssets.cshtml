@@ -1,0 +1,152 @@
+@page
+@model EJCFitnessGym.Pages.Finance.EquipmentAssetsModel
+@{
+    ViewData["Title"] = "Equipment Assets";
+}
+
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Finance Module</span>
+            <h1 class="h2 mb-1">Equipment Assets</h1>
+            <p class="ejc-muted mb-0">Track total gym equipment, investment cost, and depreciation used in profit calculations.</p>
+        </div>
+        <div class="ejc-actions d-flex gap-2">
+            <form method="post" asp-page-handler="SeedSample">
+                <button type="submit" class="btn btn-outline-primary">Seed Medium Gym Sample</button>
+            </form>
+            <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Back to Overview</a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="alert alert-info py-2 px-3">@Model.StatusMessage</div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4 col-xl-2">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Asset Items</div><div class="h4 mb-0">@Model.Overview.EquipmentAssetItemCount</div></div></div>
+        </div>
+        <div class="col-md-4 col-xl-2">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Total Units</div><div class="h4 mb-0">@Model.Overview.EquipmentTotalUnits</div></div></div>
+        </div>
+        <div class="col-md-4 col-xl-3">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Equipment Investment</div><div class="h4 mb-0">PHP @Model.Overview.EquipmentTotalInvestment.ToString("N2")</div></div></div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Monthly Depreciation</div><div class="h4 mb-0">PHP @Model.Overview.EquipmentMonthlyDepreciation.ToString("N2")</div></div></div>
+        </div>
+        <div class="col-md-6 col-xl-2">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">30D Net Profit Est.</div><div class="h4 mb-0">PHP @Model.Overview.EstimatedNetProfit.ToString("N2")</div></div></div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-5">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0">Add Equipment Asset</h5></div>
+                <div class="card-body">
+                    <form method="post" asp-page-handler="Add" class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Input.Name" class="form-label"></label>
+                            <input asp-for="Input.Name" class="form-control" />
+                            <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.Brand" class="form-label"></label>
+                            <input asp-for="Input.Brand" class="form-control" />
+                            <span asp-validation-for="Input.Brand" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.Category" class="form-label"></label>
+                            <input asp-for="Input.Category" class="form-control" placeholder="Cardio / Strength / Free Weights" />
+                            <span asp-validation-for="Input.Category" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Input.Quantity" class="form-label"></label>
+                            <input asp-for="Input.Quantity" class="form-control" />
+                            <span asp-validation-for="Input.Quantity" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Input.UnitCost" class="form-label"></label>
+                            <input asp-for="Input.UnitCost" class="form-control" />
+                            <span asp-validation-for="Input.UnitCost" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Input.UsefulLifeMonths" class="form-label"></label>
+                            <input asp-for="Input.UsefulLifeMonths" class="form-control" />
+                            <span asp-validation-for="Input.UsefulLifeMonths" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.PurchasedAtUtc" class="form-label"></label>
+                            <input asp-for="Input.PurchasedAtUtc" class="form-control" />
+                            <span asp-validation-for="Input.PurchasedAtUtc" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.Notes" class="form-label"></label>
+                            <input asp-for="Input.Notes" class="form-control" />
+                            <span asp-validation-for="Input.Notes" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input asp-for="Input.IsActive" class="form-check-input" />
+                                <label asp-for="Input.IsActive" class="form-check-label"></label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">Save Asset</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-7">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Current Equipment Inventory</h5>
+                    <span class="text-muted small">@Model.Assets.Count item(s)</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped table-hover align-middle mb-0"
+                               data-ejc-page-size="8"
+                               data-ejc-search-placeholder="Search name, brand, or category">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th class="text-end">Qty</th>
+                                    <th class="text-end">Unit Cost</th>
+                                    <th class="text-end">Total Cost</th>
+                                    <th class="text-end">Life (mo)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Assets)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">@item.Name</div>
+                                            <div class="small text-muted">@(string.IsNullOrWhiteSpace(item.Brand) ? "No brand" : item.Brand)</div>
+                                        </td>
+                                        <td>@item.Category</td>
+                                        <td class="text-end">@item.Quantity</td>
+                                        <td class="text-end text-nowrap">PHP @item.UnitCost.ToString("N2")</td>
+                                        <td class="text-end text-nowrap">PHP @((item.UnitCost * item.Quantity).ToString("N2"))</td>
+                                        <td class="text-end">@item.UsefulLifeMonths</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

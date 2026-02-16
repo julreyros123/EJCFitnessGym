@@ -1,8 +1,73 @@
 @{
-    ViewData["Title"] = "Finance Portal";
+    ViewData["Title"] = "Finance";
 }
 
-<div class="container">
-    <h1 class="mt-4">Finance Portal</h1>
-    <p>Welcome, @User.Identity?.Name</p>
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h1 class="display-5 mb-1">Finance Overview</h1>
+            <p class="ejc-muted mb-0">Welcome, @User.Identity?.Name</p>
+        </div>
+        <span class="badge ejc-badge">Revenue Control</span>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="ejc-stat">
+                <h3 class="h2">₱0</h3>
+                <p class="ejc-muted mb-0">Monthly revenue</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="ejc-stat">
+                <h3 class="h2">36</h3>
+                <p class="ejc-muted mb-0">Open invoices</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="ejc-stat">
+                <h3 class="h2">3</h3>
+                <p class="ejc-muted mb-0">Plan tiers</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="ejc-card-icon mb-3">
+                        <span class="ejc-icon"><i class="bi bi-journal-text"></i></span>
+                        <h5 class="card-title mb-0">Subscription Plans</h5>
+                    </div>
+                    <p class="ejc-muted">Create and manage membership plans.</p>
+                    <a class="btn btn-outline-primary" href="/SubscriptionPlans">Open</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="ejc-card-icon mb-3">
+                        <span class="ejc-icon"><i class="bi bi-receipt-cutoff"></i></span>
+                        <h5 class="card-title mb-0">Invoices</h5>
+                    </div>
+                    <p class="ejc-muted">Track invoices and payments.</p>
+                    <a class="btn btn-outline-primary" href="/Invoices">Open</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="ejc-card-icon mb-3">
+                        <span class="ejc-icon"><i class="bi bi-graph-up"></i></span>
+                        <h5 class="card-title mb-0">Revenue Reports</h5>
+                    </div>
+                    <p class="ejc-muted">View income summaries (coming next).</p>
+                    <a class="btn btn-outline-secondary" asp-page="/Finance/Dashboard">Coming soon</a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

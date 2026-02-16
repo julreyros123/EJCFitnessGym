@@ -1,0 +1,47 @@
+@page
+@model ResendEmailConfirmationModel
+@{
+    ViewData["Title"] = "Resend Email Confirmation";
+}
+
+<section class="ejc-auth ejc-auth-login">
+    <div class="ejc-auth-card">
+        <div class="ejc-auth-form">
+            <div class="ejc-auth-brand">
+                <div>
+                    <span class="ejc-eyebrow">Account Verification</span>
+                    <h1 class="h2 mb-1">Resend confirmation email</h1>
+                    <p class="ejc-muted mb-0">We will send a new verification link if your account is pending confirmation.</p>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+            {
+                <div class="alert alert-info">@Model.StatusMessage</div>
+            }
+
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <div class="form-floating mb-3 ejc-auth-input">
+                    <input asp-for="Input.Email" class="form-control" autocomplete="email" />
+                    <label asp-for="Input.Email">Email address</label>
+                    <span asp-validation-for="Input.Email" class="text-danger"></span>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 ejc-auth-submit">Resend confirmation</button>
+                <div class="ejc-auth-links">
+                    <a asp-page="./Login">Back to sign in</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="ejc-auth-aside">
+            <span class="ejc-eyebrow">Member Access</span>
+            <h2 class="h3 mt-2">Secure and verified</h2>
+            <p class="ejc-muted">Verification ensures only approved identities can access member billing and subscriptions.</p>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

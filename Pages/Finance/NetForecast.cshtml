@@ -1,0 +1,227 @@
+@page
+@model EJCFitnessGym.Pages.Finance.NetForecastModel
+@{
+    ViewData["Title"] = "Net Forecast";
+    var insights = Model.Insights;
+    var riskBadgeClass = insights.RiskLevel switch
+    {
+        "High" => "badge bg-danger",
+        "Medium" => "badge bg-warning text-dark",
+        _ => "badge bg-success"
+    };
+    var signalBadgeClass = insights.GainOrLossSignal switch
+    {
+        "Projected Loss" => "badge bg-danger",
+        "Projected Gain" => "badge bg-success",
+        "Declining" => "badge bg-warning text-dark",
+        _ => "badge bg-secondary"
+    };
+}
+
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Finance Module</span>
+            <h1 class="h2 mb-1">Net Profit Forecast</h1>
+            <p class="ejc-muted mb-0">AI-style projection from historical payment patterns with anomaly detection.</p>
+        </div>
+        <div class="ejc-actions">
+            <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Back to Overview</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4 col-xl-2">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Lookback Revenue</div><div class="h5 mb-0">PHP @insights.LookbackRevenue.ToString("N2")</div></div></div>
+        </div>
+        <div class="col-md-4 col-xl-2">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Daily Avg Revenue</div><div class="h5 mb-0">PHP @insights.AverageDailyRevenue.ToString("N2")</div></div></div>
+        </div>
+        <div class="col-md-4 col-xl-2">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Forecast Revenue</div><div class="h5 mb-0">PHP @insights.ForecastRevenue.ToString("N2")</div></div></div>
+        </div>
+        <div class="col-md-6 col-xl-2">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Forecast Total Expense</div><div class="h5 mb-0">PHP @insights.ForecastTotalExpense.ToString("N2")</div></div></div>
+        </div>
+        <div class="col-md-6 col-xl-2">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Signal</div><div class="h5 mb-0"><span class="@signalBadgeClass">@insights.GainOrLossSignal</span></div></div></div>
+        </div>
+        <div class="col-md-6 col-xl-2">
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Risk</div><div class="h5 mb-0"><span class="@riskBadgeClass">@insights.RiskLevel</span></div></div></div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-7">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Forecast Inputs</h5>
+                    <span class="text-muted small">Next @insights.ForecastDays days</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0 ejc-finance-table ejc-table-sticky"
+                               data-ejc-page-size="6"
+                               data-ejc-search-placeholder="Search input, definition, or value">
+                            <thead>
+                                <tr>
+                                    <th>Input</th>
+                                    <th>Definition</th>
+                                    <th class="text-end">Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Historical Window</td>
+                                    <td>Revenue observed from @insights.LookbackFromUtc.ToString("MMM dd, yyyy") to @insights.LookbackToUtc.ToString("MMM dd, yyyy").</td>
+                                    <td class="text-end text-nowrap">@insights.LookbackDays days</td>
+                                </tr>
+                                <tr>
+                                    <td>Average Daily Revenue</td>
+                                    <td>Baseline daily earning level used by regression trend projection.</td>
+                                    <td class="text-end text-nowrap">PHP @insights.AverageDailyRevenue.ToString("N2")</td>
+                                </tr>
+                                <tr>
+                                    <td>Lookback Operating Expenses</td>
+                                    <td>Total encoded expenses in the historical lookback window.</td>
+                                    <td class="text-end text-nowrap">PHP @insights.LookbackOperatingExpenses.ToString("N2")</td>
+                                </tr>
+                                <tr>
+                                    <td>Average Daily Operating Expense</td>
+                                    <td>Average encoded day cost (rent, payroll, utilities, maintenance, etc.).</td>
+                                    <td class="text-end text-nowrap">PHP @insights.AverageDailyOperatingExpense.ToString("N2")</td>
+                                </tr>
+                                <tr>
+                                    <td>Forecast Revenue</td>
+                                    <td>Projected incoming revenue in the next @insights.ForecastDays days.</td>
+                                    <td class="text-end text-nowrap">PHP @insights.ForecastRevenue.ToString("N2")</td>
+                                </tr>
+                                <tr>
+                                    <td>Forecast Operating Expense</td>
+                                    <td>Projected operating expenses in the next @insights.ForecastDays days.</td>
+                                    <td class="text-end text-nowrap">PHP @insights.ForecastOperatingExpense.ToString("N2")</td>
+                                </tr>
+                                <tr>
+                                    <td>Forecast Depreciation Cost</td>
+                                    <td>Projected equipment depreciation for the same forecast horizon.</td>
+                                    <td class="text-end text-nowrap">PHP @insights.ForecastDepreciationCost.ToString("N2")</td>
+                                </tr>
+                                <tr>
+                                    <td>Forecast Total Expense</td>
+                                    <td>Operating expense plus equipment depreciation.</td>
+                                    <td class="text-end text-nowrap">PHP @insights.ForecastTotalExpense.ToString("N2")</td>
+                                </tr>
+                                <tr>
+                                    <td>Expected Change</td>
+                                    <td>Change versus the most recent @insights.ForecastDays-day observed period.</td>
+                                    <td class="text-end text-nowrap">
+                                        @if (insights.ForecastChangePercent.HasValue)
+                                        {
+                                            @($"{insights.ForecastChangePercent.Value:+0.##;-0.##;0}%")
+                                        }
+                                        else
+                                        {
+                                            @("-")
+                                        }
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-5">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Forecast Model</h5>
+                    <span class="text-muted small">Formula</span>
+                </div>
+                <div class="card-body">
+                    <p class="ejc-muted small mb-3">
+                        Forecast Net = Forecast Revenue - Forecast Operating Expense - Forecast Depreciation Cost
+                    </p>
+                    <div class="ejc-finance-stat">
+                        <span class="ejc-muted">Forecast Revenue (@insights.ForecastDays days)</span>
+                        <strong>PHP @insights.ForecastRevenue.ToString("N2")</strong>
+                    </div>
+                    <div class="ejc-finance-stat">
+                        <span class="ejc-muted">Forecast Operating Expense</span>
+                        <strong>PHP @insights.ForecastOperatingExpense.ToString("N2")</strong>
+                    </div>
+                    <div class="ejc-finance-stat">
+                        <span class="ejc-muted">Forecast Depreciation Cost</span>
+                        <strong>PHP @insights.ForecastDepreciationCost.ToString("N2")</strong>
+                    </div>
+                    <div class="ejc-finance-stat">
+                        <span class="ejc-muted">Risk Level</span>
+                        <strong><span class="@riskBadgeClass">@insights.RiskLevel</span></strong>
+                    </div>
+                    <hr />
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="fw-semibold">Forecast Net Result</span>
+                        <strong class="@(insights.ForecastNet >= 0 ? "text-success" : "text-danger")">PHP @insights.ForecastNet.ToString("N2")</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Detected Revenue Anomalies</h5>
+            <span class="text-muted small">@insights.Anomalies.Count event(s)</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 ejc-finance-table ejc-table-sticky"
+                       data-ejc-page-size="8"
+                       data-ejc-search-placeholder="Search date, type, severity, or values">
+                    <thead>
+                        <tr>
+                            <th>Date (UTC)</th>
+                            <th>Type</th>
+                            <th class="text-end">Actual</th>
+                            <th class="text-end">Expected</th>
+                            <th class="text-end">Deviation</th>
+                            <th>Severity</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (insights.Anomalies.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-3">No anomalies detected for the current lookback window.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var anomaly in insights.Anomalies)
+                            {
+                                var severityBadge = anomaly.Severity switch
+                                {
+                                    "High" => "badge bg-danger",
+                                    "Medium" => "badge bg-warning text-dark",
+                                    _ => "badge bg-info text-dark"
+                                };
+                                <tr>
+                                    <td>@anomaly.DateUtc.ToString("MMM dd, yyyy")</td>
+                                    <td>@anomaly.Type</td>
+                                    <td class="text-end text-nowrap">PHP @anomaly.ActualValue.ToString("N2")</td>
+                                    <td class="text-end text-nowrap">PHP @anomaly.ExpectedValue.ToString("N2")</td>
+                                    <td class="text-end text-nowrap">
+                                        @(anomaly.DeviationPercent.HasValue ? $"{anomaly.DeviationPercent.Value:+0.##;-0.##;0}%" : "-")
+                                    </td>
+                                    <td><span class="@severityBadge">@anomaly.Severity</span></td>
+                                    <td>@anomaly.Description</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

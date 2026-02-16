@@ -1,8 +1,73 @@
 @{
-    ViewData["Title"] = "Staff Portal";
+    ViewData["Title"] = "Front Desk";
 }
 
-<div class="container">
-    <h1 class="mt-4">Staff Portal</h1>
-    <p>Welcome, @User.Identity?.Name</p>
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h1 class="display-5 mb-1">Front Desk Ops</h1>
+            <p class="ejc-muted mb-0">Welcome, @User.Identity?.Name</p>
+        </div>
+        <span class="badge ejc-badge">Front Desk</span>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="ejc-stat">
+                <h3 class="h2">82</h3>
+                <p class="ejc-muted mb-0">Check-ins today</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="ejc-stat">
+                <h3 class="h2">9</h3>
+                <p class="ejc-muted mb-0">Classes running</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="ejc-stat">
+                <h3 class="h2">4</h3>
+                <p class="ejc-muted mb-0">Pending issues</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="ejc-card-icon mb-3">
+                        <span class="ejc-icon"><i class="bi bi-upc-scan"></i></span>
+                        <h5 class="card-title mb-0">Member Check-In</h5>
+                    </div>
+                    <p class="ejc-muted">Scan QR or search member profiles.</p>
+                    <a class="btn btn-outline-primary" asp-page="/Staff/CheckIn">Start</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="ejc-card-icon mb-3">
+                        <span class="ejc-icon"><i class="bi bi-calendar-check"></i></span>
+                        <h5 class="card-title mb-0">Attendance</h5>
+                    </div>
+                    <p class="ejc-muted">Review daily attendance logs.</p>
+                    <a class="btn btn-outline-primary" asp-page="/Staff/Attendance">Open</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="ejc-card-icon mb-3">
+                        <span class="ejc-icon"><i class="bi bi-clipboard-data"></i></span>
+                        <h5 class="card-title mb-0">Reports</h5>
+                    </div>
+                    <p class="ejc-muted">Generate shift and performance reports.</p>
+                    <a class="btn btn-outline-primary" asp-page="/Staff/Reports">Open</a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

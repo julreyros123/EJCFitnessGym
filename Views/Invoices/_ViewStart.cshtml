@@ -1,0 +1,18 @@
+@{
+    if (User.IsInRole("Staff"))
+    {
+        Layout = "/Pages/Shared/_StaffLayout.cshtml";
+    }
+    else if (User.IsInRole("Finance"))
+    {
+        Layout = "/Pages/Shared/_FinanceLayout.cshtml";
+    }
+    else if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+    {
+        Layout = "/Views/Shared/_AdminLayout.cshtml";
+    }
+    else
+    {
+        Layout = "/Views/Shared/_Layout.cshtml";
+    }
+}

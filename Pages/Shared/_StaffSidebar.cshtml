@@ -1,0 +1,29 @@
+@{
+}
+
+<aside class="ejc-admin-sidebar ejc-staff-sidebar d-none d-lg-flex" data-admin-sidebar>
+    <div class="ejc-admin-sidebar-top">
+        <div class="ejc-admin-sidebar-brand">
+            <span class="ejc-admin-sidebar-badge">FRONT DESK</span>
+        </div>
+        <button type="button"
+                class="btn btn-sm btn-outline-light ejc-admin-sidebar-toggle"
+                data-admin-sidebar-toggle
+                aria-expanded="true"
+                aria-label="Collapse front desk sidebar">
+            <i class="bi bi-layout-sidebar-inset"></i>
+        </button>
+    </div>
+
+    <partial name="/Pages/Shared/_StaffSidebarNav.cshtml" />
+</aside>
+
+<div class="offcanvas offcanvas-start ejc-role-sidebar-offcanvas d-lg-none" tabindex="-1" id="ejcStaffSidebarOffcanvas" aria-labelledby="ejcStaffSidebarOffcanvasLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="ejcStaffSidebarOffcanvasLabel">Front Desk</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <partial name="/Pages/Shared/_StaffSidebarNav.cshtml" />
+    </div>
+</div>

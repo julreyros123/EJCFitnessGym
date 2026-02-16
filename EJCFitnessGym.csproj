@@ -8,12 +8,25 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="8.0.23" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.23" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.23" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.23" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.23" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.23" />
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.23" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="EJCFitnessGym.Tests\\**\\*.cs" />
+    <None Remove="EJCFitnessGym.Tests\\**\\*" />
+    <Content Remove="EJCFitnessGym.Tests\\**\\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="_buildtest\\**\\*.cs;_efbuild\\**\\*.cs;.codex-build\\**\\*.cs;_verifybuild\\**\\*.cs" />
+    <None Remove="_buildtest\\**\\*;_efbuild\\**\\*;.codex-build\\**\\*;_verifybuild\\**\\*" />
+    <Content Remove="_buildtest\\**\\*;_efbuild\\**\\*;.codex-build\\**\\*;_verifybuild\\**\\*" />
   </ItemGroup>
 
 </Project>

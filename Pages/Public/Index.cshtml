@@ -4,22 +4,23 @@
     ViewData["Title"] = "Welcome";
 }
 
-<div class="py-5">
-    <div class="container">
+<section class="py-5">
+    <div class="ejc-hero">
         <div class="row align-items-center g-4">
             <div class="col-lg-7">
-                <h1 class="display-5 fw-bold">EJC Fitness Gym</h1>
-                <p class="lead">Train smarter. Track memberships, billing, and day-to-day operations in one system.</p>
-                <div class="d-flex gap-2">
+                <span class="badge ejc-badge mb-3">Performance Driven</span>
+                <h1 class="display-4">EJC Fitness Gym</h1>
+                <p class="lead">Train smarter. Track memberships, billing, and day-to-day operations in one unified system.</p>
+                <div class="d-flex flex-wrap gap-2">
                     <a class="btn btn-primary btn-lg" asp-area="Identity" asp-page="/Account/Login">Login</a>
-                    <a class="btn btn-outline-secondary btn-lg" asp-page="/Public/Pricing">View Pricing</a>
+                    <a class="btn btn-outline-light btn-lg" asp-page="/Public/Pricing">View Pricing</a>
                 </div>
             </div>
             <div class="col-lg-5">
-                <div class="card shadow-sm">
+                <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">Quick Links</h5>
-                        <div class="list-group">
+                        <div class="list-group mt-3">
                             <a class="list-group-item list-group-item-action" asp-page="/Public/About">About</a>
                             <a class="list-group-item list-group-item-action" asp-page="/Public/Pricing">Pricing</a>
                         </div>
@@ -28,4 +29,44 @@
             </div>
         </div>
     </div>
-</div>
+</section>
+
+<section class="py-4">
+    <div class="container">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="ejc-card-icon mb-3">
+                            <span class="ejc-icon"><i class="bi bi-person-lines-fill"></i></span>
+                            <h5 class="card-title mb-0">Member Management</h5>
+                        </div>
+                        <p class="ejc-muted">Onboard, renew, and track memberships without friction.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="ejc-card-icon mb-3">
+                            <span class="ejc-icon"><i class="bi bi-cash-stack"></i></span>
+                            <h5 class="card-title mb-0">Billing Control</h5>
+                        </div>
+                        <p class="ejc-muted">Generate invoices, track payments, and monitor revenue.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="ejc-card-icon mb-3">
+                            <span class="ejc-icon"><i class="bi bi-clipboard-data"></i></span>
+                            <h5 class="card-title mb-0">Operational Clarity</h5>
+                        </div>
+                        <p class="ejc-muted">Front desk check-ins, inventory, and reporting in one place.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
