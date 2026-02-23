@@ -1,6 +1,7 @@
 @model EJCFitnessGym.Models.Billing.SubscriptionPlan
 @{
     ViewData["Title"] = "Delete Plan";
+    var hasAssignments = ViewData["HasAssignments"] is bool b && b;
 }
 
 <div class="container py-5">
@@ -11,14 +12,23 @@
         </div>
     </div>
 
-    <div class="alert alert-warning">
-        Are you sure you want to delete <strong>@Model.Name</strong>?
-    </div>
+    @if (hasAssignments)
+    {
+        <div class="alert alert-warning">
+            <strong>@Model.Name</strong> already has member assignment history. Confirm to deactivate this plan instead of deleting it.
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            Are you sure you want to delete <strong>@Model.Name</strong>?
+        </div>
+    }
 
     <form asp-action="Delete" method="post">
         <input type="hidden" asp-for="Id" />
         <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-danger">Delete</button>
+            <button type="submit" class="btn btn-danger">@(hasAssignments ? "Deactivate" : "Delete")</button>
             <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
         </div>
     </form>

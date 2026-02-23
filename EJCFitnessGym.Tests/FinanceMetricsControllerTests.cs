@@ -15,13 +15,13 @@ namespace EJCFitnessGym.Tests;
 public class FinanceMetricsControllerTests
 {
     [Fact]
-    public void FinanceMetricsController_HasAuthorizeRolesPolicy()
+    public void FinanceMetricsController_HasAuthorizePolicy()
     {
         var attribute = typeof(FinanceMetricsController)
             .GetCustomAttribute<AuthorizeAttribute>();
 
         Assert.NotNull(attribute);
-        Assert.Equal("Finance,Admin,SuperAdmin", attribute!.Roles);
+        Assert.Equal("FinanceApiAccess", attribute!.Policy);
     }
 
     [Fact]
@@ -287,6 +287,7 @@ public class FinanceMetricsControllerTests
             new StubFinanceMetricsService(),
             new StubFinanceAlertService(),
             lifecycle,
+            new StubFinanceAiAssistantService(),
             db);
     }
 
@@ -346,29 +347,88 @@ public class FinanceMetricsControllerTests
 
     private sealed class StubFinanceMetricsService : IFinanceMetricsService
     {
-        public Task<FinanceOverviewDto> GetOverviewAsync(DateTime? fromUtc = null, DateTime? toUtc = null, CancellationToken cancellationToken = default)
+        public Task<FinanceOverviewDto> GetOverviewAsync(
+            DateTime? fromUtc = null,
+            DateTime? toUtc = null,
+            CancellationToken cancellationToken = default,
+            string? branchId = null)
         {
             return Task.FromResult(new FinanceOverviewDto());
         }
 
-        public Task<FinanceInsightsDto> GetInsightsAsync(int lookbackDays = 120, int forecastDays = 30, CancellationToken cancellationToken = default)
+        public Task<FinanceInsightsDto> GetInsightsAsync(
+            int lookbackDays = 120,
+            int forecastDays = 30,
+            CancellationToken cancellationToken = default,
+            string? branchId = null)
         {
             return Task.FromResult(new FinanceInsightsDto());
         }
 
-        public Task<IReadOnlyList<GymEquipmentAsset>> GetEquipmentAssetsAsync(CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<GymEquipmentAsset>> GetEquipmentAssetsAsync(
+            string? branchId = null,
+            CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<GymEquipmentAsset>>(Array.Empty<GymEquipmentAsset>());
         }
 
-        public Task<IReadOnlyList<FinanceExpenseRecord>> GetExpensesAsync(DateTime? fromUtc = null, DateTime? toUtc = null, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<FinanceExpenseRecord>> GetExpensesAsync(
+            DateTime? fromUtc = null,
+            DateTime? toUtc = null,
+            string? branchId = null,
+            CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<FinanceExpenseRecord>>(Array.Empty<FinanceExpenseRecord>());
         }
 
-        public Task<EquipmentSeedResultDto> SeedMediumGymSampleAsync(CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<FinanceMonthlySnapshotDto>> GetMonthlySnapshotsAsync(
+            int months = 6,
+            bool includeProjection = false,
+            CancellationToken cancellationToken = default,
+            string? branchId = null)
+        {
+            return Task.FromResult<IReadOnlyList<FinanceMonthlySnapshotDto>>(Array.Empty<FinanceMonthlySnapshotDto>());
+        }
+
+        public Task<EquipmentSeedResultDto> SeedMediumGymSampleAsync(
+            string? branchId = null,
+            CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new EquipmentSeedResultDto());
+        }
+    }
+
+    private sealed class StubFinanceAiAssistantService : IFinanceAiAssistantService
+    {
+        public Task<FinanceAiOverviewDto> GetBranchAiOverviewAsync(
+            string? branchId,
+            DateTime? fromUtc = null,
+            DateTime? toUtc = null,
+            int priorityTake = 12,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new FinanceAiOverviewDto
+            {
+                BranchId = branchId,
+                GeneratedAtUtc = DateTime.UtcNow,
+                FromUtc = fromUtc ?? DateTime.UtcNow.AddDays(-30),
+                ToUtc = toUtc ?? DateTime.UtcNow
+            });
+        }
+
+        public Task<FinanceHighRiskAlertDispatchResultDto> DispatchNewHighRiskAlertsAsync(
+            string trigger,
+            DateTime? fromUtc = null,
+            DateTime? toUtc = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new FinanceHighRiskAlertDispatchResultDto
+            {
+                BranchesEvaluated = 0,
+                HighRiskMembersEvaluated = 0,
+                AlertsSent = 0,
+                EvaluatedAtUtc = DateTime.UtcNow
+            });
         }
     }
 }

@@ -1,6 +1,7 @@
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Models.Finance;
+using EJCFitnessGym.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace EJCFitnessGym.Services.Finance
@@ -8,6 +9,12 @@ namespace EJCFitnessGym.Services.Finance
     public class FinanceMetricsService : IFinanceMetricsService
     {
         private readonly ApplicationDbContext _db;
+        private static readonly string[] DirectCostCategories =
+        [
+            "Inventory",
+            "Supplies",
+            "Operations"
+        ];
 
         private static readonly IReadOnlyList<GymEquipmentAsset> MediumGymSampleAssets =
         [
@@ -47,7 +54,8 @@ namespace EJCFitnessGym.Services.Finance
         public async Task<FinanceOverviewDto> GetOverviewAsync(
             DateTime? fromUtc = null,
             DateTime? toUtc = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? branchId = null)
         {
             var utcNow = DateTime.UtcNow;
             var normalizedTo = NormalizeToUtc(toUtc) ?? utcNow;
@@ -57,10 +65,12 @@ namespace EJCFitnessGym.Services.Finance
                 (normalizedFrom, normalizedTo) = (normalizedTo, normalizedFrom);
             }
 
+            var scopedInvoiceIds = BuildBranchScopedInvoiceIdsQuery(branchId);
             var paymentsQuery = _db.Payments
                 .AsNoTracking()
                 .Where(p =>
                     p.Status == PaymentStatus.Succeeded &&
+                    scopedInvoiceIds.Contains(p.InvoiceId) &&
                     p.PaidAtUtc >= normalizedFrom &&
                     p.PaidAtUtc <= normalizedTo);
 
@@ -78,6 +88,7 @@ namespace EJCFitnessGym.Services.Finance
                 .AsNoTracking()
                 .Where(e =>
                     e.IsActive &&
+                    (string.IsNullOrWhiteSpace(branchId) || e.BranchId == branchId) &&
                     e.ExpenseDateUtc >= normalizedFrom &&
                     e.ExpenseDateUtc <= normalizedTo)
                 .Select(e => (decimal?)e.Amount)
@@ -85,7 +96,9 @@ namespace EJCFitnessGym.Services.Finance
 
             var equipmentAggregate = await _db.GymEquipmentAssets
                 .AsNoTracking()
-                .Where(a => a.IsActive)
+                .Where(a =>
+                    a.IsActive &&
+                    (string.IsNullOrWhiteSpace(branchId) || a.BranchId == branchId))
                 .GroupBy(_ => 1)
                 .Select(g => new
                 {
@@ -130,7 +143,8 @@ namespace EJCFitnessGym.Services.Finance
         public async Task<FinanceInsightsDto> GetInsightsAsync(
             int lookbackDays = 120,
             int forecastDays = 30,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? branchId = null)
         {
             var normalizedLookbackDays = Math.Clamp(lookbackDays, 30, 730);
             var normalizedForecastDays = Math.Clamp(forecastDays, 7, 180);
@@ -139,10 +153,12 @@ namespace EJCFitnessGym.Services.Finance
             var lookbackToUtc = generatedAtUtc.Date.AddDays(1).AddTicks(-1);
             var lookbackFromUtc = generatedAtUtc.Date.AddDays(-(normalizedLookbackDays - 1));
 
+            var scopedInvoiceIds = BuildBranchScopedInvoiceIdsQuery(branchId);
             var rawDailyRevenue = await _db.Payments
                 .AsNoTracking()
                 .Where(p =>
                     p.Status == PaymentStatus.Succeeded &&
+                    scopedInvoiceIds.Contains(p.InvoiceId) &&
                     p.PaidAtUtc >= lookbackFromUtc &&
                     p.PaidAtUtc <= lookbackToUtc)
                 .GroupBy(p => p.PaidAtUtc.Date)
@@ -158,6 +174,7 @@ namespace EJCFitnessGym.Services.Finance
                 .AsNoTracking()
                 .Where(e =>
                     e.IsActive &&
+                    (string.IsNullOrWhiteSpace(branchId) || e.BranchId == branchId) &&
                     e.ExpenseDateUtc >= lookbackFromUtc &&
                     e.ExpenseDateUtc <= lookbackToUtc)
                 .GroupBy(e => e.ExpenseDateUtc.Date)
@@ -212,7 +229,9 @@ namespace EJCFitnessGym.Services.Finance
 
             var monthlyDepreciation = await _db.GymEquipmentAssets
                 .AsNoTracking()
-                .Where(a => a.IsActive)
+                .Where(a =>
+                    a.IsActive &&
+                    (string.IsNullOrWhiteSpace(branchId) || a.BranchId == branchId))
                 .Select(a =>
                     ((decimal)a.Quantity * a.UnitCost) /
                     (decimal)(a.UsefulLifeMonths > 0 ? a.UsefulLifeMonths : 1))
@@ -265,10 +284,13 @@ namespace EJCFitnessGym.Services.Finance
             };
         }
 
-        public async Task<IReadOnlyList<GymEquipmentAsset>> GetEquipmentAssetsAsync(CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<GymEquipmentAsset>> GetEquipmentAssetsAsync(
+            string? branchId = null,
+            CancellationToken cancellationToken = default)
         {
             return await _db.GymEquipmentAssets
                 .AsNoTracking()
+                .Where(asset => string.IsNullOrWhiteSpace(branchId) || asset.BranchId == branchId)
                 .OrderBy(a => a.Category)
                 .ThenBy(a => a.Name)
                 .ToListAsync(cancellationToken);
@@ -277,6 +299,7 @@ namespace EJCFitnessGym.Services.Finance
         public async Task<IReadOnlyList<FinanceExpenseRecord>> GetExpensesAsync(
             DateTime? fromUtc = null,
             DateTime? toUtc = null,
+            string? branchId = null,
             CancellationToken cancellationToken = default)
         {
             var normalizedTo = NormalizeToUtc(toUtc);
@@ -284,7 +307,9 @@ namespace EJCFitnessGym.Services.Finance
 
             var query = _db.FinanceExpenseRecords
                 .AsNoTracking()
-                .Where(e => e.IsActive);
+                .Where(e =>
+                    e.IsActive &&
+                    (string.IsNullOrWhiteSpace(branchId) || e.BranchId == branchId));
 
             if (normalizedFrom.HasValue)
             {
@@ -302,11 +327,159 @@ namespace EJCFitnessGym.Services.Finance
                 .ToListAsync(cancellationToken);
         }
 
-        public async Task<EquipmentSeedResultDto> SeedMediumGymSampleAsync(CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<FinanceMonthlySnapshotDto>> GetMonthlySnapshotsAsync(
+            int months = 6,
+            bool includeProjection = false,
+            CancellationToken cancellationToken = default,
+            string? branchId = null)
+        {
+            var normalizedMonths = Math.Clamp(months, 1, 24);
+            var currentMonthStartUtc = new DateTime(
+                DateTime.UtcNow.Year,
+                DateTime.UtcNow.Month,
+                1,
+                0,
+                0,
+                0,
+                DateTimeKind.Utc);
+            var firstMonthStartUtc = currentMonthStartUtc.AddMonths(-(normalizedMonths - 1));
+            var exclusiveEndUtc = currentMonthStartUtc.AddMonths(1);
+            var scopedInvoiceIds = BuildBranchScopedInvoiceIdsQuery(branchId);
+
+            var monthlyPayments = await _db.Payments
+                .AsNoTracking()
+                .Where(payment =>
+                    payment.Status == PaymentStatus.Succeeded &&
+                    scopedInvoiceIds.Contains(payment.InvoiceId) &&
+                    payment.PaidAtUtc >= firstMonthStartUtc &&
+                    payment.PaidAtUtc < exclusiveEndUtc)
+                .GroupBy(payment => new
+                {
+                    payment.PaidAtUtc.Year,
+                    payment.PaidAtUtc.Month
+                })
+                .Select(group => new
+                {
+                    group.Key.Year,
+                    group.Key.Month,
+                    Revenue = group.Sum(payment => payment.Amount),
+                    SuccessfulPaymentsCount = group.Count()
+                })
+                .ToListAsync(cancellationToken);
+
+            var monthlyExpenses = await _db.FinanceExpenseRecords
+                .AsNoTracking()
+                .Where(expense =>
+                    expense.IsActive &&
+                    (string.IsNullOrWhiteSpace(branchId) || expense.BranchId == branchId) &&
+                    expense.ExpenseDateUtc >= firstMonthStartUtc &&
+                    expense.ExpenseDateUtc < exclusiveEndUtc)
+                .GroupBy(expense => new
+                {
+                    expense.ExpenseDateUtc.Year,
+                    expense.ExpenseDateUtc.Month
+                })
+                .Select(group => new
+                {
+                    group.Key.Year,
+                    group.Key.Month,
+                    CostOfServices = group.Sum(expense =>
+                        DirectCostCategories.Contains(expense.Category) ? expense.Amount : 0m),
+                    OperatingExpenses = group.Sum(expense =>
+                        DirectCostCategories.Contains(expense.Category) ? 0m : expense.Amount)
+                })
+                .ToListAsync(cancellationToken);
+
+            var scopedInvoices = _db.Invoices
+                .AsNoTracking()
+                .Where(invoice => scopedInvoiceIds.Contains(invoice.Id));
+            var monthlyInvoiceStates = await scopedInvoices
+                .Where(invoice =>
+                    invoice.IssueDateUtc >= firstMonthStartUtc &&
+                    invoice.IssueDateUtc < exclusiveEndUtc)
+                .GroupBy(invoice => new
+                {
+                    invoice.IssueDateUtc.Year,
+                    invoice.IssueDateUtc.Month,
+                    invoice.Status
+                })
+                .Select(group => new
+                {
+                    group.Key.Year,
+                    group.Key.Month,
+                    group.Key.Status,
+                    Count = group.Count()
+                })
+                .ToListAsync(cancellationToken);
+
+            var monthlyDepreciation = await _db.GymEquipmentAssets
+                .AsNoTracking()
+                .Where(asset =>
+                    asset.IsActive &&
+                    (string.IsNullOrWhiteSpace(branchId) || asset.BranchId == branchId))
+                .Select(asset =>
+                    ((decimal)asset.Quantity * asset.UnitCost) /
+                    (decimal)(asset.UsefulLifeMonths > 0 ? asset.UsefulLifeMonths : 1))
+                .SumAsync(cancellationToken);
+
+            var paymentMap = monthlyPayments.ToDictionary(
+                entry => (entry.Year, entry.Month),
+                entry => (entry.Revenue, entry.SuccessfulPaymentsCount));
+            var expenseMap = monthlyExpenses.ToDictionary(
+                entry => (entry.Year, entry.Month),
+                entry => (entry.CostOfServices, entry.OperatingExpenses));
+            var invoiceStateMap = monthlyInvoiceStates.ToDictionary(
+                entry => (entry.Year, entry.Month, entry.Status),
+                entry => entry.Count);
+
+            var snapshots = new List<FinanceMonthlySnapshotDto>(normalizedMonths + (includeProjection ? 1 : 0));
+            for (var monthOffset = 0; monthOffset < normalizedMonths; monthOffset++)
+            {
+                var monthStartUtc = firstMonthStartUtc.AddMonths(monthOffset);
+                var key = (monthStartUtc.Year, monthStartUtc.Month);
+                paymentMap.TryGetValue(key, out var paymentEntry);
+                expenseMap.TryGetValue(key, out var expenseEntry);
+
+                var revenue = paymentEntry.Revenue;
+                var costOfServices = expenseEntry.CostOfServices;
+                var grossProfit = revenue - costOfServices;
+                var operatingExpenses = expenseEntry.OperatingExpenses;
+                var netProfit = grossProfit - operatingExpenses - monthlyDepreciation;
+
+                snapshots.Add(new FinanceMonthlySnapshotDto
+                {
+                    MonthStartUtc = monthStartUtc,
+                    Revenue = revenue,
+                    CostOfServices = costOfServices,
+                    GrossProfit = grossProfit,
+                    OperatingExpenses = operatingExpenses,
+                    DepreciationCost = monthlyDepreciation,
+                    NetProfit = netProfit,
+                    SuccessfulPaymentsCount = paymentEntry.SuccessfulPaymentsCount,
+                    ForReviewCount = ResolveInvoiceStateCount(invoiceStateMap, key, InvoiceStatus.Draft),
+                    PendingCount = ResolveInvoiceStateCount(invoiceStateMap, key, InvoiceStatus.Unpaid),
+                    QueuedCount = ResolveInvoiceStateCount(invoiceStateMap, key, InvoiceStatus.Overdue),
+                    ApprovedCount = ResolveInvoiceStateCount(invoiceStateMap, key, InvoiceStatus.Paid),
+                    IsProjected = false
+                });
+            }
+
+            if (includeProjection && snapshots.Count > 0)
+            {
+                snapshots.Add(BuildProjectedSnapshot(snapshots, currentMonthStartUtc.AddMonths(1), monthlyDepreciation));
+            }
+
+            return snapshots;
+        }
+
+        public async Task<EquipmentSeedResultDto> SeedMediumGymSampleAsync(
+            string? branchId = null,
+            CancellationToken cancellationToken = default)
         {
             var existingKeys = await _db.GymEquipmentAssets
                 .AsNoTracking()
-                .Select(a => (a.Name + "|" + a.Category).ToLower())
+                .Where(asset => string.IsNullOrWhiteSpace(branchId) || asset.BranchId == branchId)
+                .Select(asset => (asset.Name + "|" + asset.Category).ToLower())
                 .ToListAsync(cancellationToken);
 
             var existingSet = existingKeys.ToHashSet(StringComparer.Ordinal);
@@ -328,6 +501,7 @@ namespace EJCFitnessGym.Services.Finance
                     Name = template.Name,
                     Brand = template.Brand,
                     Category = template.Category,
+                    BranchId = branchId,
                     Quantity = template.Quantity,
                     UnitCost = template.UnitCost,
                     UsefulLifeMonths = template.UsefulLifeMonths,
@@ -347,7 +521,9 @@ namespace EJCFitnessGym.Services.Finance
                 await _db.SaveChangesAsync(cancellationToken);
             }
 
-            var totalAssets = await _db.GymEquipmentAssets.CountAsync(cancellationToken);
+            var totalAssets = await _db.GymEquipmentAssets
+                .Where(asset => string.IsNullOrWhiteSpace(branchId) || asset.BranchId == branchId)
+                .CountAsync(cancellationToken);
 
             return new EquipmentSeedResultDto
             {
@@ -546,7 +722,87 @@ namespace EJCFitnessGym.Services.Finance
             return "Low";
         }
 
+        private static FinanceMonthlySnapshotDto BuildProjectedSnapshot(
+            IReadOnlyList<FinanceMonthlySnapshotDto> historical,
+            DateTime projectedMonthStartUtc,
+            decimal depreciationCost)
+        {
+            var revenue = ProjectNextValue(historical.Select(item => item.Revenue).ToList());
+            var costOfServices = ProjectNextValue(historical.Select(item => item.CostOfServices).ToList());
+            var operatingExpenses = ProjectNextValue(historical.Select(item => item.OperatingExpenses).ToList());
+            var grossProfit = revenue - costOfServices;
+            var netProfit = grossProfit - operatingExpenses - depreciationCost;
+
+            var recent = historical.TakeLast(Math.Min(3, historical.Count)).ToList();
+            var successfulPaymentsCount = (int)Math.Round(recent.Average(item => item.SuccessfulPaymentsCount));
+            var forReviewCount = (int)Math.Round(recent.Average(item => item.ForReviewCount));
+            var pendingCount = (int)Math.Round(recent.Average(item => item.PendingCount));
+            var queuedCount = (int)Math.Round(recent.Average(item => item.QueuedCount));
+            var approvedCount = (int)Math.Round(recent.Average(item => item.ApprovedCount));
+
+            return new FinanceMonthlySnapshotDto
+            {
+                MonthStartUtc = projectedMonthStartUtc,
+                Revenue = revenue,
+                CostOfServices = costOfServices,
+                GrossProfit = grossProfit,
+                OperatingExpenses = operatingExpenses,
+                DepreciationCost = depreciationCost,
+                NetProfit = netProfit,
+                SuccessfulPaymentsCount = Math.Max(0, successfulPaymentsCount),
+                ForReviewCount = Math.Max(0, forReviewCount),
+                PendingCount = Math.Max(0, pendingCount),
+                QueuedCount = Math.Max(0, queuedCount),
+                ApprovedCount = Math.Max(0, approvedCount),
+                IsProjected = true
+            };
+        }
+
+        private static decimal ProjectNextValue(IReadOnlyList<decimal> series)
+        {
+            if (series.Count == 0)
+            {
+                return 0m;
+            }
+
+            var (slope, intercept) = ComputeLinearRegression(series);
+            var nextValue = intercept + (slope * series.Count);
+            if (nextValue < 0d)
+            {
+                nextValue = 0d;
+            }
+
+            return (decimal)nextValue;
+        }
+
+        private static int ResolveInvoiceStateCount(
+            IReadOnlyDictionary<(int Year, int Month, InvoiceStatus Status), int> map,
+            (int Year, int Month) monthKey,
+            InvoiceStatus status)
+        {
+            return map.TryGetValue((monthKey.Year, monthKey.Month, status), out var value) ? value : 0;
+        }
+
         private sealed record ScoredAnomaly(double Score, FinanceAnomalyDto Entry);
+
+        private IQueryable<int> BuildBranchScopedInvoiceIdsQuery(string? branchId)
+        {
+            var invoiceIds = _db.Invoices.AsNoTracking();
+
+            if (string.IsNullOrWhiteSpace(branchId))
+            {
+                return invoiceIds.Select(invoice => invoice.Id);
+            }
+
+            return invoiceIds
+                .Where(invoice =>
+                    invoice.BranchId == branchId ||
+                    (invoice.BranchId == null && _db.UserClaims.Any(claim =>
+                        claim.UserId == invoice.MemberUserId &&
+                        claim.ClaimType == BranchAccess.BranchIdClaimType &&
+                        claim.ClaimValue == branchId)))
+                .Select(invoice => invoice.Id);
+        }
 
         private static DateTime? NormalizeToUtc(DateTime? value)
         {

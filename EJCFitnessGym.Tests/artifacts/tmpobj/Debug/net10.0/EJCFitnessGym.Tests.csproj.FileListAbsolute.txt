@@ -1,0 +1,8 @@
+C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.Tests\artifacts\tmpbuild\Debug\net10.0\.msCoverageSourceRootsMapping_EJCFitnessGym.Tests
+C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.Tests\artifacts\tmpbuild\Debug\net10.0\CoverletSourceRootsMapping_EJCFitnessGym.Tests
+C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.Tests\artifacts\tmpobj\Debug\net10.0\EJCFitnessGym.Tests.csproj.AssemblyReference.cache
+C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.Tests\artifacts\tmpobj\Debug\net10.0\EJCFitnessGym.Tests.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.Tests\artifacts\tmpobj\Debug\net10.0\EJCFitnessGym.Tests.AssemblyInfoInputs.cache
+C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.Tests\artifacts\tmpobj\Debug\net10.0\EJCFitnessGym.Tests.AssemblyInfo.cs
+C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.Tests\artifacts\tmpobj\Debug\net10.0\EJCFitnessGym.Tests.csproj.CoreCompileInputs.cache
+C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.Tests\artifacts\tmpobj\Debug\net10.0\EJCFitnessGym.Tests.sourcelink.json

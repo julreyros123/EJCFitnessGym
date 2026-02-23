@@ -41,7 +41,7 @@
             {
                 if (string.IsNullOrWhiteSpace(profile.FirstName) || string.IsNullOrWhiteSpace(profile.LastName))
                 {
-                    updateMessages.Add("Add your full name in My Account.");
+                    updateMessages.Add("Add your full name in My Profile.");
                     updateCount++;
                 }
 
@@ -106,7 +106,7 @@
 
         <span class="ejc-nav-account-separator" aria-hidden="true"></span>
 
-        <a class="nav-link ejc-nav-user" asp-area="Identity" asp-page="/Account/Manage/Index" title="My Account">
+        <a class="nav-link ejc-nav-user" asp-area="" asp-controller="Dashboard" asp-action="Profile" title="My Profile">
             <span class="ejc-nav-avatar" aria-hidden="true">
                 @if (!string.IsNullOrWhiteSpace(avatarPath))
                 {
@@ -127,8 +127,8 @@
             <ul class="dropdown-menu dropdown-menu-end ejc-nav-user-menu">
                 <li>
                     <a class="dropdown-item" asp-area="Identity" asp-page="/Account/Manage/Index">
-                        <i class="bi bi-person-circle ejc-nav-auth-icon" aria-hidden="true"></i>
-                        <span>My Account</span>
+                        <i class="bi bi-shield-lock ejc-nav-auth-icon" aria-hidden="true"></i>
+                        <span>Account Security</span>
                     </a>
                 </li>
                 <li><hr class="dropdown-divider" /></li>

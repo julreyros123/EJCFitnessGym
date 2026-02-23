@@ -17,6 +17,15 @@
         <div class="alert alert-success mb-4">@status</div>
     }
 
+    @if (TempData["MembershipStatusMessage"] is string membershipStatus && !string.IsNullOrWhiteSpace(membershipStatus))
+    {
+        var membershipStatusType = TempData["MembershipStatusType"] as string;
+        var membershipAlertClass = (membershipStatusType ?? string.Empty).ToLowerInvariant() == "warning"
+            ? "alert-warning"
+            : "alert-success";
+        <div class="alert @membershipAlertClass mb-4">@membershipStatus</div>
+    }
+
     <div class="card ejc-profile-card">
         <div class="card-body p-4">
             <div class="ejc-profile-progress mb-4">
@@ -97,10 +106,59 @@
                         <div class="mt-4 d-flex gap-2 flex-wrap">
                             <button type="submit" class="btn btn-primary">Save Profile</button>
                             <a asp-action="Member" class="btn btn-outline-light">Back to Portal</a>
+                            <a asp-area="Identity" asp-page="/Account/Manage/Index" class="btn btn-outline-primary">Account Security</a>
                         </div>
                     </div>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div class="card ejc-profile-card mt-4" id="membership-settings">
+        <div class="card-body p-4">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                <div>
+                    <h5 class="mb-1">Membership Settings</h5>
+                    <p class="ejc-muted mb-0">Manage cancellation requests from settings with a required reason.</p>
+                </div>
+                <span class="badge @Model.MembershipStatusBadgeClass">@Model.MembershipStatusLabel</span>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Current plan</label>
+                    <input value="@Model.CurrentPlanName" class="form-control" readonly />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Cancellation request</label>
+                    <input value="@(Model.HasOpenCancellationRequest ? "Pending review" : "No open request")" class="form-control" readonly />
+                </div>
+            </div>
+
+            @if (Model.HasOpenCancellationRequest)
+            {
+                <div class="alert alert-info mb-0">
+                    <div class="fw-semibold mb-1">Cancellation already submitted</div>
+                    <div class="small">Requested: @(Model.OpenCancellationRequestedUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "Unknown")</div>
+                    @if (!string.IsNullOrWhiteSpace(Model.OpenCancellationReason))
+                    {
+                        <div class="small mt-1">Reason: @Model.OpenCancellationReason</div>
+                    }
+                </div>
+            }
+            else
+            {
+                <form asp-action="RequestMembershipCancellation" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label asp-for="CancellationReason" class="form-label"></label>
+                        <textarea asp-for="CancellationReason" class="form-control" rows="4" maxlength="300" placeholder="State your reason for cancellation (minimum 15 characters)."></textarea>
+                        <span asp-validation-for="CancellationReason" class="text-danger"></span>
+                        <div class="form-text">Your request is reviewed by staff before membership cancellation is finalized.</div>
+                    </div>
+                    <button type="submit" class="btn btn-outline-danger">Submit Cancellation Request</button>
+                </form>
+            }
         </div>
     </div>
 </div>

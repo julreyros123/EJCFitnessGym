@@ -1,16 +1,13 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
-using System.Text;
-using System.Text.Encodings.Web;
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models;
+using EJCFitnessGym.Services.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 
 namespace EJCFitnessGym.Areas.Identity.Pages.Account;
@@ -20,23 +17,20 @@ public class ExternalLoginModel : PageModel
 {
     private readonly SignInManager<IdentityUser> _signInManager;
     private readonly UserManager<IdentityUser> _userManager;
-    private readonly IEmailSender _emailSender;
-    private readonly IConfiguration _configuration;
+    private readonly IEmailVerificationCodeService _emailVerificationCodeService;
     private readonly ApplicationDbContext _db;
     private readonly ILogger<ExternalLoginModel> _logger;
 
     public ExternalLoginModel(
         SignInManager<IdentityUser> signInManager,
         UserManager<IdentityUser> userManager,
-        IEmailSender emailSender,
-        IConfiguration configuration,
+        IEmailVerificationCodeService emailVerificationCodeService,
         ApplicationDbContext db,
         ILogger<ExternalLoginModel> logger)
     {
         _signInManager = signInManager;
         _userManager = userManager;
-        _emailSender = emailSender;
-        _configuration = configuration;
+        _emailVerificationCodeService = emailVerificationCodeService;
         _db = db;
         _logger = logger;
     }
@@ -251,7 +245,16 @@ public class ExternalLoginModel : PageModel
         var requiresEmailConfirmation = _userManager.Options.SignIn.RequireConfirmedAccount && !user.EmailConfirmed;
         if (requiresEmailConfirmation)
         {
-            await SendConfirmationEmailAsync(user, returnUrl);
+            try
+            {
+                await _emailVerificationCodeService.SendVerificationCodeAsync(user);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not send verification code for external login user {UserId}.", user.Id);
+                return FinalizeExternalLoginResult.Fail("Account created, but we could not send the verification code right now.");
+            }
+
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
             return FinalizeExternalLoginResult.Success(requiresEmailConfirmation: true);
         }
@@ -325,42 +328,6 @@ public class ExternalLoginModel : PageModel
         {
             existingProfile.UpdatedUtc = nowUtc;
             await _db.SaveChangesAsync();
-        }
-    }
-
-    private async Task SendConfirmationEmailAsync(IdentityUser user, string returnUrl)
-    {
-        if (string.IsNullOrWhiteSpace(user.Email))
-        {
-            return;
-        }
-
-        var userId = await _userManager.GetUserIdAsync(user);
-        var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-
-        var callbackUrl = AccountFlowHelper.BuildAbsolutePageUrl(
-            Url,
-            Request,
-            _configuration,
-            "/Account/ConfirmEmail",
-            new { area = "Identity", userId, code, returnUrl });
-
-        if (string.IsNullOrWhiteSpace(callbackUrl))
-        {
-            return;
-        }
-
-        try
-        {
-            await _emailSender.SendEmailAsync(
-                user.Email,
-                "Confirm your email",
-                $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>clicking here</a>.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not send confirmation email for external login user {UserId}.", user.Id);
         }
     }
 

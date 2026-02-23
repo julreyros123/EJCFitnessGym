@@ -1,84 +1,58 @@
 @page
 @model EJCFitnessGym.Pages.Staff.SuppliesPaymentsModel
+@using System.Globalization
 @{
     ViewData["Title"] = "Product Sales & Payments";
+    var subtotal = Model.CartTotal;
+    var vatAmount = Math.Round(subtotal * 0.12m, 2, MidpointRounding.AwayFromZero);
+    var grandTotal = subtotal + vatAmount;
+    var paymentsButtonClass = Model.ShowPaymentsPanel ? "btn-primary" : "btn-outline-primary";
+    var supplyButtonClass = Model.ShowSupplyPanel ? "btn-primary" : "btn-outline-primary";
 }
 
-<div class="py-4">
-    <div class="ejc-page-header">
-        <div>
-            <span class="ejc-eyebrow">Front Desk</span>
-            <h1 class="h2 mb-1">Product Sales &amp; Payments</h1>
-            <p class="ejc-muted mb-0">Process counter sales for bands, drinks, creatine, and protein products.</p>
+<div class="pt-2 pb-3 ejc-pos-page">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-sm @paymentsButtonClass"
+               asp-page="/Staff/SuppliesPayments"
+               asp-route-panel="payments">
+                Recent Product Payments
+            </a>
+            <a class="btn btn-sm @supplyButtonClass"
+               asp-page="/Staff/SuppliesPayments"
+               asp-route-panel="supply">
+                Supply Request Intake
+            </a>
+            @if (Model.ShowAnyPanel)
+            {
+                <a class="btn btn-sm btn-outline-secondary"
+                   asp-page="/Staff/SuppliesPayments">
+                    Back To POS
+                </a>
+            }
         </div>
-        <div class="ejc-actions">
-            <button class="btn btn-primary">Create Sale</button>
-            <button class="btn btn-outline-primary">Print Receipt</button>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-primary">Complete Sale</button>
+            <button type="button" class="btn btn-sm btn-outline-primary">Print Last Receipt</button>
         </div>
     </div>
 
-    <div class="row g-4 mb-4">
-        <div class="col-xl-7">
-            <div class="card h-100">
+    <div class="row g-4 align-items-start mb-4">
+        <div class="col-12 col-lg-7 col-xl-8">
+            <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">New Counter Sale</h5>
-                    <span class="text-muted small">POS</span>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Customer</label>
-                            <input class="form-control" placeholder="Member name or walk-in guest" />
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Payment Method</label>
-                            <select class="form-select">
-                                <option>Cash</option>
-                                <option>GCash</option>
-                                <option>Card</option>
-                                <option>Charge to Account</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Desk</label>
-                            <input class="form-control" value="Counter A" />
-                        </div>
-                        <div class="col-md-8">
-                            <label class="form-label">Product</label>
-                            <select class="form-select">
-                                @foreach (var product in Model.RetailProducts)
-                                {
-                                    <option>@product.Name - PHP @product.UnitPrice.ToString("N2")</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Qty</label>
-                            <input class="form-control" type="number" min="1" value="1" />
-                        </div>
-                        <div class="col-md-2 d-grid">
-                            <label class="form-label d-none d-md-block">&nbsp;</label>
-                            <button class="btn btn-outline-primary">Add</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-5">
-            <div class="card h-100">
-                <div class="card-header d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Product Catalog</h5>
+                    <h5 class="mb-0">Available Products</h5>
                     <span class="text-muted small">@Model.RetailProducts.Count items</span>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-sm table-hover align-middle mb-0 ejc-staff-table ejc-product-catalog-table">
                             <colgroup>
-                                <col style="width: 40%;" />
-                                <col style="width: 24%;" />
-                                <col style="width: 18%;" />
-                                <col style="width: 18%;" />
+                                <col style="width: 36%;" />
+                                <col style="width: 22%;" />
+                                <col style="width: 14%;" />
+                                <col style="width: 14%;" />
+                                <col style="width: 14%;" />
                             </colgroup>
                             <thead>
                                 <tr>
@@ -86,16 +60,34 @@
                                     <th>Category</th>
                                     <th class="text-end">Price</th>
                                     <th class="text-end">Stock</th>
+                                    <th class="text-end">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var product in Model.RetailProducts)
                                 {
+                                    var isLowStock = product.Stock <= 15;
                                     <tr>
                                         <td>@product.Name</td>
-                                        <td>@product.Category</td>
+                                        <td>
+                                            <span class="badge bg-secondary">@product.Category</span>
+                                        </td>
                                         <td class="text-end">PHP @product.UnitPrice.ToString("N2")</td>
-                                        <td class="text-end">@product.Stock @product.Unit</td>
+                                        <td class="text-end">
+                                            <span class="ejc-pos-stock @(isLowStock ? "is-low" : string.Empty)">
+                                                @product.Stock @product.Unit
+                                            </span>
+                                        </td>
+                                        <td class="text-end">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    data-pos-add
+                                                    data-product-name="@product.Name"
+                                                    data-product-price="@product.UnitPrice.ToString(CultureInfo.InvariantCulture)"
+                                                    data-product-stock="@product.Stock">
+                                                Add
+                                            </button>
+                                        </td>
                                     </tr>
                                 }
                             </tbody>
@@ -104,132 +96,378 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="card mb-4">
-        <div class="card-header d-flex align-items-center justify-content-between">
-            <h5 class="mb-0">Supply Request Intake (Staff)</h5>
-            <span class="text-muted small">Staff encodes request and receiving draft only</span>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0 ejc-staff-table"
-                       data-ejc-page-size="6"
-                       data-ejc-search-placeholder="Search request, item, branch, stage, or owner">
-                    <thead>
-                        <tr>
-                            <th>Request #</th>
-                            <th>Branch</th>
-                            <th>Item</th>
-                            <th>Qty</th>
-                            <th>Stage</th>
-                            <th>Owner</th>
-                            <th>Next Owner</th>
-                            <th class="text-nowrap">Updated</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var request in Model.SupplyRequests)
-                        {
-                            <tr>
-                                <td>@request.RequestNo</td>
-                                <td>@request.Branch</td>
-                                <td>@request.Item</td>
-                                <td class="text-nowrap">@request.Quantity</td>
-                                <td><span class="@SuppliesPaymentsModel.SupplyStageBadge(request.Stage)">@request.Stage</span></td>
-                                <td><span class="@SuppliesPaymentsModel.SupplyRoleBadge(request.CurrentOwner)">@request.CurrentOwner</span></td>
-                                <td><span class="@SuppliesPaymentsModel.SupplyRoleBadge(request.NextOwner)">@request.NextOwner</span></td>
-                                <td class="text-nowrap">@request.UpdatedAt</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+        <div class="col-12 col-lg-5 col-xl-4">
+            <div class="ejc-pos-sticky-stack">
+                <div class="card mb-4">
+                    <div class="card-header d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0">Checkout Summary</h5>
+                        <span class="text-muted small" id="pos-summary-count">@Model.CartItemCount items</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label">Payment</label>
+                                <select class="form-select">
+                                    <option>Cash</option>
+                                    <option>GCash</option>
+                                    <option>Card</option>
+                                    <option>Charge to Account</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Desk</label>
+                                <input class="form-control" value="Counter A" />
+                            </div>
+                        </div>
+
+                        <div class="table-responsive mb-3 ejc-pos-cart-wrap">
+                            <table class="table table-sm align-middle mb-0 ejc-staff-table ejc-sale-cart-table"
+                                   data-ejc-paginate-disabled="true">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th class="text-end">Qty</th>
+                                        <th class="text-end">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pos-cart-body">
+                                    @foreach (var line in Model.CurrentSaleLines)
+                                    {
+                                        <tr>
+                                            <td>@line.Product</td>
+                                            <td class="text-end text-nowrap">@line.Quantity</td>
+                                            <td class="text-end text-nowrap">PHP @line.LineTotal.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="ejc-pos-totals">
+                            <div class="ejc-pos-total-row">
+                                <span>Subtotal</span>
+                                <strong id="pos-subtotal">PHP @subtotal.ToString("N2")</strong>
+                            </div>
+                            <div class="ejc-pos-total-row">
+                                <span>VAT (12%)</span>
+                                <strong id="pos-vat">PHP @vatAmount.ToString("N2")</strong>
+                            </div>
+                            <div class="ejc-pos-total-row is-grand">
+                                <span>Total Due</span>
+                                <strong id="pos-grand-total">PHP @grandTotal.ToString("N2")</strong>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mt-3">
+                            <div class="col-12">
+                                <button type="button" class="btn btn-primary w-100">Complete Sale</button>
+                            </div>
+                            <div class="col-6">
+                                <button type="button" class="btn btn-outline-primary w-100">Hold</button>
+                            </div>
+                            <div class="col-6">
+                                <button type="button" class="btn btn-outline-primary w-100">Receipt</button>
+                            </div>
+                        </div>
+                        <div id="pos-feedback" class="small text-muted mt-2"></div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-header d-flex align-items-center justify-content-between">
-            <h5 class="mb-0">Current Sale Cart</h5>
-            <span class="text-muted small">@Model.CartItemCount items | PHP @Model.CartTotal.ToString("N2")</span>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0 ejc-staff-table ejc-sale-cart-table">
-                    <colgroup>
-                        <col style="width: 46%;" />
-                        <col style="width: 12%;" />
-                        <col style="width: 21%;" />
-                        <col style="width: 21%;" />
-                    </colgroup>
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th class="text-end text-nowrap">Qty</th>
-                            <th class="text-end text-nowrap">Unit Price</th>
-                            <th class="text-end text-nowrap">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var line in Model.CurrentSaleLines)
-                        {
+    @if (Model.ShowPaymentsPanel)
+    {
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="mb-0">Recent Product Payments</h5>
+                <span class="text-muted small">Today</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0 ejc-staff-table ejc-product-payments-table"
+                           data-ejc-page-size="8"
+                           data-ejc-search-placeholder="Search receipt, customer, method, or status">
+                        <thead>
                             <tr>
-                                <td>@line.Product</td>
-                                <td class="text-end text-nowrap">@line.Quantity</td>
-                                <td class="text-end text-nowrap">PHP @line.UnitPrice.ToString("N2")</td>
-                                <td class="text-end text-nowrap">PHP @line.LineTotal.ToString("N2")</td>
+                                <th>Time</th>
+                                <th>Receipt #</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th>Method</th>
+                                <th class="text-end text-nowrap">Amount</th>
+                                <th>Status</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach (var payment in Model.RecentPayments)
+                            {
+                                <tr>
+                                    <td>@payment.Time</td>
+                                    <td>@payment.ReceiptNo</td>
+                                    <td>@payment.Customer</td>
+                                    <td>@payment.Items</td>
+                                    <td>@payment.Method</td>
+                                    <td class="text-end text-nowrap">PHP @payment.Amount.ToString("N2")</td>
+                                    <td><span class="@SuppliesPaymentsModel.PaymentStatusBadge(payment.Status)">@payment.Status</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
+    }
 
-    <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-between">
-            <h5 class="mb-0">Recent Product Payments</h5>
-            <span class="text-muted small">Today</span>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0 ejc-staff-table ejc-product-payments-table">
-                    <colgroup>
-                        <col style="width: 10%;" />
-                        <col style="width: 12%;" />
-                        <col style="width: 16%;" />
-                        <col style="width: 28%;" />
-                        <col style="width: 12%;" />
-                        <col style="width: 12%;" />
-                        <col style="width: 10%;" />
-                    </colgroup>
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Receipt #</th>
-                            <th>Customer</th>
-                            <th>Items</th>
-                            <th>Method</th>
-                            <th class="text-end text-nowrap">Amount</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var payment in Model.RecentPayments)
-                        {
+    @if (Model.ShowSupplyPanel)
+    {
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="mb-0">Supply Request Intake (Staff)</h5>
+                <span class="text-muted small">Staff encodes request and receiving draft only</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0 ejc-staff-table"
+                           data-ejc-page-size="6"
+                           data-ejc-search-placeholder="Search request, item, branch, stage, or owner">
+                        <thead>
                             <tr>
-                                <td>@payment.Time</td>
-                                <td>@payment.ReceiptNo</td>
-                                <td>@payment.Customer</td>
-                                <td>@payment.Items</td>
-                                <td>@payment.Method</td>
-                                <td class="text-end text-nowrap">PHP @payment.Amount.ToString("N2")</td>
-                                <td><span class="@SuppliesPaymentsModel.PaymentStatusBadge(payment.Status)">@payment.Status</span></td>
+                                <th>Request #</th>
+                                <th>Branch</th>
+                                <th>Item</th>
+                                <th>Qty</th>
+                                <th>Stage</th>
+                                <th>Owner</th>
+                                <th>Next Owner</th>
+                                <th class="text-nowrap">Updated</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach (var request in Model.SupplyRequests)
+                            {
+                                <tr>
+                                    <td>@request.RequestNo</td>
+                                    <td>@request.Branch</td>
+                                    <td>@request.Item</td>
+                                    <td class="text-nowrap">@request.Quantity</td>
+                                    <td><span class="@SuppliesPaymentsModel.SupplyStageBadge(request.Stage)">@request.Stage</span></td>
+                                    <td><span class="@SuppliesPaymentsModel.SupplyRoleBadge(request.CurrentOwner)">@request.CurrentOwner</span></td>
+                                    <td><span class="@SuppliesPaymentsModel.SupplyRoleBadge(request.NextOwner)">@request.NextOwner</span></td>
+                                    <td class="text-nowrap">@request.UpdatedAt</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
+    }
 </div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const VAT_RATE = 0.12;
+            const addButtons = Array.from(document.querySelectorAll("[data-pos-add]"));
+            const cartBody = document.getElementById("pos-cart-body");
+            const summaryCount = document.getElementById("pos-summary-count");
+            const subtotalLabel = document.getElementById("pos-subtotal");
+            const vatLabel = document.getElementById("pos-vat");
+            const grandTotalLabel = document.getElementById("pos-grand-total");
+            const feedback = document.getElementById("pos-feedback");
+
+            if (!cartBody || !summaryCount || !subtotalLabel || !vatLabel || !grandTotalLabel) {
+                return;
+            }
+
+            const currencyFormatter = new Intl.NumberFormat("en-PH", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            const stockByProduct = new Map();
+            addButtons.forEach((button) => {
+                const name = (button.dataset.productName || "").trim();
+                const stock = Number.parseInt(button.dataset.productStock || "0", 10);
+                if (!name) {
+                    return;
+                }
+
+                stockByProduct.set(name, Number.isFinite(stock) && stock > 0 ? stock : Number.MAX_SAFE_INTEGER);
+            });
+
+            const initialLines = [
+@foreach (var line in Model.CurrentSaleLines)
+{
+<text>                { name: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(line.Product)), qty: @line.Quantity, unitPrice: @line.UnitPrice.ToString(CultureInfo.InvariantCulture) },</text>
+}
+            ];
+
+            const cart = new Map();
+            initialLines.forEach((line) => {
+                if (!line || !line.name) {
+                    return;
+                }
+
+                const qty = Number.parseInt(String(line.qty), 10);
+                const unitPrice = Number.parseFloat(String(line.unitPrice));
+                if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(unitPrice) || unitPrice <= 0) {
+                    return;
+                }
+
+                cart.set(line.name, { name: line.name, qty, unitPrice });
+            });
+
+            function formatMoney(value) {
+                return currencyFormatter.format(value);
+            }
+
+            function setFeedback(message, isError) {
+                if (!feedback) {
+                    return;
+                }
+
+                feedback.textContent = message || "";
+                feedback.className = `small mt-2 ${isError ? "text-danger" : "text-muted"}`;
+            }
+
+            function escapeHtml(value) {
+                return String(value)
+                    .replaceAll("&", "&amp;")
+                    .replaceAll("<", "&lt;")
+                    .replaceAll(">", "&gt;")
+                    .replaceAll("\"", "&quot;")
+                    .replaceAll("'", "&#39;");
+            }
+
+            function getMaxStock(productName) {
+                return stockByProduct.get(productName) || Number.MAX_SAFE_INTEGER;
+            }
+
+            function recalculateTotals() {
+                const itemCount = Array.from(cart.values()).reduce((sum, line) => sum + line.qty, 0);
+                const subtotal = Array.from(cart.values()).reduce((sum, line) => sum + (line.qty * line.unitPrice), 0);
+                const vat = Math.round(subtotal * VAT_RATE * 100) / 100;
+                const total = subtotal + vat;
+
+                summaryCount.textContent = `${itemCount} items`;
+                subtotalLabel.textContent = `PHP ${formatMoney(subtotal)}`;
+                vatLabel.textContent = `PHP ${formatMoney(vat)}`;
+                grandTotalLabel.textContent = `PHP ${formatMoney(total)}`;
+            }
+
+            function renderCartTable() {
+                if (cart.size === 0) {
+                    cartBody.innerHTML = "<tr><td colspan=\"3\" class=\"text-center py-3 text-muted\">Cart is empty.</td></tr>";
+                    recalculateTotals();
+                    return;
+                }
+
+                const rows = Array.from(cart.values()).map((line) => {
+                    const encodedName = encodeURIComponent(line.name);
+                    const subtotal = line.qty * line.unitPrice;
+                    return `
+                        <tr>
+                            <td>${escapeHtml(line.name)}</td>
+                            <td class="text-end text-nowrap">
+                                <div class="btn-group btn-group-sm" role="group" aria-label="Quantity controls">
+                                    <button type="button" class="btn btn-outline-secondary" data-pos-action="decrease" data-pos-name="${encodedName}">-</button>
+                                    <button type="button" class="btn btn-outline-secondary disabled" tabindex="-1" aria-disabled="true">${line.qty}</button>
+                                    <button type="button" class="btn btn-outline-secondary" data-pos-action="increase" data-pos-name="${encodedName}">+</button>
+                                </div>
+                            </td>
+                            <td class="text-end text-nowrap">PHP ${formatMoney(subtotal)}</td>
+                        </tr>`;
+                });
+
+                cartBody.innerHTML = rows.join("");
+                recalculateTotals();
+            }
+
+            function addToCart(productName, unitPrice) {
+                const existing = cart.get(productName);
+                const currentQty = existing ? existing.qty : 0;
+                const maxStock = getMaxStock(productName);
+                if (currentQty >= maxStock) {
+                    setFeedback(`Cannot add more ${productName}. Stock limit reached.`, true);
+                    return;
+                }
+
+                if (existing) {
+                    existing.qty += 1;
+                } else {
+                    cart.set(productName, { name: productName, qty: 1, unitPrice });
+                }
+
+                setFeedback(`${productName} added to cart.`, false);
+                renderCartTable();
+            }
+
+            function updateQuantity(productName, delta) {
+                const line = cart.get(productName);
+                if (!line) {
+                    return;
+                }
+
+                const maxStock = getMaxStock(productName);
+                const nextQty = line.qty + delta;
+                if (nextQty <= 0) {
+                    cart.delete(productName);
+                    setFeedback(`${productName} removed from cart.`, false);
+                    renderCartTable();
+                    return;
+                }
+
+                if (nextQty > maxStock) {
+                    setFeedback(`Cannot add more ${productName}. Stock limit reached.`, true);
+                    return;
+                }
+
+                line.qty = nextQty;
+                setFeedback("", false);
+                renderCartTable();
+            }
+
+            addButtons.forEach((button) => {
+                button.addEventListener("click", () => {
+                    const productName = (button.dataset.productName || "").trim();
+                    const unitPrice = Number.parseFloat(button.dataset.productPrice || "0");
+                    if (!productName || !Number.isFinite(unitPrice) || unitPrice <= 0) {
+                        setFeedback("Unable to add selected product.", true);
+                        return;
+                    }
+
+                    addToCart(productName, unitPrice);
+                });
+            });
+
+            cartBody.addEventListener("click", (event) => {
+                const actionButton = event.target.closest("[data-pos-action]");
+                if (!actionButton) {
+                    return;
+                }
+
+                const productName = decodeURIComponent(actionButton.dataset.posName || "");
+                if (!productName) {
+                    return;
+                }
+
+                const action = actionButton.dataset.posAction;
+                if (action === "increase") {
+                    updateQuantity(productName, 1);
+                    return;
+                }
+
+                if (action === "decrease") {
+                    updateQuantity(productName, -1);
+                    return;
+                }
+            });
+
+            renderCartTable();
+        })();
+    </script>
+}

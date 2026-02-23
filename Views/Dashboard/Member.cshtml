@@ -2,27 +2,35 @@
 @{
     ViewData["Title"] = "Member";
 
-    var membershipStart = Model.MembershipStartDateUtc?.ToString("MMM dd, yyyy") ?? "Not started";
-    var membershipEnd = Model.MembershipEndDateUtc?.ToString("MMM dd, yyyy") ?? "No end date";
-    var nextDue = Model.NextPaymentDueDateUtc?.ToString("MMM dd, yyyy") ?? "No pending invoices";
+    var membershipStart = Model.MembershipStartDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "Not started";
+    var membershipEnd = Model.MembershipEndDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "No end date";
+    var nextDue = Model.NextPaymentDueDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "No pending invoices";
+    var reminderAt = Model.NextPaymentDueDateUtc?.AddDays(-3).ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "No pending invoices";
+    var showExpiredMembershipModal =
+        string.Equals(Model.MembershipStatusLabel, "Expired", StringComparison.OrdinalIgnoreCase) ||
+        (Model.HasSubscriptionRecord && !Model.HasActiveMembership && Model.MembershipEndDateUtc.HasValue && Model.MembershipEndDateUtc.Value < DateTime.UtcNow);
 }
 
-<div class="container ejc-page">
+<div class="container ejc-page ejc-member-dashboard">
     <div class="ejc-page-header">
         <div>
             <span class="ejc-eyebrow">Member Portal</span>
-            <h1 class="display-5 mb-1 ejc-member-title">
+            <h1 class="mb-1 ejc-member-title">
                 <span class="ejc-member-greeting">Welcome back,</span>
                 <span class="ejc-member-name">@Model.MemberDisplayName</span>
             </h1>
-            <p class="ejc-muted mb-0">Track your membership status, billing, and account readiness in one place.</p>
+            <p class="ejc-muted mb-0">Monitor membership activity, payment status, and billing due dates in one place.</p>
         </div>
         <div class="ejc-actions">
-            <a class="btn btn-outline-light" asp-action="Profile">Complete Profile</a>
             <a class="btn btn-primary" asp-page="/Public/Pricing">Manage Membership</a>
-            <a class="btn btn-outline-primary" asp-page="/Public/Contact">Support</a>
         </div>
     </div>
+
+    @if (TempData["MemberStatusMessage"] is string memberStatusMessage && !string.IsNullOrWhiteSpace(memberStatusMessage))
+    {
+        var alertType = TempData["MemberStatusType"] as string ?? "info";
+        <div class="alert alert-@alertType mb-3" role="alert">@memberStatusMessage</div>
+    }
 
     <div class="ejc-stat-grid">
         <div class="ejc-stat">
@@ -35,15 +43,15 @@
         </div>
         <div class="ejc-stat">
             <h3 class="h2">@Model.OpenInvoiceCount</h3>
-            <p class="ejc-muted mb-0">Open invoices</p>
+            <p class="ejc-muted mb-0">Needs payment (due now + expired)</p>
         </div>
         <div class="ejc-stat">
             <h3 class="h2">PHP @Model.LifetimeSpend.ToString("N0")</h3>
-            <p class="ejc-muted mb-0">Lifetime spend</p>
+            <p class="ejc-muted mb-0">Total paid to date</p>
         </div>
     </div>
 
-    <div class="row g-4">
+    <div class="row g-3">
         <div class="col-lg-7">
             <div class="card h-100">
                 <div class="card-body">
@@ -59,9 +67,10 @@
                     {
                         <ul class="ejc-list mb-0">
                             <li><strong>Plan</strong> <span>@Model.CurrentPlanName</span></li>
-                            <li><strong>Started</strong> <span>@membershipStart</span></li>
-                            <li><strong>Ends</strong> <span>@membershipEnd</span></li>
-                            <li><strong>Next payment</strong> <span>@nextDue</span></li>
+                            <li><strong>Started (local)</strong> <span>@membershipStart</span></li>
+                            <li><strong>Ends (local)</strong> <span>@membershipEnd</span></li>
+                            <li><strong>Next payment (local)</strong> <span>@nextDue</span></li>
+                            <li><strong>Reminder at (local)</strong> <span>@reminderAt</span></li>
                         </ul>
                     }
                     else
@@ -71,12 +80,9 @@
                         </p>
                     }
 
-                    <div class="mt-3 d-flex flex-wrap gap-2">
-                        <a class="btn btn-primary" asp-page="/Public/Pricing">
-                            @(Model.HasActiveMembership ? "Upgrade or Change Plan" : "Activate Membership")
-                        </a>
-                        <a class="btn btn-outline-light" asp-action="Profile">Update Profile</a>
-                    </div>
+                    <p class="small ejc-muted mt-3 mb-0">
+                        Plan and profile actions are available from the top menu.
+                    </p>
                 </div>
             </div>
         </div>
@@ -92,13 +98,21 @@
                     </p>
                     <div class="ejc-stat">
                         <h3 class="h2 mb-1">PHP @Model.OutstandingBalance.ToString("N0")</h3>
-                        <p class="ejc-muted mb-0">Outstanding balance</p>
+                        <p class="ejc-muted mb-0">Amount due now</p>
                     </div>
                     <ul class="ejc-list mt-3 mb-0">
-                        <li><strong>Total invoices</strong> <span>@Model.TotalInvoices</span></li>
+                        <li><strong>Due now invoices</strong> <span>@Model.PendingInvoiceCount</span></li>
+                        <li><strong>Expired invoices</strong> <span>@Model.ExpiredInvoiceCount</span></li>
+                        <li><strong>Upcoming invoices</strong> <span>@Model.UpcomingInvoiceCount</span></li>
                         <li><strong>Paid invoices</strong> <span>@Model.PaidInvoiceCount</span></li>
-                        <li><strong>Open invoices</strong> <span>@Model.OpenInvoiceCount</span></li>
+                        <li><strong>All invoices</strong> <span>@Model.TotalInvoices</span></li>
                     </ul>
+                    @if (Model.ScheduledBalance > 0)
+                    {
+                        <p class="ejc-muted mt-3 mb-0">
+                            Scheduled next-cycle amount: <strong>PHP @Model.ScheduledBalance.ToString("N0")</strong>
+                        </p>
+                    }
                     <div class="mt-3 d-flex flex-wrap gap-2">
                         <a class="btn btn-outline-primary" asp-page="/Public/Contact">Billing Support</a>
                         <a class="btn btn-outline-light" asp-page="/Public/Pricing">Update Plan</a>
@@ -107,4 +121,115 @@
             </div>
         </div>
     </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                        <div class="ejc-card-icon mb-0">
+                            <span class="ejc-icon"><i class="bi bi-qr-code-scan"></i></span>
+                            <h5 class="card-title mb-0">Check-In Access</h5>
+                        </div>
+                    </div>
+                    <p class="mb-1"><strong>Account ID (6-digit):</strong></p>
+                    <div class="h4 mb-2">@Model.MemberCheckInCode</div>
+                    <p class="ejc-muted mb-2">Show this QR at the front desk to check in quickly.</p>
+                    <div id="member-checkin-qr"
+                         class="ejc-member-qr"
+                         data-member-qr="@Model.MemberQrPayload"></div>
+                    <div class="small ejc-muted mt-2">@Model.MemberQrPayload</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                        <div class="ejc-card-icon mb-0">
+                            <span class="ejc-icon"><i class="bi bi-clock-history"></i></span>
+                            <h5 class="card-title mb-0">Recent Activity</h5>
+                        </div>
+                        <span class="badge text-bg-secondary">@Model.RecentActivities.Count item(s)</span>
+                    </div>
+                    @if (Model.RecentActivities.Count == 0)
+                    {
+                        <p class="ejc-muted mb-0">No activity yet.</p>
+                    }
+                    else
+                    {
+                        <ul class="ejc-list mb-0">
+                            @foreach (var item in Model.RecentActivities)
+                            {
+                                <li class="align-items-start">
+                                    <div>
+                                        <div class="fw-semibold">@item.Title</div>
+                                        <div class="small ejc-muted">@item.Message</div>
+                                    </div>
+                                    <span class="small text-nowrap">@item.EventUtc.ToLocalTime().ToString("MM-dd HH:mm")</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (showExpiredMembershipModal)
+    {
+        <div class="modal fade" id="membershipExpiredModal" tabindex="-1" aria-labelledby="membershipExpiredModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="membershipExpiredModalLabel">Membership Ended</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-2">Your membership has ended.</p>
+                        <ul class="mb-0">
+                            <li><strong>Previous plan:</strong> @Model.CurrentPlanName</li>
+                            <li><strong>Ended:</strong> @membershipEnd</li>
+                        </ul>
+                        <p class="mt-3 mb-0 text-muted">Renew now to restore full gym access.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Maybe Later</button>
+                        <a class="btn btn-primary" asp-page="/Public/Pricing">Renew Membership</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        (() => {
+            const qrContainer = document.getElementById("member-checkin-qr");
+            if (!qrContainer || typeof QRCode === "undefined") {
+                return;
+            }
+
+            const payload = qrContainer.getAttribute("data-member-qr");
+            if (!payload) {
+                return;
+            }
+
+            new QRCode(qrContainer, {
+                text: payload,
+                width: 170,
+                height: 170,
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            const expiredModal = document.getElementById("membershipExpiredModal");
+            if (expiredModal && typeof bootstrap !== "undefined" && bootstrap.Modal) {
+                const modal = new bootstrap.Modal(expiredModal);
+                modal.show();
+            }
+
+        })();
+    </script>
+}

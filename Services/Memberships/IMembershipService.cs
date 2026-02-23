@@ -30,5 +30,7 @@ namespace EJCFitnessGym.Services.Memberships
         public DateTime AsOfUtc { get; init; }
         public int ExpiredSubscriptions { get; init; }
         public int OverdueInvoices { get; init; }
+        public int GeneratedRenewalInvoices { get; init; }
+        public int ThreeDayRemindersQueued { get; init; }
     }
 }

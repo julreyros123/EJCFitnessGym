@@ -99,6 +99,41 @@ public class PayMongoWebhookIntegrationTests
         Assert.True(await db.IntegrationOutboxMessages.AnyAsync(m => m.EventType == "payment.succeeded"));
     }
 
+    [Fact]
+    public async Task Receive_PaidWebhookWithUnderpayment_DoesNotCloseInvoiceOrActivateMembership()
+    {
+        await using var dbHandle = await CreateDbContextAsync(nameof(Receive_PaidWebhookWithUnderpayment_DoesNotCloseInvoiceOrActivateMembership));
+        var db = dbHandle.Db;
+        await SeedCheckoutPaymentAsync(db, checkoutSessionId: "cs_step3_underpaid", amount: 2000m, planId: 300);
+
+        var controller = CreateController(
+            db,
+            new IntegrationOutboxService(db));
+
+        var payload = BuildPaidWebhookPayload(
+            eventId: "evt_underpaid_001",
+            checkoutSessionId: "cs_step3_underpaid",
+            paymentId: "pay_underpaid_001",
+            planId: 300,
+            amountMinorUnit: 150000);
+
+        SetJsonRequest(controller, payload);
+        var result = await controller.Receive(CancellationToken.None);
+        Assert.IsType<OkResult>(result);
+
+        var payment = await db.Payments.Include(p => p.Invoice).SingleAsync(p => p.ReferenceNumber == "cs_step3_underpaid");
+        Assert.Equal(PaymentStatus.Succeeded, payment.Status);
+        Assert.Equal(1500m, payment.Amount);
+
+        Assert.NotNull(payment.Invoice);
+        Assert.Equal(InvoiceStatus.Unpaid, payment.Invoice!.Status);
+        Assert.False(await db.MemberSubscriptions.AnyAsync(s => s.ExternalSubscriptionId == "cs_step3_underpaid"));
+
+        Assert.True(await db.IntegrationOutboxMessages.AnyAsync(m => m.EventType == "payment.succeeded"));
+        Assert.True(await db.IntegrationOutboxMessages.AnyAsync(m => m.EventType == "membership.reconciliation.warning"));
+        Assert.False(await db.IntegrationOutboxMessages.AnyAsync(m => m.EventType == "membership.activated"));
+    }
+
     private static PayMongoWebhookController CreateController(ApplicationDbContext db, IIntegrationOutbox outbox)
     {
         var membershipService = new MembershipService(db);

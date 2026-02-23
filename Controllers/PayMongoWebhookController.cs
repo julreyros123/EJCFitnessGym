@@ -10,7 +10,9 @@ using EJCFitnessGym.Services.Finance;
 using EJCFitnessGym.Services.Integration;
 using EJCFitnessGym.Services.Memberships;
 using EJCFitnessGym.Services.Payments;
+using EJCFitnessGym.Security;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -28,6 +30,7 @@ namespace EJCFitnessGym.Controllers
         private readonly ILogger<PayMongoWebhookController> _logger;
         private readonly IIntegrationOutbox _outbox;
         private readonly IFinanceAlertService _financeAlertService;
+        private readonly IEmailSender _emailSender;
 
         private static readonly Regex PlanTokenRegex = new(@"\[plan:(\d+)\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly HashSet<string> PaidEventTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -46,6 +49,7 @@ namespace EJCFitnessGym.Controllers
             IMembershipService membershipService,
             IFinanceAlertService financeAlertService,
             IIntegrationOutbox outbox,
+            IEmailSender emailSender,
             IOptions<PayMongoOptions> payMongoOptions,
             ILogger<PayMongoWebhookController> logger)
         {
@@ -53,6 +57,7 @@ namespace EJCFitnessGym.Controllers
             _membershipService = membershipService;
             _financeAlertService = financeAlertService;
             _outbox = outbox;
+            _emailSender = emailSender;
             _payMongoOptions = payMongoOptions.Value;
             _logger = logger;
         }
@@ -328,6 +333,8 @@ namespace EJCFitnessGym.Controllers
                 return;
             }
 
+            payment.Invoice.BranchId ??= await ResolveInvoiceBranchIdAsync(payment.Invoice, cancellationToken);
+
             var resolvedMemberUserId = !string.IsNullOrWhiteSpace(payment.Invoice.MemberUserId)
                 ? payment.Invoice.MemberUserId
                 : TryGetMetadataValue(checkoutSession, "member_user_id");
@@ -347,32 +354,66 @@ namespace EJCFitnessGym.Controllers
             var resolvedPlanName = TryGetMetadataValue(checkoutSession, "plan_name");
             var resolvedExternalCustomerId = TryGetMetadataValue(checkoutSession, "customer_id");
             var resolvedPaidAmount = TryResolvePaidAmount(checkoutSession);
-            var amountMismatch = resolvedPaidAmount.HasValue && Math.Abs(resolvedPaidAmount.Value - payment.Amount) > 0.50m;
+            var expectedInvoiceAmount = payment.Invoice.Amount;
+            var webhookPaidAmount = resolvedPaidAmount ?? payment.Amount;
+            var amountMismatch = Math.Abs(webhookPaidAmount - expectedInvoiceAmount) > 0.50m;
 
             int? activatedSubscriptionId = null;
             string? reconciliationWarning = null;
 
             await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
 
+            if (resolvedPaidAmount.HasValue)
+            {
+                payment.Amount = resolvedPaidAmount.Value;
+            }
+
             payment.Method = PaymentMethod.OnlineGateway;
             payment.Status = PaymentStatus.Succeeded;
             payment.GatewayProvider = "PayMongo";
             payment.GatewayPaymentId = payMongoPaymentId;
             payment.PaidAtUtc = DateTime.UtcNow;
+            payment.BranchId = payment.Invoice.BranchId;
             payment.ReferenceNumber = string.IsNullOrWhiteSpace(payment.ReferenceNumber)
                 ? checkoutSessionId
                 : payment.ReferenceNumber;
-            payment.Invoice.Status = InvoiceStatus.Paid;
 
+            var historicalSucceededAmounts = await _db.Payments
+                .AsNoTracking()
+                .Where(existing =>
+                    existing.InvoiceId == payment.InvoiceId &&
+                    existing.Id != payment.Id &&
+                    existing.Status == PaymentStatus.Succeeded)
+                .Select(existing => existing.Amount)
+                .ToListAsync(cancellationToken);
+
+            var historicalSucceededTotal = historicalSucceededAmounts.Sum();
+
+            var successfulPaidTotal = historicalSucceededTotal + payment.Amount;
+            var isInvoiceFullyPaid = successfulPaidTotal + 0.50m >= expectedInvoiceAmount;
+
+            payment.Invoice.Status = isInvoiceFullyPaid
+                ? InvoiceStatus.Paid
+                : payment.Invoice.DueDateUtc < payment.PaidAtUtc
+                    ? InvoiceStatus.Overdue
+                    : InvoiceStatus.Unpaid;
+
+            var warnings = new List<string>();
             if (amountMismatch)
             {
-                reconciliationWarning =
-                    $"Paid amount mismatch. Expected {payment.Amount:N2} PHP, webhook amount {resolvedPaidAmount!.Value:N2} PHP.";
+                warnings.Add(
+                    $"Paid amount mismatch. Invoice amount {expectedInvoiceAmount:N2} PHP, webhook amount {webhookPaidAmount:N2} PHP.");
+            }
+
+            if (!isInvoiceFullyPaid)
+            {
+                var outstandingBalance = Math.Max(0m, expectedInvoiceAmount - successfulPaidTotal);
+                warnings.Add(
+                    $"Invoice remains {payment.Invoice.Status}. Outstanding balance: {outstandingBalance:N2} PHP.");
             }
             else if (string.IsNullOrWhiteSpace(resolvedMemberUserId) || !resolvedPlanId.HasValue)
             {
-                reconciliationWarning =
-                    "Could not auto-activate membership because member or plan metadata was missing.";
+                warnings.Add("Could not auto-activate membership because member or plan metadata was missing.");
             }
             else
             {
@@ -382,7 +423,7 @@ namespace EJCFitnessGym.Controllers
 
                 if (plan is null)
                 {
-                    reconciliationWarning = $"Resolved plan id {resolvedPlanId.Value} does not exist.";
+                    warnings.Add($"Resolved plan id {resolvedPlanId.Value} does not exist.");
                 }
                 else
                 {
@@ -399,6 +440,11 @@ namespace EJCFitnessGym.Controllers
                 }
             }
 
+            if (warnings.Count > 0)
+            {
+                reconciliationWarning = string.Join(" ", warnings);
+            }
+
             var resolvedTargetUserId = string.IsNullOrWhiteSpace(resolvedMemberUserId)
                 ? payment.Invoice.MemberUserId
                 : resolvedMemberUserId;
@@ -412,6 +458,7 @@ namespace EJCFitnessGym.Controllers
                 webhookAmount = resolvedPaidAmount,
                 amountMismatch,
                 gatewayProvider = payment.GatewayProvider,
+                branchId = payment.BranchId,
                 checkoutSessionId,
                 gatewayPaymentId = payment.GatewayPaymentId,
                 planId = resolvedPlanId,
@@ -462,6 +509,10 @@ namespace EJCFitnessGym.Controllers
 
             await _db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+            await TrySendPaymentSuccessEmailAsync(payment, cancellationToken);
+
+            // Ensure renewal invoices and reminders are evaluated immediately after a successful payment.
+            await _membershipService.RunLifecycleMaintenanceAsync(cancellationToken: cancellationToken);
         }
 
         private async Task HandleFailedCheckoutEventAsync(
@@ -489,11 +540,13 @@ namespace EJCFitnessGym.Controllers
 
             await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
 
+            payment.Invoice.BranchId ??= await ResolveInvoiceBranchIdAsync(payment.Invoice, cancellationToken);
             payment.Method = PaymentMethod.OnlineGateway;
             payment.Status = PaymentStatus.Failed;
             payment.GatewayProvider = "PayMongo";
             payment.GatewayPaymentId = string.IsNullOrWhiteSpace(payMongoPaymentId) ? payment.GatewayPaymentId : payMongoPaymentId;
             payment.PaidAtUtc = nowUtc;
+            payment.BranchId = payment.Invoice.BranchId;
             payment.ReferenceNumber = string.IsNullOrWhiteSpace(payment.ReferenceNumber)
                 ? checkoutSessionId
                 : payment.ReferenceNumber;
@@ -508,6 +561,7 @@ namespace EJCFitnessGym.Controllers
                 memberUserId = payment.Invoice.MemberUserId,
                 amount = payment.Amount,
                 gatewayProvider = payment.GatewayProvider,
+                branchId = payment.BranchId,
                 checkoutSessionId,
                 gatewayPaymentId = payment.GatewayPaymentId,
                 invoiceStatus = payment.Invoice.Status.ToString(),
@@ -591,6 +645,47 @@ namespace EJCFitnessGym.Controllers
             }
 
             return matches;
+        }
+
+        private async Task TrySendPaymentSuccessEmailAsync(Payment payment, CancellationToken cancellationToken)
+        {
+            if (payment.Invoice is null || string.IsNullOrWhiteSpace(payment.Invoice.MemberUserId))
+            {
+                return;
+            }
+
+            var memberEmail = await _db.Users
+                .AsNoTracking()
+                .Where(user => user.Id == payment.Invoice.MemberUserId)
+                .Select(user => user.Email)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (string.IsNullOrWhiteSpace(memberEmail))
+            {
+                return;
+            }
+
+            var paidAtLocal = payment.PaidAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz", CultureInfo.InvariantCulture);
+            var amountLabel = payment.Amount.ToString("N2", CultureInfo.InvariantCulture);
+            var subject = $"Payment successful - {payment.Invoice.InvoiceNumber}";
+            var htmlMessage =
+                $"Payment received for invoice <strong>{payment.Invoice.InvoiceNumber}</strong>.<br/>" +
+                $"Amount: <strong>PHP {amountLabel}</strong><br/>" +
+                $"Paid at: <strong>{paidAtLocal}</strong><br/>" +
+                "Thank you for your payment.";
+
+            try
+            {
+                await _emailSender.SendEmailAsync(memberEmail, subject, htmlMessage);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Could not send payment success email for invoice {InvoiceId} to member {MemberUserId}.",
+                    payment.InvoiceId,
+                    payment.Invoice.MemberUserId);
+            }
         }
 
         private static bool TryParseSignatureHeader(string headerValue, out long timestampUnix, out string? testSignature, out string? liveSignature)
@@ -801,6 +896,29 @@ namespace EJCFitnessGym.Controllers
                 JsonValueKind.Number => value.GetRawText(),
                 _ => null
             };
+        }
+
+        private async Task<string?> ResolveInvoiceBranchIdAsync(Invoice invoice, CancellationToken cancellationToken)
+        {
+            if (!string.IsNullOrWhiteSpace(invoice.BranchId))
+            {
+                return invoice.BranchId;
+            }
+
+            if (string.IsNullOrWhiteSpace(invoice.MemberUserId))
+            {
+                return null;
+            }
+
+            return await _db.UserClaims
+                .AsNoTracking()
+                .Where(claim =>
+                    claim.UserId == invoice.MemberUserId &&
+                    claim.ClaimType == BranchAccess.BranchIdClaimType &&
+                    claim.ClaimValue != null)
+                .OrderByDescending(claim => claim.Id)
+                .Select(claim => claim.ClaimValue)
+                .FirstOrDefaultAsync(cancellationToken);
         }
     }
 }

@@ -7,21 +7,34 @@ namespace EJCFitnessGym.Services.Finance
         Task<FinanceOverviewDto> GetOverviewAsync(
             DateTime? fromUtc = null,
             DateTime? toUtc = null,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default,
+            string? branchId = null);
 
         Task<FinanceInsightsDto> GetInsightsAsync(
             int lookbackDays = 120,
             int forecastDays = 30,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default,
+            string? branchId = null);
 
-        Task<IReadOnlyList<GymEquipmentAsset>> GetEquipmentAssetsAsync(CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<GymEquipmentAsset>> GetEquipmentAssetsAsync(
+            string? branchId = null,
+            CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<FinanceExpenseRecord>> GetExpensesAsync(
             DateTime? fromUtc = null,
             DateTime? toUtc = null,
+            string? branchId = null,
             CancellationToken cancellationToken = default);
 
-        Task<EquipmentSeedResultDto> SeedMediumGymSampleAsync(CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<FinanceMonthlySnapshotDto>> GetMonthlySnapshotsAsync(
+            int months = 6,
+            bool includeProjection = false,
+            CancellationToken cancellationToken = default,
+            string? branchId = null);
+
+        Task<EquipmentSeedResultDto> SeedMediumGymSampleAsync(
+            string? branchId = null,
+            CancellationToken cancellationToken = default);
     }
 
     public sealed class FinanceOverviewDto
@@ -80,5 +93,22 @@ namespace EJCFitnessGym.Services.Finance
         public decimal? DeviationPercent { get; init; }
         public string Severity { get; init; } = "Low";
         public string Description { get; init; } = string.Empty;
+    }
+
+    public sealed class FinanceMonthlySnapshotDto
+    {
+        public DateTime MonthStartUtc { get; init; }
+        public decimal Revenue { get; init; }
+        public decimal CostOfServices { get; init; }
+        public decimal GrossProfit { get; init; }
+        public decimal OperatingExpenses { get; init; }
+        public decimal DepreciationCost { get; init; }
+        public decimal NetProfit { get; init; }
+        public int SuccessfulPaymentsCount { get; init; }
+        public int ForReviewCount { get; init; }
+        public int PendingCount { get; init; }
+        public int QueuedCount { get; init; }
+        public int ApprovedCount { get; init; }
+        public bool IsProjected { get; init; }
     }
 }

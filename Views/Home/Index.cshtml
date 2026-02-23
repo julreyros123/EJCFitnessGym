@@ -1,3 +1,4 @@
+@model EJCFitnessGym.Models.Home.HomeIndexViewModel
 @{
     ViewData["Title"] = "Home";
 }
@@ -6,19 +7,25 @@
     <div class="enterprise-hero-shell enterprise-reveal">
         <div class="enterprise-hero-grid">
             <div class="enterprise-hero-copy">
-                <span class="enterprise-kicker">EJC Fitness Gym ERP</span>
-                <h1>Run your gym better and keep members consistent.</h1>
+                <span class="enterprise-kicker">EJC Fitness Gym</span>
+                <h1 class="enterprise-hero-title">
+                    <span class="enterprise-hero-title-static">
+                        Build Your
+                    </span>
+                    <span class="enterprise-hero-title-rotator" aria-live="polite">
+                        <span><em>Best Version</em></span>
+                        <span><em>Stronger Self</em></span>
+                        <span><em>Better Body</em></span>
+                        <span><em>Power Within</em></span>
+                        <span><em>Next Level</em></span>
+                    </span>
+                </h1>
                 <p>
-                    Manage memberships, billing, check-ins, coaching, and daily operations in one place built for real gym flow.
+                    Train with expert coaches, quality equipment, and a focused gym community that keeps you consistent every week.
                 </p>
                 <div class="enterprise-hero-actions">
                     <a asp-area="Identity" asp-page="/Account/Register" class="btn enterprise-btn-primary btn-lg">Start Membership</a>
                     <a asp-page="/Public/Pricing" class="btn enterprise-btn-secondary btn-lg">View Plans</a>
-                </div>
-                <div class="enterprise-hero-chips" aria-label="Platform highlights">
-                    <span><i class="bi bi-shield-lock"></i>Role-secured access</span>
-                    <span><i class="bi bi-cash-coin"></i>Revenue visibility</span>
-                    <span><i class="bi bi-clipboard2-check"></i>Faster onboarding</span>
                 </div>
             </div>
         </div>
@@ -76,46 +83,38 @@
         <a class="btn btn-outline-primary" asp-page="/Public/Pricing">See Full Plans</a>
     </div>
 
-    <div class="enterprise-plan-grid">
-        <article class="enterprise-plan-card enterprise-reveal">
-            <h3>Starter</h3>
-            <p class="enterprise-plan-sub">For beginners and regular workouts</p>
-            <div class="enterprise-plan-price">PHP 1,299 <small>/ month</small></div>
-            <ul>
-                <li><i class="bi bi-check2-circle"></i>Full gym access</li>
-                <li><i class="bi bi-check2-circle"></i>Basic progress tracking</li>
-                <li><i class="bi bi-check2-circle"></i>Cancel anytime</li>
-            </ul>
-            <a class="btn btn-outline-primary w-100" asp-page="/Public/Pricing">Choose Starter</a>
+    @if (Model.PlanCards.Count == 0)
+    {
+        <article class="enterprise-value-card">
+            <span class="enterprise-value-icon"><i class="bi bi-info-circle"></i></span>
+            <h3>No active monthly plans yet</h3>
+            <p>Please check back soon or contact the team for available memberships.</p>
         </article>
-
-        <article class="enterprise-plan-card is-featured enterprise-reveal enterprise-reveal-delay-1">
-            <span class="enterprise-plan-tag">Most Popular</span>
-            <h3>Pro</h3>
-            <p class="enterprise-plan-sub">For measurable weekly progression</p>
-            <div class="enterprise-plan-price">PHP 1,899 <small>/ month</small></div>
-            <ul>
-                <li><i class="bi bi-check2-circle"></i>Everything in Starter</li>
-                <li><i class="bi bi-check2-circle"></i>2 coach check-ins per month</li>
-                <li><i class="bi bi-check2-circle"></i>Priority class booking</li>
-                <li><i class="bi bi-check2-circle"></i>Cancel anytime</li>
-            </ul>
-            <a class="btn enterprise-btn-primary w-100" asp-page="/Public/Pricing">Choose Pro</a>
-        </article>
-
-        <article class="enterprise-plan-card enterprise-reveal enterprise-reveal-delay-2">
-            <h3>Elite</h3>
-            <p class="enterprise-plan-sub">For complete coaching support</p>
-            <div class="enterprise-plan-price">PHP 2,699 <small>/ month</small></div>
-            <ul>
-                <li><i class="bi bi-check2-circle"></i>Everything in Pro</li>
-                <li><i class="bi bi-check2-circle"></i>Weekly coach sessions</li>
-                <li><i class="bi bi-check2-circle"></i>Nutrition consultations</li>
-                <li><i class="bi bi-check2-circle"></i>Cancel anytime</li>
-            </ul>
-            <a class="btn btn-outline-primary w-100" asp-page="/Public/Pricing">Choose Elite</a>
-        </article>
-    </div>
+    }
+    else
+    {
+        <div class="enterprise-plan-grid">
+            @foreach (var card in Model.PlanCards)
+            {
+                <article class="enterprise-plan-card @((card.IsFeatured) ? "is-featured" : null)">
+                    @if (!string.IsNullOrWhiteSpace(card.Badge))
+                    {
+                        <span class="enterprise-plan-tag">@card.Badge</span>
+                    }
+                    <h3>@card.Name</h3>
+                    <p class="enterprise-plan-sub">@card.Subtitle</p>
+                    <div class="enterprise-plan-price">PHP @card.Price.ToString("N0") <small>/ month</small></div>
+                    <ul>
+                        @foreach (var benefit in card.Benefits)
+                        {
+                            <li><i class="bi bi-check2-circle"></i>@benefit</li>
+                        }
+                    </ul>
+                    <a class="btn @(card.IsFeatured ? "enterprise-btn-primary" : "btn-outline-primary") w-100" asp-page="/Public/Pricing" asp-route-planId="@card.PlanId">Choose @card.Name</a>
+                </article>
+            }
+        </div>
+    }
 </section>
 
 <section class="enterprise-section enterprise-contact-shell" id="contact">
@@ -127,7 +126,7 @@
             <div class="enterprise-contact-meta">
                 <div>
                     <small>Phone</small>
-                    <strong>+63 900 000 0000</strong>
+                    <strong>09979357906</strong>
                 </div>
                 <div>
                     <small>Email</small>
@@ -139,7 +138,7 @@
                 </div>
             </div>
             <div class="enterprise-contact-actions">
-                <a class="btn enterprise-btn-primary" href="tel:+639000000000">Call Now</a>
+                <a class="btn enterprise-btn-primary" href="tel:09979357906">Call Now</a>
                 <a class="btn enterprise-btn-secondary" asp-page="/Public/Contact">Message Team</a>
             </div>
         </article>

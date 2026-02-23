@@ -1,0 +1,32 @@
+/* /Views/Shared/_Layout.cshtml.rz.scp.css */
+/* Layout-scoped overrides to match the EJC theme. */
+
+a.navbar-brand[b-01fve2p77l] {
+  white-space: normal;
+  text-align: left;
+  word-break: keep-all;
+}
+
+a[b-01fve2p77l] {
+  color: inherit;
+}
+
+a:hover[b-01fve2p77l] {
+  color: var(--ejc-accent);
+}
+
+.border-top[b-01fve2p77l],
+.border-bottom[b-01fve2p77l] {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.box-shadow[b-01fve2p77l] {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.footer[b-01fve2p77l] {
+  position: static;
+  width: 100%;
+  white-space: normal;
+  line-height: normal;
+}

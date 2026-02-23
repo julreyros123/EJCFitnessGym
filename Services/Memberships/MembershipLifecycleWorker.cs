@@ -57,7 +57,10 @@ namespace EJCFitnessGym.Services.Memberships
                 var eventPublisher = scope.ServiceProvider.GetService<IErpEventPublisher>();
 
                 var result = await membershipService.RunLifecycleMaintenanceAsync(cancellationToken: cancellationToken);
-                var totalChanges = result.ExpiredSubscriptions + result.OverdueInvoices;
+                var totalChanges = result.ExpiredSubscriptions +
+                    result.OverdueInvoices +
+                    result.GeneratedRenewalInvoices +
+                    result.ThreeDayRemindersQueued;
 
                 if (totalChanges <= 0)
                 {
@@ -69,10 +72,12 @@ namespace EJCFitnessGym.Services.Memberships
                 }
 
                 _logger.LogInformation(
-                    "Membership lifecycle maintenance ({Trigger}) updated {ExpiredSubscriptions} expired subscriptions and {OverdueInvoices} overdue invoices at {AsOfUtc}.",
+                    "Membership lifecycle maintenance ({Trigger}) updated {ExpiredSubscriptions} expired subscriptions, {OverdueInvoices} overdue invoices, generated {GeneratedRenewalInvoices} renewal invoices, and queued {ThreeDayRemindersQueued} reminders at {AsOfUtc}.",
                     trigger,
                     result.ExpiredSubscriptions,
                     result.OverdueInvoices,
+                    result.GeneratedRenewalInvoices,
+                    result.ThreeDayRemindersQueued,
                     result.AsOfUtc);
 
                 if (_options.CurrentValue.PublishRealtimeWhenChangesDetected && eventPublisher is not null)
@@ -85,7 +90,9 @@ namespace EJCFitnessGym.Services.Memberships
                             trigger,
                             asOfUtc = result.AsOfUtc,
                             expiredSubscriptions = result.ExpiredSubscriptions,
-                            overdueInvoices = result.OverdueInvoices
+                            overdueInvoices = result.OverdueInvoices,
+                            generatedRenewalInvoices = result.GeneratedRenewalInvoices,
+                            remindersQueued = result.ThreeDayRemindersQueued
                         },
                         cancellationToken);
                 }

@@ -35,7 +35,7 @@
 
         var container = getToastContainer();
         var toastElement = document.createElement("div");
-        toastElement.className = "toast align-items-center text-bg-dark border-0";
+        toastElement.className = "toast align-items-center border-0 ejc-realtime-toast";
         toastElement.setAttribute("role", "status");
         toastElement.setAttribute("aria-live", "polite");
         toastElement.setAttribute("aria-atomic", "true");
@@ -43,7 +43,7 @@
         toastElement.innerHTML = [
             '<div class="d-flex">',
             '  <div class="toast-body"></div>',
-            '  <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>',
+            '  <button type="button" class="btn-close ejc-realtime-toast-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>',
             "</div>"
         ].join("");
 
@@ -70,7 +70,7 @@
 
         var container = document.createElement("div");
         container.id = "ejc-realtime-toast-container";
-        container.className = "toast-container position-fixed top-0 end-0 p-3";
+        container.className = "toast-container position-fixed top-0 end-0 p-3 ejc-realtime-toast-container";
         container.style.zIndex = "1080";
         document.body.appendChild(container);
         return container;

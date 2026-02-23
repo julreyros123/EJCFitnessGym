@@ -1,0 +1,208 @@
+@model EJCFitnessGym.Models.Admin.BackOfficeAccountIndexViewModel
+@{
+    ViewData["Title"] = "Back Office Accounts";
+    var accounts = Model.Accounts?.ToList() ?? new List<EJCFitnessGym.Models.Admin.BackOfficeAccountListItemViewModel>();
+}
+
+<div class="py-4">
+    <div class="ejc-table-toolbar mb-3">
+        <div>
+            <h1 class="display-6 mb-0">Back Office Accounts</h1>
+            <p class="ejc-muted mb-0">Create Admin and Finance logins, assign branch scope, and keep account records.</p>
+        </div>
+    </div>
+
+    @if (TempData["StatusMessage"] is string status && !string.IsNullOrWhiteSpace(status))
+    {
+        <div class="alert alert-info">@status</div>
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-3"></div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-5">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Create Back Office Account</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-light border small" role="status">
+                        Requirements: unique email, role set to <strong>Admin</strong> or <strong>Finance</strong>,
+                        assigned to an active branch, password minimum <strong>8 characters</strong>, and password confirmation match.
+                    </div>
+                    <form asp-action="Create" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div class="mb-3">
+                            <label asp-for="CreateInput.Email" class="form-label"></label>
+                            <input asp-for="CreateInput.Email" class="form-control" autocomplete="username" />
+                            <span asp-validation-for="CreateInput.Email" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="CreateInput.PhoneNumber" class="form-label"></label>
+                            <input asp-for="CreateInput.PhoneNumber" class="form-control" autocomplete="tel" />
+                            <span asp-validation-for="CreateInput.PhoneNumber" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="CreateInput.Role" class="form-label"></label>
+                            <select asp-for="CreateInput.Role" class="form-select">
+                                @foreach (var role in Model.RoleOptions)
+                                {
+                                    <option value="@role.Value">@role.Label</option>
+                                }
+                            </select>
+                            <span asp-validation-for="CreateInput.Role" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="CreateInput.BranchId" class="form-label"></label>
+                            <select asp-for="CreateInput.BranchId" class="form-select">
+                                <option value="">Select active branch</option>
+                                @foreach (var branch in Model.BranchOptions)
+                                {
+                                    <option value="@branch.BranchId">@branch.BranchId - @branch.BranchName</option>
+                                }
+                            </select>
+                            <span asp-validation-for="CreateInput.BranchId" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="CreateInput.Password" class="form-label"></label>
+                            <input asp-for="CreateInput.Password" class="form-control" autocomplete="new-password" />
+                            <span asp-validation-for="CreateInput.Password" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="CreateInput.ConfirmPassword" class="form-label"></label>
+                            <input asp-for="CreateInput.ConfirmPassword" class="form-control" autocomplete="new-password" />
+                            <span asp-validation-for="CreateInput.ConfirmPassword" class="text-danger small"></span>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Create Account</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-7">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Account Records</h5>
+                    <span class="text-muted small">Total accounts: @accounts.Count</span>
+                </div>
+                <div class="card-body p-0 ejc-table-shell-host">
+                    <div class="table-responsive ejc-table-shell">
+                        <table
+                            class="table table-striped table-hover align-middle mb-0"
+                            data-ejc-page-size="8"
+                            data-ejc-search-placeholder="Search by email, role, phone, branch, status, or creator">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Phone</th>
+                                    <th>Branch</th>
+                                    <th>Status</th>
+                                    <th>Record</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (accounts.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">No back-office accounts found.</td>
+                                    </tr>
+                                }
+                                @foreach (var account in accounts)
+                                {
+                                    var createdLocal = account.CreatedUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+                                    var statusChangedLocal = account.StatusChangedUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">@account.Email</div>
+                                            <div class="small text-muted">@account.UserId</div>
+                                        </td>
+                                        <td>@account.RolesSummary</td>
+                                        <td>@(string.IsNullOrWhiteSpace(account.PhoneNumber) ? "-" : account.PhoneNumber)</td>
+                                        <td>
+                                            @if (string.IsNullOrWhiteSpace(account.BranchId))
+                                            {
+                                                <span class="badge bg-danger">No Branch</span>
+                                            }
+                                            else if (string.IsNullOrWhiteSpace(account.BranchName))
+                                            {
+                                                <span class="badge bg-warning text-dark">Unknown Branch (@account.BranchId)</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">@account.BranchId</span>
+                                                <div class="small">@account.BranchName</div>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (account.IsActive)
+                                            {
+                                                <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Active</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Inactive</span>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(statusChangedLocal) || !string.IsNullOrWhiteSpace(account.StatusChangedByDisplay))
+                                            {
+                                                <div class="small text-muted mt-1">
+                                                    @(statusChangedLocal ?? "-") by @(string.IsNullOrWhiteSpace(account.StatusChangedByDisplay) ? "-" : account.StatusChangedByDisplay)
+                                                </div>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (!account.HasAuditRecord)
+                                            {
+                                                <span class="badge bg-secondary">Legacy / Seed</span>
+                                            }
+                                            else
+                                            {
+                                                <div>@(createdLocal ?? "-")</div>
+                                                <div class="small text-muted">By @(string.IsNullOrWhiteSpace(account.CreatedByDisplay) ? "-" : account.CreatedByDisplay)</div>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <form asp-action="ToggleStatus" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="userId" value="@account.UserId" />
+                                                @if (account.IsActive)
+                                                {
+                                                    <button type="submit"
+                                                            class="btn btn-sm btn-outline-warning"
+                                                            onclick="return confirm('Deactivate this account? The user will not be able to sign in.');">
+                                                        Deactivate
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <button type="submit" class="btn btn-sm btn-outline-success">
+                                                        Activate
+                                                    </button>
+                                                }
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

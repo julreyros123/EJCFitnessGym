@@ -32,16 +32,16 @@
 
     <div class="row g-3 mb-4">
         <div class="col-md-4 col-xl-2">
-            <div class="card h-100"><div class="card-body"><div class="small text-muted">Lookback Revenue</div><div class="h5 mb-0">PHP @insights.LookbackRevenue.ToString("N2")</div></div></div>
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Lookback Revenue</div><div class="h5 mb-0" title="@($"PHP {insights.LookbackRevenue:N2}")">@insights.LookbackRevenue.ToCompactCurrency()</div></div></div>
         </div>
         <div class="col-md-4 col-xl-2">
-            <div class="card h-100"><div class="card-body"><div class="small text-muted">Daily Avg Revenue</div><div class="h5 mb-0">PHP @insights.AverageDailyRevenue.ToString("N2")</div></div></div>
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Daily Avg Revenue</div><div class="h5 mb-0" title="@($"PHP {insights.AverageDailyRevenue:N2}")">@insights.AverageDailyRevenue.ToCompactCurrency()</div></div></div>
         </div>
         <div class="col-md-4 col-xl-2">
-            <div class="card h-100"><div class="card-body"><div class="small text-muted">Forecast Revenue</div><div class="h5 mb-0">PHP @insights.ForecastRevenue.ToString("N2")</div></div></div>
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Forecast Revenue</div><div class="h5 mb-0" title="@($"PHP {insights.ForecastRevenue:N2}")">@insights.ForecastRevenue.ToCompactCurrency()</div></div></div>
         </div>
         <div class="col-md-6 col-xl-2">
-            <div class="card h-100"><div class="card-body"><div class="small text-muted">Forecast Total Expense</div><div class="h5 mb-0">PHP @insights.ForecastTotalExpense.ToString("N2")</div></div></div>
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Forecast Total Expense</div><div class="h5 mb-0" title="@($"PHP {insights.ForecastTotalExpense:N2}")">@insights.ForecastTotalExpense.ToCompactCurrency()</div></div></div>
         </div>
         <div class="col-md-6 col-xl-2">
             <div class="card h-100"><div class="card-body"><div class="small text-muted">Signal</div><div class="h5 mb-0"><span class="@signalBadgeClass">@insights.GainOrLossSignal</span></div></div></div>
@@ -144,15 +144,15 @@
                     </p>
                     <div class="ejc-finance-stat">
                         <span class="ejc-muted">Forecast Revenue (@insights.ForecastDays days)</span>
-                        <strong>PHP @insights.ForecastRevenue.ToString("N2")</strong>
+                        <strong title="@($"PHP {insights.ForecastRevenue:N2}")">@insights.ForecastRevenue.ToCompactCurrency()</strong>
                     </div>
                     <div class="ejc-finance-stat">
                         <span class="ejc-muted">Forecast Operating Expense</span>
-                        <strong>PHP @insights.ForecastOperatingExpense.ToString("N2")</strong>
+                        <strong title="@($"PHP {insights.ForecastOperatingExpense:N2}")">@insights.ForecastOperatingExpense.ToCompactCurrency()</strong>
                     </div>
                     <div class="ejc-finance-stat">
                         <span class="ejc-muted">Forecast Depreciation Cost</span>
-                        <strong>PHP @insights.ForecastDepreciationCost.ToString("N2")</strong>
+                        <strong title="@($"PHP {insights.ForecastDepreciationCost:N2}")">@insights.ForecastDepreciationCost.ToCompactCurrency()</strong>
                     </div>
                     <div class="ejc-finance-stat">
                         <span class="ejc-muted">Risk Level</span>
@@ -161,7 +161,7 @@
                     <hr />
                     <div class="d-flex align-items-center justify-content-between">
                         <span class="fw-semibold">Forecast Net Result</span>
-                        <strong class="@(insights.ForecastNet >= 0 ? "text-success" : "text-danger")">PHP @insights.ForecastNet.ToString("N2")</strong>
+                        <strong class="@(insights.ForecastNet >= 0 ? "text-success" : "text-danger")" title="@($"PHP {insights.ForecastNet:N2}")">@insights.ForecastNet.ToCompactCurrency()</strong>
                     </div>
                 </div>
             </div>

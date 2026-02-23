@@ -1,7 +1,9 @@
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Models.Finance;
+using EJCFitnessGym.Security;
 using EJCFitnessGym.Services.Finance;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace EJCFitnessGym.Tests;
@@ -153,17 +155,279 @@ public class FinanceMetricsServiceTests
         Assert.Equal(first.TotalAssets, second.SkippedCount);
     }
 
+    [Fact]
+    public async Task GetOverviewAsync_WithBranchId_FiltersRevenueToScopedMembers()
+    {
+        await using var dbHandle = await CreateDbContextAsync(nameof(GetOverviewAsync_WithBranchId_FiltersRevenueToScopedMembers));
+        var db = dbHandle.Db;
+        var service = new FinanceMetricsService(db);
+
+        var nowUtc = DateTime.UtcNow;
+
+        db.UserClaims.AddRange(
+            new IdentityUserClaim<string>
+            {
+                UserId = "member-branch-a",
+                ClaimType = BranchAccess.BranchIdClaimType,
+                ClaimValue = "BR-A"
+            },
+            new IdentityUserClaim<string>
+            {
+                UserId = "member-branch-b",
+                ClaimType = BranchAccess.BranchIdClaimType,
+                ClaimValue = "BR-B"
+            });
+        await db.SaveChangesAsync();
+
+        await SeedPaymentAsync(
+            db,
+            amount: 1000m,
+            status: PaymentStatus.Succeeded,
+            paidAtUtc: nowUtc.AddHours(-2),
+            gatewayProvider: "PayMongo",
+            memberUserId: "member-branch-a");
+
+        await SeedPaymentAsync(
+            db,
+            amount: 2500m,
+            status: PaymentStatus.Succeeded,
+            paidAtUtc: nowUtc.AddHours(-1),
+            gatewayProvider: "PayMongo",
+            memberUserId: "member-branch-b");
+
+        var overview = await service.GetOverviewAsync(
+            fromUtc: nowUtc.AddDays(-1),
+            toUtc: nowUtc.AddDays(1),
+            branchId: "BR-A");
+
+        Assert.Equal(1, overview.SuccessfulPaymentsCount);
+        Assert.Equal(1000m, overview.TotalRevenue);
+        Assert.Equal(1000m, overview.PayMongoRevenue);
+    }
+
+    [Fact]
+    public async Task GetExpensesAsync_WithBranchId_ReturnsOnlyScopedBranchExpenses()
+    {
+        await using var dbHandle = await CreateDbContextAsync(nameof(GetExpensesAsync_WithBranchId_ReturnsOnlyScopedBranchExpenses));
+        var db = dbHandle.Db;
+        var service = new FinanceMetricsService(db);
+        var nowUtc = DateTime.UtcNow;
+
+        await SeedExpenseAsync(
+            db,
+            amount: 1200m,
+            expenseDateUtc: nowUtc.AddDays(-1),
+            category: "Utilities",
+            branchId: "BR-A");
+        await SeedExpenseAsync(
+            db,
+            amount: 2200m,
+            expenseDateUtc: nowUtc.AddDays(-1),
+            category: "Utilities",
+            branchId: "BR-B");
+
+        var scopedExpenses = await service.GetExpensesAsync(
+            fromUtc: nowUtc.AddDays(-2),
+            toUtc: nowUtc.AddDays(1),
+            branchId: "BR-A");
+
+        Assert.Single(scopedExpenses);
+        Assert.Equal("BR-A", scopedExpenses[0].BranchId);
+        Assert.Equal(1200m, scopedExpenses[0].Amount);
+    }
+
+    [Fact]
+    public async Task GetEquipmentAssetsAsync_WithBranchId_ReturnsOnlyScopedBranchAssets()
+    {
+        await using var dbHandle = await CreateDbContextAsync(nameof(GetEquipmentAssetsAsync_WithBranchId_ReturnsOnlyScopedBranchAssets));
+        var db = dbHandle.Db;
+        var service = new FinanceMetricsService(db);
+        var nowUtc = DateTime.UtcNow;
+
+        db.GymEquipmentAssets.AddRange(
+            new GymEquipmentAsset
+            {
+                Name = "Bike A",
+                Category = "Cardio",
+                BranchId = "BR-A",
+                Quantity = 2,
+                UnitCost = 25000m,
+                UsefulLifeMonths = 60,
+                IsActive = true,
+                CreatedUtc = nowUtc,
+                UpdatedUtc = nowUtc
+            },
+            new GymEquipmentAsset
+            {
+                Name = "Bike B",
+                Category = "Cardio",
+                BranchId = "BR-B",
+                Quantity = 2,
+                UnitCost = 25000m,
+                UsefulLifeMonths = 60,
+                IsActive = true,
+                CreatedUtc = nowUtc,
+                UpdatedUtc = nowUtc
+            });
+        await db.SaveChangesAsync();
+
+        var scopedAssets = await service.GetEquipmentAssetsAsync(branchId: "BR-A");
+
+        Assert.Single(scopedAssets);
+        Assert.Equal("BR-A", scopedAssets[0].BranchId);
+        Assert.Equal("Bike A", scopedAssets[0].Name);
+    }
+
+    [Fact]
+    public async Task GetMonthlySnapshotsAsync_ReturnsActualMonthsAndProjection()
+    {
+        await using var dbHandle = await CreateDbContextAsync(nameof(GetMonthlySnapshotsAsync_ReturnsActualMonthsAndProjection));
+        var db = dbHandle.Db;
+        var service = new FinanceMetricsService(db);
+        var nowUtc = DateTime.UtcNow;
+        var currentMonthStart = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var previousMonthStart = currentMonthStart.AddMonths(-1);
+
+        var previousInvoice = new Invoice
+        {
+            InvoiceNumber = $"INV-{Guid.NewGuid():N}",
+            MemberUserId = "member-fin-month-prev",
+            IssueDateUtc = previousMonthStart.AddDays(2),
+            DueDateUtc = previousMonthStart.AddDays(12),
+            Amount = 2000m,
+            Status = InvoiceStatus.Paid
+        };
+        var currentInvoicePaid = new Invoice
+        {
+            InvoiceNumber = $"INV-{Guid.NewGuid():N}",
+            MemberUserId = "member-fin-month-current",
+            IssueDateUtc = currentMonthStart.AddDays(2),
+            DueDateUtc = currentMonthStart.AddDays(12),
+            Amount = 3000m,
+            Status = InvoiceStatus.Paid
+        };
+        var draftInvoice = new Invoice
+        {
+            InvoiceNumber = $"INV-{Guid.NewGuid():N}",
+            MemberUserId = "member-fin-month-draft",
+            IssueDateUtc = currentMonthStart.AddDays(3),
+            DueDateUtc = currentMonthStart.AddDays(13),
+            Amount = 900m,
+            Status = InvoiceStatus.Draft
+        };
+        var unpaidInvoice = new Invoice
+        {
+            InvoiceNumber = $"INV-{Guid.NewGuid():N}",
+            MemberUserId = "member-fin-month-unpaid",
+            IssueDateUtc = currentMonthStart.AddDays(4),
+            DueDateUtc = currentMonthStart.AddDays(14),
+            Amount = 1100m,
+            Status = InvoiceStatus.Unpaid
+        };
+        var overdueInvoice = new Invoice
+        {
+            InvoiceNumber = $"INV-{Guid.NewGuid():N}",
+            MemberUserId = "member-fin-month-overdue",
+            IssueDateUtc = currentMonthStart.AddDays(5),
+            DueDateUtc = currentMonthStart.AddDays(15),
+            Amount = 1300m,
+            Status = InvoiceStatus.Overdue
+        };
+
+        db.Invoices.AddRange(previousInvoice, currentInvoicePaid, draftInvoice, unpaidInvoice, overdueInvoice);
+        await db.SaveChangesAsync();
+
+        db.Payments.AddRange(
+            new Payment
+            {
+                InvoiceId = previousInvoice.Id,
+                Amount = 2000m,
+                Method = PaymentMethod.OnlineGateway,
+                Status = PaymentStatus.Succeeded,
+                PaidAtUtc = previousMonthStart.AddDays(6),
+                GatewayProvider = "PayMongo",
+                ReferenceNumber = $"pm-{Guid.NewGuid():N}"
+            },
+            new Payment
+            {
+                InvoiceId = currentInvoicePaid.Id,
+                Amount = 3000m,
+                Method = PaymentMethod.OnlineGateway,
+                Status = PaymentStatus.Succeeded,
+                PaidAtUtc = currentMonthStart.AddDays(6),
+                GatewayProvider = "PayMongo",
+                ReferenceNumber = $"pm-{Guid.NewGuid():N}"
+            });
+
+        db.FinanceExpenseRecords.AddRange(
+            new FinanceExpenseRecord
+            {
+                Name = "Consumables",
+                Category = "Inventory",
+                Amount = 800m,
+                ExpenseDateUtc = currentMonthStart.AddDays(6),
+                IsRecurring = false,
+                IsActive = true,
+                CreatedUtc = nowUtc,
+                UpdatedUtc = nowUtc
+            },
+            new FinanceExpenseRecord
+            {
+                Name = "Branch Rent",
+                Category = "Rent",
+                Amount = 500m,
+                ExpenseDateUtc = currentMonthStart.AddDays(7),
+                IsRecurring = true,
+                IsActive = true,
+                CreatedUtc = nowUtc,
+                UpdatedUtc = nowUtc
+            });
+
+        db.GymEquipmentAssets.Add(new GymEquipmentAsset
+        {
+            Name = "Lat Pulldown",
+            Category = "Strength Machine",
+            Quantity = 1,
+            UnitCost = 1200m,
+            UsefulLifeMonths = 12,
+            IsActive = true,
+            CreatedUtc = nowUtc,
+            UpdatedUtc = nowUtc
+        });
+        await db.SaveChangesAsync();
+
+        var snapshots = await service.GetMonthlySnapshotsAsync(months: 2, includeProjection: true);
+
+        Assert.Equal(3, snapshots.Count);
+        Assert.False(snapshots[0].IsProjected);
+        Assert.False(snapshots[1].IsProjected);
+        Assert.True(snapshots[2].IsProjected);
+
+        var current = snapshots[1];
+        Assert.Equal(3000m, current.Revenue);
+        Assert.Equal(800m, current.CostOfServices);
+        Assert.Equal(2200m, current.GrossProfit);
+        Assert.Equal(500m, current.OperatingExpenses);
+        Assert.Equal(100m, current.DepreciationCost);
+        Assert.Equal(1600m, current.NetProfit);
+        Assert.Equal(1, current.ForReviewCount);
+        Assert.Equal(1, current.PendingCount);
+        Assert.Equal(1, current.QueuedCount);
+        Assert.Equal(1, current.ApprovedCount);
+    }
+
     private static async Task SeedPaymentAsync(
         ApplicationDbContext db,
         decimal amount,
         PaymentStatus status,
         DateTime paidAtUtc,
-        string? gatewayProvider)
+        string? gatewayProvider,
+        string memberUserId = "member-finance-test")
     {
         var invoice = new Invoice
         {
             InvoiceNumber = $"INV-{Guid.NewGuid():N}",
-            MemberUserId = "member-finance-test",
+            MemberUserId = memberUserId,
             IssueDateUtc = paidAtUtc,
             DueDateUtc = paidAtUtc.AddDays(2),
             Amount = amount,
@@ -191,13 +455,15 @@ public class FinanceMetricsServiceTests
         ApplicationDbContext db,
         decimal amount,
         DateTime expenseDateUtc,
-        string category)
+        string category,
+        string? branchId = null)
     {
         var nowUtc = DateTime.UtcNow;
         db.FinanceExpenseRecords.Add(new FinanceExpenseRecord
         {
             Name = $"{category} expense",
             Category = category,
+            BranchId = branchId,
             Amount = amount,
             ExpenseDateUtc = expenseDateUtc,
             IsRecurring = true,

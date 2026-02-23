@@ -1,72 +1,482 @@
+@model EJCFitnessGym.Models.Admin.SuperAdminDashboardViewModel
 @{
     ViewData["Title"] = "Super Admin";
+    Layout = "/Views/Shared/_SuperAdminLayout.cshtml";
+
+    string SeverityBadgeClass(string severity)
+    {
+        if (string.Equals(severity, "High", StringComparison.OrdinalIgnoreCase))
+        {
+            return "bg-danger";
+        }
+
+        if (string.Equals(severity, "Medium", StringComparison.OrdinalIgnoreCase))
+        {
+            return "bg-warning text-dark";
+        }
+
+        return "bg-secondary";
+    }
+
+    string StateBadgeClass(string state)
+    {
+        if (string.Equals(state, "New", StringComparison.OrdinalIgnoreCase))
+        {
+            return "bg-danger";
+        }
+
+        if (string.Equals(state, "Acknowledged", StringComparison.OrdinalIgnoreCase))
+        {
+            return "bg-warning text-dark";
+        }
+
+        if (string.Equals(state, "Resolved", StringComparison.OrdinalIgnoreCase))
+        {
+            return "bg-success";
+        }
+
+        return "bg-secondary";
+    }
+
+    string QueueLagLabel(DateTime? oldestPendingUtc)
+    {
+        if (!oldestPendingUtc.HasValue)
+        {
+            return "No pending queue backlog";
+        }
+
+        var lag = Model.AsOfUtc - oldestPendingUtc.Value;
+        if (lag.TotalMinutes < 1)
+        {
+            return "Queue lag under 1 minute";
+        }
+
+        if (lag.TotalHours < 1)
+        {
+            return $"Queue lag {Math.Round(lag.TotalMinutes)} minutes";
+        }
+
+        if (lag.TotalDays < 1)
+        {
+            return $"Queue lag {Math.Round(lag.TotalHours, 1)} hours";
+        }
+
+        return $"Queue lag {Math.Round(lag.TotalDays, 1)} days";
+    }
+
+    string RetentionStatusBadgeClass(string status)
+    {
+        if (string.Equals(status, "Open", StringComparison.OrdinalIgnoreCase))
+        {
+            return "bg-warning text-dark";
+        }
+
+        if (string.Equals(status, "InProgress", StringComparison.OrdinalIgnoreCase))
+        {
+            return "bg-primary";
+        }
+
+        if (string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase))
+        {
+            return "bg-success";
+        }
+
+        return "bg-secondary";
+    }
+
+    string ChurnRiskBadgeClass(string level)
+    {
+        if (string.Equals(level, "High", StringComparison.OrdinalIgnoreCase))
+        {
+            return "bg-danger";
+        }
+
+        if (string.Equals(level, "Medium", StringComparison.OrdinalIgnoreCase))
+        {
+            return "bg-warning text-dark";
+        }
+
+        return "bg-success";
+    }
 }
 
-<div class="container py-5">
+<div class="container py-4 ejc-superadmin-dashboard">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
-            <h1 class="display-5 mb-1">Super Admin</h1>
-            <p class="ejc-muted mb-0">Welcome, @User.Identity?.Name</p>
+            <h1 class="display-6 mb-1">Super Admin Control Center</h1>
+            <p class="ejc-muted mb-0">As of @Model.AsOfUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</p>
         </div>
-        <span class="badge ejc-badge">System Overview</span>
+        <span class="badge ejc-badge">Platform Governance</span>
     </div>
 
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a class="btn btn-primary" asp-controller="UserBranches" asp-action="Index">Manage Branch Access</a>
+        <a class="btn btn-outline-primary" asp-controller="MemberAccounts" asp-action="Index">Review Member Accounts</a>
+        <a class="btn btn-outline-primary" asp-controller="Invoices" asp-action="Index">Open Invoices</a>
+        <a class="btn btn-outline-primary" asp-controller="SubscriptionPlans" asp-action="Index">Subscription Plans</a>
+    </div>
+
+    @if (Model.UnassignedBackOfficeCount > 0)
+    {
+        <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span><strong>@Model.UnassignedBackOfficeCount</strong> back-office account(s) are missing branch scope.</span>
+            <a class="btn btn-sm btn-dark" asp-controller="UserBranches" asp-action="Index">Resolve Now</a>
+        </div>
+    }
+
     <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="ejc-stat">
-                <h3 class="h2">12</h3>
+        <div class="col-md-6 col-xl-3">
+            <div class="ejc-stat h-100">
+                <h3 class="h2">@Model.ActiveBranchCount</h3>
                 <p class="ejc-muted mb-0">Active branches</p>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="ejc-stat">
-                <h3 class="h2">1,284</h3>
-                <p class="ejc-muted mb-0">Total members</p>
+        <div class="col-md-6 col-xl-3">
+            <div class="ejc-stat h-100">
+                <h3 class="h2">@Model.TotalUserCount</h3>
+                <p class="ejc-muted mb-0">Total platform users</p>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="ejc-stat">
-                <h3 class="h2">₱0</h3>
-                <p class="ejc-muted mb-0">Monthly revenue</p>
+        <div class="col-md-6 col-xl-3">
+            <div class="ejc-stat h-100">
+                <h3 class="h2">@Model.ActiveMemberCount</h3>
+                <p class="ejc-muted mb-0">Members with active plan</p>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="ejc-stat h-100">
+                <h3 class="h2">₱@Model.RevenueThisMonth.ToString("N2")</h3>
+                <p class="ejc-muted mb-0">Revenue for @Model.RevenuePeriodLabel</p>
             </div>
         </div>
     </div>
 
-    <div class="row g-3">
-        <div class="col-lg-4">
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-xl-3">
             <div class="card h-100">
                 <div class="card-body">
-                    <div class="ejc-card-icon mb-3">
-                        <span class="ejc-icon"><i class="bi bi-gear-fill"></i></span>
-                        <h5 class="card-title mb-0">Admin Control</h5>
-                    </div>
-                    <p class="ejc-muted">Manage branches, front desk roles, and system settings.</p>
-                    <a class="btn btn-outline-primary" asp-page="/Admin/Dashboard">Open Admin</a>
+                    <h6 class="text-uppercase text-muted mb-2">Open Invoices</h6>
+                    <div class="h3 mb-1">@Model.OpenInvoiceCount</div>
+                    <div class="ejc-muted">₱@Model.OpenInvoiceAmount.ToString("N2") outstanding</div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-md-6 col-xl-3">
             <div class="card h-100">
                 <div class="card-body">
-                    <div class="ejc-card-icon mb-3">
-                        <span class="ejc-icon"><i class="bi bi-cash-coin"></i></span>
-                        <h5 class="card-title mb-0">Finance Hub</h5>
-                    </div>
-                    <p class="ejc-muted">Oversee invoices, plans, and revenue performance.</p>
-                    <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Open Finance</a>
+                    <h6 class="text-uppercase text-muted mb-2">Finance Alerts</h6>
+                    <div class="h3 mb-1">@Model.NewAlertCount</div>
+                    <div class="ejc-muted">@Model.AcknowledgedAlertCount acknowledged, pending closure</div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-md-6 col-xl-3">
             <div class="card h-100">
                 <div class="card-body">
-                    <div class="ejc-card-icon mb-3">
-                        <span class="ejc-icon"><i class="bi bi-activity"></i></span>
-                        <h5 class="card-title mb-0">Operations</h5>
-                    </div>
-                    <p class="ejc-muted">Check-ins, attendance, and front desk reporting.</p>
-                    <a class="btn btn-outline-primary" asp-page="/Staff/Reports">View Reports</a>
+                    <h6 class="text-uppercase text-muted mb-2">Outbox Failures</h6>
+                    <div class="h3 mb-1">@Model.FailedOutboxCount</div>
+                    <div class="ejc-muted">Messages requiring manual retry</div>
                 </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted mb-2">Queue Backlog</h6>
+                    <div class="h3 mb-1">@Model.PendingOutboxCount</div>
+                    <div class="ejc-muted">@QueueLagLabel(Model.OldestPendingOutboxUtc)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Churn Risk Watchlist</h5>
+            <span class="text-muted small">High: @Model.HighChurnRiskCount • Medium: @Model.MediumChurnRiskCount</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive ejc-superadmin-table-wrap">
+                <table class="table table-striped table-hover align-middle mb-0" data-ejc-page-size="8">
+                    <thead>
+                        <tr>
+                            <th>Member</th>
+                            <th>Risk</th>
+                            <th>Reasons</th>
+                            <th>Last Payment</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @if (Model.AtRiskMembers.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">No medium/high churn risk members right now.</td>
+                        </tr>
+                    }
+                    @foreach (var member in Model.AtRiskMembers)
+                    {
+                        <tr>
+                            <td>@member.MemberEmail</td>
+                            <td>
+                                <span class="badge @ChurnRiskBadgeClass(member.RiskLevel)">@member.RiskLevel</span>
+                                <div class="small text-muted">Score @member.RiskScore</div>
+                            </td>
+                            <td>@member.ReasonSummary</td>
+                            <td>@(member.LastPaymentUtc?.ToLocalTime().ToString("yyyy-MM-dd") ?? "No payments yet")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">AI Segment Distribution</h5>
+                    <span class="text-muted small">Latest snapshot per member</span>
+                </div>
+                <div class="card-body">
+                    @if (Model.MemberSegmentDistribution.Count == 0)
+                    {
+                        <p class="text-muted mb-0">No member AI snapshots recorded yet.</p>
+                    }
+                    else
+                    {
+                        var maxSegmentCount = Math.Max(1, Model.MemberSegmentDistribution.Max(item => item.MemberCount));
+                        var totalSegmentMembers = Math.Max(1, Model.MemberSegmentDistribution.Sum(item => item.MemberCount));
+
+                        <div class="ejc-superadmin-segment-list">
+                        @foreach (var segment in Model.MemberSegmentDistribution)
+                        {
+                            var fillPercent = (double)segment.MemberCount / maxSegmentCount * 100d;
+                            var sharePercent = (double)segment.MemberCount / totalSegmentMembers * 100d;
+
+                            <div class="ejc-superadmin-segment-item">
+                                <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                                    <span class="fw-semibold">@segment.SegmentLabel</span>
+                                    <span class="text-muted small">@segment.MemberCount member(s) • @sharePercent.ToString("0.#")%</span>
+                                </div>
+                                <div class="progress" role="img" aria-label="@segment.SegmentLabel segment share">
+                                    <div class="progress-bar bg-success" style="width: @fillPercent.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                                </div>
+                            </div>
+                        }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Retention Queue</h5>
+                    <span class="text-muted small">Open actions: @Model.OpenRetentionActionCount</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive ejc-superadmin-table-wrap">
+                        <table class="table table-striped table-hover align-middle mb-0" data-ejc-paginate-disabled="true">
+                            <thead>
+                                <tr>
+                                    <th>Member</th>
+                                    <th>Segment</th>
+                                    <th>Status</th>
+                                    <th>Due</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            @if (Model.RetentionActions.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">No open retention actions.</td>
+                                </tr>
+                            }
+                            @foreach (var action in Model.RetentionActions)
+                            {
+                                var isOverdue = action.DueDateUtc.HasValue && action.DueDateUtc.Value < Model.AsOfUtc;
+                                <tr>
+                                    <td>
+                                        <div>@action.MemberEmail</div>
+                                        <div class="small text-muted">@action.ActionType</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">@action.SegmentLabel</span>
+                                        <div class="small text-muted">@action.Reason</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge @RetentionStatusBadgeClass(action.Status)">@action.Status</span>
+                                    </td>
+                                    <td class="@(isOverdue ? "text-danger fw-semibold" : string.Empty)">
+                                        @(action.DueDateUtc?.ToLocalTime().ToString("yyyy-MM-dd") ?? "-")
+                                    </td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a class="btn btn-sm btn-outline-primary" asp-controller="MemberAccounts" asp-action="Index">Open Member Accounts</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Role Distribution</h5>
+                    <span class="text-muted small">Managed roles</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive ejc-superadmin-table-wrap">
+                        <table class="table table-striped table-hover align-middle mb-0" data-ejc-paginate-disabled="true">
+                            <thead>
+                                <tr>
+                                    <th>Role</th>
+                                    <th class="text-end">Users</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            @foreach (var role in Model.RoleCounts)
+                            {
+                                <tr>
+                                    <td>@role.RoleName</td>
+                                    <td class="text-end fw-semibold">@role.UserCount</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Branch Coverage</h5>
+                    <span class="text-muted small">Top branches by scoped users</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive ejc-superadmin-table-wrap">
+                        <table class="table table-striped table-hover align-middle mb-0" data-ejc-paginate-disabled="true">
+                            <thead>
+                                <tr>
+                                    <th>Branch ID</th>
+                                    <th class="text-end">Scoped users</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            @if (Model.BranchLoads.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted py-4">No branch scope assignments yet.</td>
+                                </tr>
+                            }
+                            @foreach (var branch in Model.BranchLoads)
+                            {
+                                <tr>
+                                    <td>@branch.BranchId</td>
+                                    <td class="text-end fw-semibold">@branch.UserCount</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Privileged Access Matrix</h5>
+            <span class="text-muted small">SuperAdmin, Admin, Finance, Staff</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive ejc-superadmin-table-wrap">
+                <table
+                    class="table table-striped table-hover align-middle mb-0"
+                    data-ejc-page-size="12"
+                    data-ejc-search-placeholder="Search by email, role, branch, or compliance">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Roles</th>
+                            <th>Branch</th>
+                            <th>Compliance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var user in Model.PrivilegedUsers)
+                    {
+                        <tr>
+                            <td>@user.Email</td>
+                            <td>@user.RolesSummary</td>
+                            <td>@(string.IsNullOrWhiteSpace(user.BranchId) ? "-" : user.BranchId)</td>
+                            <td>
+                                @if (!user.RequiresBranch)
+                                {
+                                    <span class="badge bg-secondary">Global</span>
+                                }
+                                else if (user.MissingBranch)
+                                {
+                                    <span class="badge bg-danger">Missing Branch Scope</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">Compliant</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Recent Finance Alerts</h5>
+            <span class="text-muted small">Latest platform signals</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive ejc-superadmin-table-wrap">
+                <table class="table table-striped table-hover align-middle mb-0" data-ejc-page-size="8">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Severity</th>
+                            <th>State</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @if (Model.RecentAlerts.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">No finance alerts found.</td>
+                        </tr>
+                    }
+                    @foreach (var alert in Model.RecentAlerts)
+                    {
+                        <tr>
+                            <td>@alert.CreatedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@alert.AlertType</td>
+                            <td><span class="badge @SeverityBadgeClass(alert.Severity)">@alert.Severity</span></td>
+                            <td><span class="badge @StateBadgeClass(alert.State)">@alert.State</span></td>
+                            <td>@alert.Message</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

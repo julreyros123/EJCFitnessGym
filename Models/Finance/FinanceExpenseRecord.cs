@@ -14,6 +14,9 @@ namespace EJCFitnessGym.Models.Finance
         [StringLength(80)]
         public string Category { get; set; } = string.Empty;
 
+        [StringLength(32)]
+        public string? BranchId { get; set; }
+
         [Range(0, 99999999)]
         public decimal Amount { get; set; }
 

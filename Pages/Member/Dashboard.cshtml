@@ -43,6 +43,21 @@
 
     <div class="container mt-4">
         <h1 class="h3 mb-4">Welcome to Your Member Dashboard</h1>
+        <div class="card mb-4">
+            <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                <div>
+                    <h5 class="card-title mb-1">My Check-In QR</h5>
+                    <p class="text-muted mb-2">Show this QR at the front desk for fast check-in.</p>
+                    <div><strong>Account Number:</strong> @Model.MemberAccountNumber</div>
+                </div>
+                <div class="text-center">
+                    <div id="member-dashboard-qr"
+                         data-member-qr="@Model.MemberQrPayload"
+                         style="width:180px;height:180px;"></div>
+                    <div class="small text-muted mt-2">Token: @Model.MemberQrPayload</div>
+                </div>
+            </div>
+        </div>
         <div class="row">
             <div class="col-md-4">
                 <div class="card text-center">
@@ -77,3 +92,27 @@
         </div>
     </div>
 </section>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        (() => {
+            const qrContainer = document.getElementById("member-dashboard-qr");
+            if (!qrContainer || typeof QRCode === "undefined") {
+                return;
+            }
+
+            const payload = qrContainer.getAttribute("data-member-qr");
+            if (!payload) {
+                return;
+            }
+
+            new QRCode(qrContainer, {
+                text: payload,
+                width: 180,
+                height: 180,
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        })();
+    </script>
+}

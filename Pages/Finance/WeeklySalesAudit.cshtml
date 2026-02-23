@@ -1,0 +1,118 @@
+@page
+@model EJCFitnessGym.Pages.Finance.WeeklySalesAuditModel
+@{
+    ViewData["Title"] = "Weekly Sales Audit";
+
+    string StatusBadgeClass(string status) =>
+        string.Equals(status, "Current Week", StringComparison.OrdinalIgnoreCase)
+            ? "badge bg-info text-dark"
+            : "badge bg-warning text-dark";
+}
+
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Finance Core</span>
+            <h1 class="h2 mb-1">Weekly Sales Audit</h1>
+            <p class="ejc-muted mb-0">
+                Audit sales submitted by staff per week, then use the validated totals for admin fund requests and forecasting.
+            </p>
+        </div>
+        <div class="ejc-actions">
+            <a class="btn btn-primary" asp-page="/Finance/FundRequests">Open Fund Requests</a>
+            <a class="btn btn-outline-primary" asp-page="/Finance/RevenueProfit">Revenue &amp; Profit</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="small text-muted">Last 4 Weeks Sales</div>
+                    <div class="h4 mb-0" title="@($"PHP {Model.LastFourWeeksSales:N2}")">@Model.LastFourWeeksSales.ToCompactCurrency()</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="small text-muted">Last 4 Weeks Transactions</div>
+                    <div class="h4 mb-0">@Model.LastFourWeeksTransactions.ToString("N0")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="small text-muted">As Of (UTC)</div>
+                    <div class="h4 mb-0">@Model.AsOfUtc.ToString("yyyy-MM-dd HH:mm")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Audit Flow</h5>
+            <span class="text-muted small">Simple process for finance operations</span>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-lg-4">
+                    <div class="p-3 border rounded-3 h-100">
+                        <div class="fw-semibold mb-1">1. Staff submits weekly sales</div>
+                        <div class="small text-muted">Sales from walk-ins, member purchases, and counter collections are closed weekly.</div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="p-3 border rounded-3 h-100">
+                        <div class="fw-semibold mb-1">2. Finance audits totals</div>
+                        <div class="small text-muted">Validate transaction counts, cash handling, gateway receipts, and outliers.</div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="p-3 border rounded-3 h-100">
+                        <div class="fw-semibold mb-1">3. Admin sends fund requests</div>
+                        <div class="small text-muted">Fund requests reference audited weeks so finance can approve with confidence.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">8-Week Audit Summary</h5>
+            <span class="text-muted small">Branch scoped</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 ejc-finance-table">
+                    <thead>
+                        <tr>
+                            <th>Week</th>
+                            <th class="text-end">Transactions</th>
+                            <th class="text-end">Total Sales</th>
+                            <th class="text-end">Staff-Collected</th>
+                            <th class="text-end">Gateway</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.WeeklyRows)
+                        {
+                            <tr>
+                                <td>@row.WeekStartUtc.ToString("MMM dd") - @row.WeekEndUtc.ToString("MMM dd, yyyy")</td>
+                                <td class="text-end">@row.TransactionCount.ToString("N0")</td>
+                                <td class="text-end text-nowrap">PHP @row.TotalSales.ToString("N2")</td>
+                                <td class="text-end text-nowrap">PHP @row.StaffCollectedSales.ToString("N2")</td>
+                                <td class="text-end text-nowrap">PHP @row.GatewaySales.ToString("N2")</td>
+                                <td><span class="@StatusBadgeClass(row.AuditStatus)">@row.AuditStatus</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

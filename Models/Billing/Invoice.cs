@@ -13,6 +13,9 @@ namespace EJCFitnessGym.Models.Billing
         [Required]
         public string MemberUserId { get; set; } = string.Empty;
 
+        [StringLength(32)]
+        public string? BranchId { get; set; }
+
         public int? MemberSubscriptionId { get; set; }
 
         public DateTime IssueDateUtc { get; set; } = DateTime.UtcNow;

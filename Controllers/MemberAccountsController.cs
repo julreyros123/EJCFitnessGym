@@ -2,11 +2,14 @@ using EJCFitnessGym.Data;
 using EJCFitnessGym.Models;
 using EJCFitnessGym.Models.Admin;
 using EJCFitnessGym.Models.Billing;
+using EJCFitnessGym.Services.AI;
+using EJCFitnessGym.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace EJCFitnessGym.Controllers
 {
@@ -16,18 +19,53 @@ namespace EJCFitnessGym.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly UserManager<IdentityUser> _userManager;
+        private readonly IMemberSegmentationService _memberSegmentationService;
+        private readonly IMemberAiInsightWriter _memberAiInsightWriter;
+        private readonly IMemberChurnRiskService _memberChurnRiskService;
 
-        public MemberAccountsController(ApplicationDbContext db, UserManager<IdentityUser> userManager)
+        public MemberAccountsController(
+            ApplicationDbContext db,
+            UserManager<IdentityUser> userManager,
+            IMemberSegmentationService memberSegmentationService,
+            IMemberAiInsightWriter memberAiInsightWriter,
+            IMemberChurnRiskService memberChurnRiskService)
         {
             _db = db;
             _userManager = userManager;
+            _memberSegmentationService = memberSegmentationService;
+            _memberAiInsightWriter = memberAiInsightWriter;
+            _memberChurnRiskService = memberChurnRiskService;
         }
 
         [HttpGet("/Admin/MemberAccounts")]
         public async Task<IActionResult> Index()
         {
-            var memberUsers = await _userManager.GetUsersInRoleAsync("Member");
+            var utcNow = DateTime.UtcNow;
+            var todayUtc = utcNow.Date;
+            var currentBranchId = User.GetBranchId();
+            var isSuperAdmin = User.IsInRole("SuperAdmin");
+            if (!isSuperAdmin && string.IsNullOrWhiteSpace(currentBranchId))
+            {
+                return Forbid();
+            }
+
+            var memberUsers = (await _userManager.GetUsersInRoleAsync("Member")).ToList();
             var memberIds = memberUsers.Select(u => u.Id).ToList();
+            if (!isSuperAdmin)
+            {
+                var scopedMemberIds = await _db.UserClaims
+                    .Where(c =>
+                        c.ClaimType == BranchAccess.BranchIdClaimType &&
+                        c.ClaimValue == currentBranchId &&
+                        memberIds.Contains(c.UserId))
+                    .Select(c => c.UserId)
+                    .Distinct()
+                    .ToListAsync();
+
+                var scopedSet = scopedMemberIds.ToHashSet(StringComparer.Ordinal);
+                memberUsers = memberUsers.Where(u => scopedSet.Contains(u.Id)).ToList();
+                memberIds = memberUsers.Select(u => u.Id).ToList();
+            }
 
             var profiles = await _db.MemberProfiles
                 .Where(p => memberIds.Contains(p.UserId))
@@ -40,6 +78,30 @@ namespace EJCFitnessGym.Controllers
                 .ThenByDescending(s => s.Id)
                 .ToListAsync();
 
+            var successfulPayments = await (
+                from invoice in _db.Invoices.AsNoTracking()
+                join payment in _db.Payments.AsNoTracking()
+                    on invoice.Id equals payment.InvoiceId
+                where memberIds.Contains(invoice.MemberUserId) && payment.Status == PaymentStatus.Succeeded
+                select new
+                {
+                    invoice.MemberUserId,
+                    payment.Amount,
+                    payment.PaidAtUtc
+                })
+                .ToListAsync();
+
+            var overdueInvoiceCountsByUser = await _db.Invoices
+                .AsNoTracking()
+                .Where(invoice =>
+                    memberIds.Contains(invoice.MemberUserId) &&
+                    invoice.Status == InvoiceStatus.Overdue)
+                .GroupBy(invoice => invoice.MemberUserId)
+                .ToDictionaryAsync(
+                    group => group.Key,
+                    group => group.Count(),
+                    StringComparer.Ordinal);
+
             var latestSubscriptionByUser = new Dictionary<string, MemberSubscription>();
             foreach (var subscription in subscriptions)
             {
@@ -48,6 +110,25 @@ namespace EJCFitnessGym.Controllers
                     latestSubscriptionByUser[subscription.MemberUserId] = subscription;
                 }
             }
+
+            var membershipMonthsByUser = subscriptions
+                .GroupBy(s => s.MemberUserId, StringComparer.Ordinal)
+                .ToDictionary(
+                    group => group.Key,
+                    group => CalculateMembershipMonths(
+                        group.Min(s => s.StartDateUtc),
+                        utcNow),
+                    StringComparer.Ordinal);
+
+            var paymentStatsByUser = successfulPayments
+                .GroupBy(payment => payment.MemberUserId, StringComparer.Ordinal)
+                .ToDictionary(
+                    group => group.Key,
+                    group => (
+                        TotalSpending: (float)group.Sum(payment => payment.Amount),
+                        BillingActivityCount: (float)group.Count(),
+                        LastPaidAtUtc: (DateTime?)group.Max(payment => payment.PaidAtUtc)),
+                    StringComparer.Ordinal);
 
             var items = memberUsers
                 .Select(user =>
@@ -59,6 +140,9 @@ namespace EJCFitnessGym.Controllers
                         profile?.FirstName,
                         profile?.LastName,
                         user.Email ?? user.UserName ?? user.Id);
+                    var isMembershipActive = subscription is not null &&
+                        subscription.Status == SubscriptionStatus.Active &&
+                        (!subscription.EndDateUtc.HasValue || subscription.EndDateUtc.Value.Date >= todayUtc);
 
                     return new MemberAccountListItemViewModel
                     {
@@ -69,19 +153,142 @@ namespace EJCFitnessGym.Controllers
                         PlanName = subscription?.SubscriptionPlan?.Name ?? "No Plan",
                         SubscriptionStatus = subscription?.Status,
                         StartDateUtc = subscription?.StartDateUtc,
-                        EndDateUtc = subscription?.EndDateUtc
+                        EndDateUtc = subscription?.EndDateUtc,
+                        IsMembershipActive = isMembershipActive
                     };
                 })
                 .OrderBy(m => m.FullName)
                 .ToList();
 
-            return View(items);
+            var segmentationInputs = items
+                .Select(member =>
+                {
+                    paymentStatsByUser.TryGetValue(member.UserId, out var paymentStats);
+                    membershipMonthsByUser.TryGetValue(member.UserId, out var membershipMonths);
+
+                    return new MemberSegmentationInput
+                    {
+                        MemberUserId = member.UserId,
+                        DisplayName = member.FullName,
+                        TotalSpending = paymentStats.TotalSpending,
+                        BillingActivityCount = paymentStats.BillingActivityCount,
+                        MembershipMonths = membershipMonths
+                    };
+                })
+                .ToList();
+
+            var segmentation = _memberSegmentationService.SegmentMembers(segmentationInputs);
+            if (isSuperAdmin)
+            {
+                _ = await _memberAiInsightWriter.PersistAsync(
+                    segmentationInputs,
+                    segmentation,
+                    _userManager.GetUserId(User));
+            }
+
+            var churnRiskInputs = items
+                .Select(member =>
+                {
+                    paymentStatsByUser.TryGetValue(member.UserId, out var paymentStats);
+                    latestSubscriptionByUser.TryGetValue(member.UserId, out var subscription);
+                    membershipMonthsByUser.TryGetValue(member.UserId, out var membershipMonths);
+                    overdueInvoiceCountsByUser.TryGetValue(member.UserId, out var overdueInvoiceCount);
+
+                    var hasActiveMembership = subscription is not null &&
+                        subscription.Status == SubscriptionStatus.Active &&
+                        (!subscription.EndDateUtc.HasValue || subscription.EndDateUtc.Value.Date >= todayUtc);
+
+                    return new MemberChurnRiskInput
+                    {
+                        MemberUserId = member.UserId,
+                        DisplayName = member.FullName,
+                        TotalSpending = paymentStats.TotalSpending,
+                        BillingActivityCount = paymentStats.BillingActivityCount,
+                        MembershipMonths = membershipMonths,
+                        DaysSinceLastSuccessfulPayment = paymentStats.LastPaidAtUtc.HasValue
+                            ? (float?)(utcNow - paymentStats.LastPaidAtUtc.Value).TotalDays
+                            : null,
+                        DaysUntilMembershipEnd = subscription?.EndDateUtc.HasValue == true
+                            ? (float?)(subscription.EndDateUtc.Value.Date - todayUtc).TotalDays
+                            : null,
+                        OverdueInvoiceCount = overdueInvoiceCount,
+                        HasActiveMembership = hasActiveMembership
+                    };
+                })
+                .ToList();
+
+            var churnRisk = _memberChurnRiskService.PredictRisk(churnRiskInputs);
+
+            var openRetentionActions = await _db.MemberRetentionActions
+                .AsNoTracking()
+                .Where(action =>
+                    memberIds.Contains(action.MemberUserId) &&
+                    (action.Status == MemberRetentionActionStatus.Open ||
+                     action.Status == MemberRetentionActionStatus.InProgress))
+                .GroupBy(action => action.MemberUserId)
+                .Select(group => group
+                    .OrderBy(action => action.Status)
+                    .ThenBy(action => action.DueDateUtc ?? DateTime.MaxValue)
+                    .First())
+                .ToListAsync();
+
+            var openRetentionByMemberId = openRetentionActions.ToDictionary(
+                action => action.MemberUserId,
+                action => action,
+                StringComparer.Ordinal);
+
+            foreach (var member in items)
+            {
+                if (segmentation.ResultsByMemberId.TryGetValue(member.UserId, out var segment))
+                {
+                    member.AiClusterId = segment.ClusterId;
+                    member.AiSegmentLabel = segment.SegmentLabel;
+                    member.AiSegmentDescription = segment.SegmentDescription;
+                }
+
+                if (churnRisk.ResultsByMemberId.TryGetValue(member.UserId, out var risk))
+                {
+                    member.AiChurnRiskScore = risk.RiskScore;
+                    member.AiChurnRiskLevel = risk.RiskLevel;
+                    member.AiChurnReasonSummary = risk.ReasonSummary;
+                }
+
+                if (openRetentionByMemberId.TryGetValue(member.UserId, out var retentionAction))
+                {
+                    member.HasOpenRetentionAction = true;
+                    member.RetentionActionStatus = retentionAction.Status.ToString();
+                    member.RetentionDueDateUtc = retentionAction.DueDateUtc;
+                }
+            }
+
+            var model = new MemberAccountIndexViewModel
+            {
+                Members = items,
+                SegmentedAtUtc = DateTime.UtcNow,
+                ClusterSummary = segmentation.SegmentSummary
+                    .Select(summary => new MemberAccountClusterSummaryItemViewModel
+                    {
+                        SegmentName = summary.SegmentLabel,
+                        Description = summary.SegmentDescription,
+                        MemberCount = summary.MemberCount
+                    })
+                    .ToList(),
+                ChurnSummary = churnRisk.LevelSummary
+                    .Select(summary => new MemberAccountChurnSummaryItemViewModel
+                    {
+                        RiskLevel = summary.RiskLevel,
+                        MemberCount = summary.MemberCount
+                    })
+                    .ToList()
+            };
+
+            return View(model);
         }
 
-        [Authorize(Roles = "Finance")]
+        [Authorize(Roles = "SuperAdmin")]
         public async Task<IActionResult> Create()
         {
-            if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
+            if (string.IsNullOrWhiteSpace(User.GetBranchId()))
             {
                 return Forbid();
             }
@@ -97,12 +304,13 @@ namespace EJCFitnessGym.Controllers
             return View(model);
         }
 
-        [Authorize(Roles = "Finance")]
+        [Authorize(Roles = "SuperAdmin")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(MemberAccountFormViewModel input)
         {
-            if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
+            var currentBranchId = User.GetBranchId();
+            if (string.IsNullOrWhiteSpace(currentBranchId))
             {
                 return Forbid();
             }
@@ -170,6 +378,16 @@ namespace EJCFitnessGym.Controllers
                 return View(input);
             }
 
+            var branchClaimResult = await _userManager.AddClaimAsync(
+                user,
+                new Claim(BranchAccess.BranchIdClaimType, currentBranchId));
+            if (!branchClaimResult.Succeeded)
+            {
+                AddIdentityErrors(branchClaimResult);
+                await PopulatePlanOptionsAsync(input.SubscriptionPlanId);
+                return View(input);
+            }
+
             _db.MemberProfiles.Add(new MemberProfile
             {
                 UserId = user.Id,
@@ -203,6 +421,11 @@ namespace EJCFitnessGym.Controllers
                 return NotFound();
             }
 
+            if (!await CanAccessMemberAsync(id))
+            {
+                return Forbid();
+            }
+
             var details = await BuildDetailsAsync(id);
             if (details is null)
             {
@@ -212,17 +435,17 @@ namespace EJCFitnessGym.Controllers
             return View(details);
         }
 
-        [Authorize(Roles = "Finance")]
+        [Authorize(Roles = "Admin,Finance")]
         public async Task<IActionResult> Edit(string id)
         {
-            if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
-            {
-                return Forbid();
-            }
-
             if (string.IsNullOrWhiteSpace(id))
             {
                 return NotFound();
+            }
+
+            if (!await CanAccessMemberAsync(id))
+            {
+                return Forbid();
             }
 
             var user = await _userManager.FindByIdAsync(id);
@@ -256,19 +479,19 @@ namespace EJCFitnessGym.Controllers
             return View(model);
         }
 
-        [Authorize(Roles = "Finance")]
+        [Authorize(Roles = "Admin,Finance")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(string id, MemberAccountFormViewModel input)
         {
-            if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
-            {
-                return Forbid();
-            }
-
             if (string.IsNullOrWhiteSpace(id) || id != input.UserId)
             {
                 return BadRequest();
+            }
+
+            if (!await CanAccessMemberAsync(id))
+            {
+                return Forbid();
             }
 
             input.RequirePassword = false;
@@ -375,17 +598,17 @@ namespace EJCFitnessGym.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        [Authorize(Roles = "Finance")]
+        [Authorize(Roles = "Admin,Finance")]
         public async Task<IActionResult> Delete(string id)
         {
-            if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
-            {
-                return Forbid();
-            }
-
             if (string.IsNullOrWhiteSpace(id))
             {
                 return NotFound();
+            }
+
+            if (!await CanAccessMemberAsync(id))
+            {
+                return Forbid();
             }
 
             var user = await _userManager.FindByIdAsync(id);
@@ -413,19 +636,19 @@ namespace EJCFitnessGym.Controllers
             return View(model);
         }
 
-        [Authorize(Roles = "Finance")]
+        [Authorize(Roles = "Admin,Finance")]
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(string id)
         {
-            if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
-            {
-                return Forbid();
-            }
-
             if (string.IsNullOrWhiteSpace(id))
             {
                 return NotFound();
+            }
+
+            if (!await CanAccessMemberAsync(id))
+            {
+                return Forbid();
             }
 
             var user = await _userManager.FindByIdAsync(id);
@@ -477,6 +700,24 @@ namespace EJCFitnessGym.Controllers
                 .OrderByDescending(s => s.StartDateUtc)
                 .ThenByDescending(s => s.Id)
                 .FirstOrDefaultAsync();
+            var latestSegment = await _db.MemberSegmentSnapshots
+                .AsNoTracking()
+                .Where(snapshot => snapshot.MemberUserId == user.Id)
+                .OrderByDescending(snapshot => snapshot.CapturedAtUtc)
+                .FirstOrDefaultAsync();
+            var openRetentionAction = await _db.MemberRetentionActions
+                .AsNoTracking()
+                .Where(action =>
+                    action.MemberUserId == user.Id &&
+                    (action.Status == MemberRetentionActionStatus.Open ||
+                     action.Status == MemberRetentionActionStatus.InProgress))
+                .OrderBy(action => action.Status)
+                .ThenBy(action => action.DueDateUtc)
+                .FirstOrDefaultAsync();
+            var todayUtc = DateTime.UtcNow.Date;
+            var isMembershipActive = subscription is not null &&
+                subscription.Status == SubscriptionStatus.Active &&
+                (!subscription.EndDateUtc.HasValue || subscription.EndDateUtc.Value.Date >= todayUtc);
 
             return new MemberAccountDetailsViewModel
             {
@@ -487,8 +728,37 @@ namespace EJCFitnessGym.Controllers
                 PlanName = subscription?.SubscriptionPlan?.Name ?? "No Plan",
                 SubscriptionStatus = subscription?.Status,
                 StartDateUtc = subscription?.StartDateUtc,
-                EndDateUtc = subscription?.EndDateUtc
+                EndDateUtc = subscription?.EndDateUtc,
+                IsMembershipActive = isMembershipActive,
+                AiClusterId = latestSegment?.ClusterId is int clusterId ? (uint?)clusterId : null,
+                AiSegmentLabel = latestSegment?.SegmentLabel,
+                AiSegmentDescription = latestSegment?.SegmentDescription,
+                AiSegmentCapturedAtUtc = latestSegment?.CapturedAtUtc,
+                HasOpenRetentionAction = openRetentionAction is not null,
+                RetentionActionStatus = openRetentionAction?.Status.ToString(),
+                RetentionDueDateUtc = openRetentionAction?.DueDateUtc,
+                RetentionReason = openRetentionAction?.Reason,
+                RetentionSuggestedOffer = openRetentionAction?.SuggestedOffer
             };
+        }
+
+        private async Task<bool> CanAccessMemberAsync(string memberUserId)
+        {
+            if (User.IsInRole("SuperAdmin"))
+            {
+                return true;
+            }
+
+            var currentBranchId = User.GetBranchId();
+            if (string.IsNullOrWhiteSpace(currentBranchId))
+            {
+                return false;
+            }
+
+            return await _db.UserClaims.AnyAsync(c =>
+                c.UserId == memberUserId &&
+                c.ClaimType == BranchAccess.BranchIdClaimType &&
+                c.ClaimValue == currentBranchId);
         }
 
         private async Task PopulatePlanOptionsAsync(int selectedPlanId)
@@ -519,6 +789,16 @@ namespace EJCFitnessGym.Controllers
         {
             var combined = $"{firstName} {lastName}".Trim();
             return string.IsNullOrWhiteSpace(combined) ? fallback : combined;
+        }
+
+        private static float CalculateMembershipMonths(DateTime startUtc, DateTime asOfUtc)
+        {
+            var normalizedStart = startUtc.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(startUtc, DateTimeKind.Utc)
+                : startUtc.ToUniversalTime();
+
+            var totalDays = Math.Max(0d, (asOfUtc.Date - normalizedStart.Date).TotalDays);
+            return (float)(totalDays / 30.4375d);
         }
 
         private void AddIdentityErrors(IdentityResult result)

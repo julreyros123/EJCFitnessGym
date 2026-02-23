@@ -1,6 +1,7 @@
-@model IEnumerable<EJCFitnessGym.Models.Billing.SubscriptionPlan>
+@model IEnumerable<EJCFitnessGym.Models.Admin.SubscriptionPlanListItemViewModel>
 @{
     ViewData["Title"] = "Subscription Plans";
+    var plans = Model?.ToList() ?? new List<EJCFitnessGym.Models.Admin.SubscriptionPlanListItemViewModel>();
 }
 
 <div class="container py-5">
@@ -9,24 +10,43 @@
             <h1 class="display-6 mb-0">Subscription Plans</h1>
             <p class="ejc-muted mb-0">Define plans, pricing, and billing cycles.</p>
         </div>
-        <a class="btn btn-primary" asp-action="Create">Create Plan</a>
+        <div class="d-flex flex-wrap gap-2 justify-content-end">
+            <form asp-action="SeedDefaults" method="post" class="m-0">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-primary">Seed Default Plans</button>
+            </form>
+            <a class="btn btn-primary" asp-action="Create">Create Plan</a>
+        </div>
     </div>
+
+    @if (TempData["StatusMessage"] is string statusMessage && !string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="alert alert-info">@statusMessage</div>
+    }
 
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-striped align-middle mb-0">
+                <table class="table table-striped align-middle mb-0" data-ejc-page-size="10" data-ejc-search-placeholder="Search by plan name, cycle, or status">
                     <thead>
                         <tr>
                             <th>Name</th>
                             <th>Price</th>
                             <th>Cycle</th>
                             <th>Status</th>
+                            <th class="text-end">Active Members</th>
+                            <th class="text-end">Total Assigned</th>
                             <th class="text-end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                    @foreach (var item in Model)
+                    @if (plans.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">No subscription plans found.</td>
+                        </tr>
+                    }
+                    @foreach (var item in plans)
                     {
                         <tr>
                             <td>@item.Name</td>
@@ -42,10 +62,19 @@
                                     <span class="badge text-bg-secondary">Inactive</span>
                                 }
                             </td>
+                            <td class="text-end fw-semibold">@item.ActiveAssignments</td>
+                            <td class="text-end">@item.TotalAssignments</td>
                             <td class="text-end">
                                 <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@item.Id">View</a>
                                 <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@item.Id">Edit</a>
-                                <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+                                @if (item.TotalAssignments > 0)
+                                {
+                                    <a class="btn btn-sm btn-outline-warning" asp-action="Delete" asp-route-id="@item.Id">Deactivate</a>
+                                }
+                                else
+                                {
+                                    <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+                                }
                             </td>
                         </tr>
                     }

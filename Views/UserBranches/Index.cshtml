@@ -1,0 +1,240 @@
+@model EJCFitnessGym.Models.Admin.UserBranchAssignmentListViewModel
+@{
+    ViewData["Title"] = "Branch Access";
+    var activeBranches = Model.Branches
+        .Where(b => b.IsActive)
+        .OrderBy(b => b.BranchId, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+}
+
+<div class="py-4 ejc-branch-access-page">
+    <div class="ejc-table-toolbar mb-3">
+        <div>
+            <h1 class="display-6 mb-0">Branch Access</h1>
+            @if (Model.IsSuperAdmin)
+            {
+                <p class="ejc-muted mb-0">Assign or update branch IDs for Admin, Finance, Staff, and Member users.</p>
+            }
+            else
+            {
+                <p class="ejc-muted mb-0">Set your branch ID to unlock branch-scoped back-office pages.</p>
+            }
+        </div>
+    </div>
+
+    @if (TempData["StatusMessage"] is string status && !string.IsNullOrWhiteSpace(status))
+    {
+        <div class="alert alert-info">@status</div>
+    }
+
+    @if (Model.IsSuperAdmin)
+    {
+        <div class="alert alert-secondary d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <span class="small mb-0">Enterprise flow: <strong>1)</strong> Create branch record. <strong>2)</strong> Assign user to active branch. <strong>3)</strong> Deactivate branch when no longer operational.</span>
+            <span class="badge text-bg-dark">Super Admin Control</span>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-lg-5">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Create Branch</h5>
+                    </div>
+                    <div class="card-body">
+                        <form asp-action="CreateBranch" method="post" class="row g-2">
+                            @Html.AntiForgeryToken()
+                            <div class="col-12">
+                                <label for="branchId" class="form-label mb-1">Branch Code</label>
+                                <input id="branchId"
+                                       name="branchId"
+                                       class="form-control"
+                                       maxlength="32"
+                                       placeholder="BR-CENTRAL"
+                                       required />
+                                <div class="form-text">Uppercase code used in branch-scoped access.</div>
+                            </div>
+                            <div class="col-12">
+                                <label for="branchName" class="form-label mb-1">Branch Name</label>
+                                <input id="branchName"
+                                       name="branchName"
+                                       class="form-control"
+                                       maxlength="120"
+                                       placeholder="EJC Central Branch"
+                                       required />
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">Create Branch</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Branch Directory</h5>
+                        <span class="text-muted small">Active: @Model.Branches.Count(b => b.IsActive) / @Model.Branches.Count</span>
+                    </div>
+                    <div class="card-body p-0 ejc-table-shell-host">
+                        <div class="table-responsive ejc-table-shell">
+                            <table class="table table-striped table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Branch ID</th>
+                                        <th>Name</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Assigned Users</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                @if (Model.Branches.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-4">No branches created yet.</td>
+                                    </tr>
+                                }
+                                @foreach (var branch in Model.Branches)
+                                {
+                                    <tr>
+                                        <td class="fw-semibold">@branch.BranchId</td>
+                                        <td>@branch.Name</td>
+                                        <td>
+                                            @if (branch.IsActive)
+                                            {
+                                                <span class="badge bg-success">Active</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">Inactive</span>
+                                            }
+                                        </td>
+                                        <td class="text-end fw-semibold">@branch.AssignedUserCount</td>
+                                        <td class="text-end">
+                                            <form asp-action="ToggleBranchStatus" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="branchId" value="@branch.BranchId" />
+                                                <button type="submit" class="btn btn-sm @(branch.IsActive ? "btn-outline-warning" : "btn-outline-success")">
+                                                    @(branch.IsActive ? "Deactivate" : "Activate")
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">User Branch Assignments</h5>
+            <span class="text-muted small">Assign users only to active branch records</span>
+        </div>
+        <div class="card-body p-0 ejc-table-shell-host">
+            <div class="table-responsive ejc-table-shell">
+                <table
+                    class="table table-striped table-hover align-middle mb-0"
+                    data-ejc-page-size="12"
+                    data-ejc-search-placeholder="Search by user, role, branch, or status">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Roles</th>
+                            <th>Current Branch</th>
+                            <th class="text-end">Assign Branch</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @if (Model.Users.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">No eligible users found.</td>
+                        </tr>
+                    }
+                    @foreach (var user in Model.Users)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">@user.Email</div>
+                                <div class="small text-muted">@user.UserId</div>
+                            </td>
+                            <td>@user.RolesSummary</td>
+                            <td>
+                                @if (user.IsSuperAdmin)
+                                {
+                                    <span class="badge bg-secondary">Global Access</span>
+                                }
+                                else
+                                {
+                                    if (string.IsNullOrWhiteSpace(user.BranchId))
+                                    {
+                                        <span class="badge bg-danger">No Branch</span>
+                                    }
+                                    else if (string.IsNullOrWhiteSpace(user.BranchName))
+                                    {
+                                        <span class="badge bg-warning text-dark">Unknown Branch (@user.BranchId)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">@user.BranchId</span>
+                                        <div class="small">@user.BranchName</div>
+                                    }
+                                }
+                            </td>
+                            <td class="text-end">
+                                @if (user.IsSuperAdmin)
+                                {
+                                    <span class="small text-muted">No branch required</span>
+                                }
+                                else
+                                {
+                                    var hasActiveBranchOptions = activeBranches.Count > 0;
+                                    var selectedActiveBranch = !string.IsNullOrWhiteSpace(user.BranchId)
+                                        && activeBranches.Any(b => string.Equals(b.BranchId, user.BranchId, StringComparison.OrdinalIgnoreCase));
+
+                                    <form asp-action="SetBranch" method="post" class="d-inline-flex flex-wrap justify-content-end gap-2 ejc-branch-assignment-form">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="userId" value="@user.UserId" />
+                                        <select class="form-select form-select-sm"
+                                                name="branchId"
+                                                required
+                                                disabled="@(hasActiveBranchOptions ? null : "disabled")">
+                                            @if (!selectedActiveBranch)
+                                            {
+                                                <option value="" selected disabled>Select active branch</option>
+                                            }
+
+                                            @foreach (var branch in activeBranches)
+                                            {
+                                                <option value="@branch.BranchId"
+                                                        selected="@(string.Equals(branch.BranchId, user.BranchId, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">
+                                                    @branch.BranchId - @branch.Name
+                                                </option>
+                                            }
+                                        </select>
+                                        <button type="submit"
+                                                class="btn btn-sm btn-primary"
+                                                disabled="@(hasActiveBranchOptions ? null : "disabled")">
+                                            Save
+                                        </button>
+                                    </form>
+
+                                    @if (!hasActiveBranchOptions)
+                                    {
+                                        <div class="small text-muted mt-1">Create and activate a branch first.</div>
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

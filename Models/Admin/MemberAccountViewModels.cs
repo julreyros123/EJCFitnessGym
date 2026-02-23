@@ -3,6 +3,36 @@ using EJCFitnessGym.Models.Billing;
 
 namespace EJCFitnessGym.Models.Admin
 {
+    public class MemberAccountIndexViewModel
+    {
+        public IReadOnlyList<MemberAccountListItemViewModel> Members { get; set; } =
+            Array.Empty<MemberAccountListItemViewModel>();
+
+        public IReadOnlyList<MemberAccountClusterSummaryItemViewModel> ClusterSummary { get; set; } =
+            Array.Empty<MemberAccountClusterSummaryItemViewModel>();
+
+        public IReadOnlyList<MemberAccountChurnSummaryItemViewModel> ChurnSummary { get; set; } =
+            Array.Empty<MemberAccountChurnSummaryItemViewModel>();
+
+        public DateTime SegmentedAtUtc { get; set; } = DateTime.UtcNow;
+    }
+
+    public class MemberAccountClusterSummaryItemViewModel
+    {
+        public string SegmentName { get; set; } = string.Empty;
+
+        public string Description { get; set; } = string.Empty;
+
+        public int MemberCount { get; set; }
+    }
+
+    public class MemberAccountChurnSummaryItemViewModel
+    {
+        public string RiskLevel { get; set; } = string.Empty;
+
+        public int MemberCount { get; set; }
+    }
+
     public class MemberAccountListItemViewModel
     {
         public string UserId { get; set; } = string.Empty;
@@ -13,6 +43,16 @@ namespace EJCFitnessGym.Models.Admin
         public SubscriptionStatus? SubscriptionStatus { get; set; }
         public DateTime? StartDateUtc { get; set; }
         public DateTime? EndDateUtc { get; set; }
+        public bool IsMembershipActive { get; set; }
+        public uint? AiClusterId { get; set; }
+        public string? AiSegmentLabel { get; set; }
+        public string? AiSegmentDescription { get; set; }
+        public int? AiChurnRiskScore { get; set; }
+        public string? AiChurnRiskLevel { get; set; }
+        public string? AiChurnReasonSummary { get; set; }
+        public bool HasOpenRetentionAction { get; set; }
+        public string? RetentionActionStatus { get; set; }
+        public DateTime? RetentionDueDateUtc { get; set; }
     }
 
     public class MemberAccountFormViewModel
@@ -72,6 +112,16 @@ namespace EJCFitnessGym.Models.Admin
         public SubscriptionStatus? SubscriptionStatus { get; set; }
         public DateTime? StartDateUtc { get; set; }
         public DateTime? EndDateUtc { get; set; }
+        public bool IsMembershipActive { get; set; }
+        public uint? AiClusterId { get; set; }
+        public string? AiSegmentLabel { get; set; }
+        public string? AiSegmentDescription { get; set; }
+        public DateTime? AiSegmentCapturedAtUtc { get; set; }
+        public bool HasOpenRetentionAction { get; set; }
+        public string? RetentionActionStatus { get; set; }
+        public DateTime? RetentionDueDateUtc { get; set; }
+        public string? RetentionReason { get; set; }
+        public string? RetentionSuggestedOffer { get; set; }
     }
 
     public class MemberAccountDeleteViewModel

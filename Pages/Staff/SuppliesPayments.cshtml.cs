@@ -1,9 +1,13 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace EJCFitnessGym.Pages.Staff
 {
     public class SuppliesPaymentsModel : PageModel
     {
+        private const string PaymentsPanel = "payments";
+        private const string SupplyPanel = "supply";
+
         public IReadOnlyList<RetailProduct> RetailProducts { get; private set; } = Array.Empty<RetailProduct>();
 
         public IReadOnlyList<SupplyRequestLog> SupplyRequests { get; private set; } = Array.Empty<SupplyRequestLog>();
@@ -12,12 +16,26 @@ namespace EJCFitnessGym.Pages.Staff
 
         public IReadOnlyList<ProductPaymentLog> RecentPayments { get; private set; } = Array.Empty<ProductPaymentLog>();
 
+        [BindProperty(SupportsGet = true, Name = "panel")]
+        public string? Panel { get; set; }
+
         public int CartItemCount => CurrentSaleLines.Sum(line => line.Quantity);
 
         public decimal CartTotal => CurrentSaleLines.Sum(line => line.LineTotal);
 
+        public bool ShowPaymentsPanel => string.Equals(Panel, PaymentsPanel, StringComparison.OrdinalIgnoreCase);
+
+        public bool ShowSupplyPanel => string.Equals(Panel, SupplyPanel, StringComparison.OrdinalIgnoreCase);
+
+        public bool ShowAnyPanel => ShowPaymentsPanel || ShowSupplyPanel;
+
         public void OnGet()
         {
+            if (!ShowAnyPanel)
+            {
+                Panel = null;
+            }
+
             RetailProducts =
             [
                 new("Resistance Band", "Accessories", 350m, "piece", 42),

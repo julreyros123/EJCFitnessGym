@@ -53,10 +53,14 @@ namespace EJCFitnessGym.Services.Finance
             {
                 using var scope = _scopeFactory.CreateScope();
                 var financeAlertService = scope.ServiceProvider.GetRequiredService<IFinanceAlertService>();
+                var financeAiAssistantService = scope.ServiceProvider.GetRequiredService<IFinanceAiAssistantService>();
 
                 var result = await financeAlertService.EvaluateAndNotifyAsync(
                     $"finance.alerts.worker.{trigger}",
                     cancellationToken);
+                var churnResult = await financeAiAssistantService.DispatchNewHighRiskAlertsAsync(
+                    $"finance.alerts.worker.{trigger}",
+                    cancellationToken: cancellationToken);
 
                 if (!result.Enabled)
                 {
@@ -70,9 +74,10 @@ namespace EJCFitnessGym.Services.Finance
                 if (result.AlertsSent > 0)
                 {
                     _logger.LogInformation(
-                        "Finance alert evaluation ({Trigger}) sent {AlertsSent} alert(s). RiskLevel={RiskLevel}, HighSeverityAnomalies={HighSeverityAnomalies}, EvaluatedAtUtc={EvaluatedAtUtc}.",
+                        "Finance alert evaluation ({Trigger}) sent {AlertsSent} finance alert(s) + {ChurnAlertsSent} churn alert(s). RiskLevel={RiskLevel}, HighSeverityAnomalies={HighSeverityAnomalies}, EvaluatedAtUtc={EvaluatedAtUtc}.",
                         trigger,
                         result.AlertsSent,
+                        churnResult.AlertsSent,
                         result.RiskLevel,
                         result.HighSeverityAnomalies,
                         result.EvaluatedAtUtc);
@@ -80,8 +85,9 @@ namespace EJCFitnessGym.Services.Finance
                 else
                 {
                     _logger.LogDebug(
-                        "Finance alert evaluation ({Trigger}) sent no alerts. RiskLevel={RiskLevel}, HighSeverityAnomalies={HighSeverityAnomalies}, EvaluatedAtUtc={EvaluatedAtUtc}.",
+                        "Finance alert evaluation ({Trigger}) sent no finance alerts; churn alerts sent: {ChurnAlertsSent}. RiskLevel={RiskLevel}, HighSeverityAnomalies={HighSeverityAnomalies}, EvaluatedAtUtc={EvaluatedAtUtc}.",
                         trigger,
+                        churnResult.AlertsSent,
                         result.RiskLevel,
                         result.HighSeverityAnomalies,
                         result.EvaluatedAtUtc);

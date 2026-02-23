@@ -1,5 +1,6 @@
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Billing;
+using EJCFitnessGym.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +23,7 @@ namespace EJCFitnessGym.Controllers
 
         public async Task<IActionResult> Index(InvoiceStatus? status)
         {
-            var query = _db.Invoices.AsQueryable();
+            var query = ApplyBranchScope(_db.Invoices.AsQueryable());
             if (status.HasValue)
             {
                 query = query.Where(i => i.Status == status.Value);
@@ -41,8 +42,12 @@ namespace EJCFitnessGym.Controllers
         [Authorize(Roles = "Staff,Admin,Finance,SuperAdmin")]
         public async Task<IActionResult> Create()
         {
-            var members = await _userManager.GetUsersInRoleAsync("Member");
-            ViewBag.MemberUserId = new SelectList(members.OrderBy(u => u.Email), "Id", "Email");
+            if (!User.IsInRole("SuperAdmin") && string.IsNullOrWhiteSpace(User.GetBranchId()))
+            {
+                return Forbid();
+            }
+
+            await PopulateMemberSelectListAsync();
 
             return View(new Invoice
             {
@@ -57,16 +62,32 @@ namespace EJCFitnessGym.Controllers
         [Authorize(Roles = "Staff,Admin,Finance,SuperAdmin")]
         public async Task<IActionResult> Create(Invoice invoice)
         {
+            if (!User.IsInRole("SuperAdmin") && string.IsNullOrWhiteSpace(User.GetBranchId()))
+            {
+                return Forbid();
+            }
+
+            if (!await CanAccessMemberAsync(invoice.MemberUserId))
+            {
+                ModelState.AddModelError(nameof(invoice.MemberUserId), "Selected member is outside your branch scope.");
+            }
+
+            var memberBranchId = await ResolveMemberBranchIdAsync(invoice.MemberUserId);
+            if (string.IsNullOrWhiteSpace(memberBranchId))
+            {
+                ModelState.AddModelError(nameof(invoice.MemberUserId), "Selected member has no branch assignment.");
+            }
+
             if (!ModelState.IsValid)
             {
-                var members = await _userManager.GetUsersInRoleAsync("Member");
-                ViewBag.MemberUserId = new SelectList(members.OrderBy(u => u.Email), "Id", "Email", invoice.MemberUserId);
+                await PopulateMemberSelectListAsync(invoice.MemberUserId);
                 return View(invoice);
             }
 
             invoice.InvoiceNumber = GenerateInvoiceNumber();
             invoice.IssueDateUtc = DateTime.SpecifyKind(invoice.IssueDateUtc, DateTimeKind.Utc);
             invoice.DueDateUtc = DateTime.SpecifyKind(invoice.DueDateUtc, DateTimeKind.Utc);
+            invoice.BranchId = memberBranchId;
 
             _db.Invoices.Add(invoice);
             await _db.SaveChangesAsync();
@@ -76,7 +97,7 @@ namespace EJCFitnessGym.Controllers
 
         public async Task<IActionResult> Details(int id)
         {
-            var invoice = await _db.Invoices
+            var invoice = await ApplyBranchScope(_db.Invoices)
                 .Include(i => i.Payments)
                 .FirstOrDefaultAsync(i => i.Id == id);
 
@@ -92,7 +113,7 @@ namespace EJCFitnessGym.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddPayment(int id, decimal amount, PaymentMethod method, string? referenceNumber)
         {
-            var invoice = await _db.Invoices
+            var invoice = await ApplyBranchScope(_db.Invoices)
                 .Include(i => i.Payments)
                 .FirstOrDefaultAsync(i => i.Id == id);
 
@@ -110,6 +131,7 @@ namespace EJCFitnessGym.Controllers
             var payment = new Payment
             {
                 InvoiceId = invoice.Id,
+                BranchId = invoice.BranchId,
                 Amount = amount,
                 Method = method,
                 Status = PaymentStatus.Succeeded,
@@ -122,7 +144,10 @@ namespace EJCFitnessGym.Controllers
 
             _db.Payments.Add(payment);
 
-            var totalPaid = invoice.Payments.Sum(p => p.Amount) + amount;
+            var totalPaid = invoice.Payments
+                .Where(p => p.Status == PaymentStatus.Succeeded)
+                .Sum(p => p.Amount) + amount;
+
             if (totalPaid >= invoice.Amount)
             {
                 invoice.Status = InvoiceStatus.Paid;
@@ -137,6 +162,108 @@ namespace EJCFitnessGym.Controllers
         {
             // Simple unique-enough format for now; can be replaced with per-branch sequences later.
             return $"INV-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+        }
+
+        private IQueryable<Invoice> ApplyBranchScope(IQueryable<Invoice> query)
+        {
+            if (User.IsInRole("SuperAdmin"))
+            {
+                return query;
+            }
+
+            var branchId = User.GetBranchId();
+            if (string.IsNullOrWhiteSpace(branchId))
+            {
+                return query.Where(_ => false);
+            }
+
+            return query.Where(invoice =>
+                invoice.BranchId == branchId ||
+                (invoice.BranchId == null && _db.UserClaims.Any(claim =>
+                    claim.UserId == invoice.MemberUserId &&
+                    claim.ClaimType == BranchAccess.BranchIdClaimType &&
+                    claim.ClaimValue == branchId)));
+        }
+
+        private async Task PopulateMemberSelectListAsync(string? selectedMemberUserId = null)
+        {
+            var members = (await _userManager.GetUsersInRoleAsync("Member"))
+                .OrderBy(user => user.Email)
+                .ToList();
+
+            if (!User.IsInRole("SuperAdmin"))
+            {
+                var branchId = User.GetBranchId();
+                if (string.IsNullOrWhiteSpace(branchId))
+                {
+                    members.Clear();
+                }
+                else
+                {
+                    var memberIds = members.Select(user => user.Id).ToList();
+                    var scopedMemberIds = await _db.UserClaims
+                        .AsNoTracking()
+                        .Where(claim =>
+                            claim.ClaimType == BranchAccess.BranchIdClaimType &&
+                            claim.ClaimValue == branchId &&
+                            memberIds.Contains(claim.UserId))
+                        .Select(claim => claim.UserId)
+                        .Distinct()
+                        .ToListAsync();
+
+                    var scopedSet = scopedMemberIds.ToHashSet(StringComparer.Ordinal);
+                    members = members
+                        .Where(user => scopedSet.Contains(user.Id))
+                        .OrderBy(user => user.Email)
+                        .ToList();
+                }
+            }
+
+            ViewBag.MemberUserId = new SelectList(members, "Id", "Email", selectedMemberUserId);
+        }
+
+        private async Task<bool> CanAccessMemberAsync(string? memberUserId)
+        {
+            if (string.IsNullOrWhiteSpace(memberUserId))
+            {
+                return false;
+            }
+
+            if (User.IsInRole("SuperAdmin"))
+            {
+                return true;
+            }
+
+            var branchId = User.GetBranchId();
+            if (string.IsNullOrWhiteSpace(branchId))
+            {
+                return false;
+            }
+
+            return await _db.UserClaims
+                .AsNoTracking()
+                .AnyAsync(claim =>
+                    claim.UserId == memberUserId &&
+                    claim.ClaimType == BranchAccess.BranchIdClaimType &&
+                    claim.ClaimValue == branchId);
+        }
+
+        private async Task<string?> ResolveMemberBranchIdAsync(string? memberUserId)
+        {
+            if (string.IsNullOrWhiteSpace(memberUserId))
+            {
+                return null;
+            }
+
+            return await _db.UserClaims
+                .AsNoTracking()
+                .Where(claim =>
+                    claim.UserId == memberUserId &&
+                    claim.ClaimType == BranchAccess.BranchIdClaimType &&
+                    claim.ClaimValue != null)
+                .OrderByDescending(claim => claim.Id)
+                .Select(claim => claim.ClaimValue)
+                .FirstOrDefaultAsync();
         }
     }
 }

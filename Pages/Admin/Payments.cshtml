@@ -1,7 +1,20 @@
 @page
 @model EJCFitnessGym.Pages.Admin.PaymentsModel
+@using EJCFitnessGym.Models.Billing
 @{
     ViewData["Title"] = "Payments";
+    var transactions = Model.Transactions;
+
+    string StatusBadgeClass(PaymentStatus status)
+    {
+        return status switch
+        {
+            PaymentStatus.Succeeded => "bg-success",
+            PaymentStatus.Pending => "bg-warning text-dark",
+            PaymentStatus.Failed => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
 }
 
 <section class="ejc-admin-page">
@@ -23,7 +36,7 @@
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between">
                     <h5 class="mb-0">Recent Transactions</h5>
-                    <span class="text-muted small">Updated today</span>
+                    <span class="text-muted small">@transactions.Count record(s)</span>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -39,38 +52,35 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    <td>INV-2412</td>
-                                    <td>Maria Reyes</td>
-                                    <td>PHP 2,000</td>
-                                    <td>GCash</td>
-                                    <td>Feb 12, 2026</td>
-                                    <td><span class="badge bg-success">Paid</span></td>
-                                </tr>
-                                <tr>
-                                    <td>INV-2411</td>
-                                    <td>Luis Javier</td>
-                                    <td>PHP 1,500</td>
-                                    <td>Card</td>
-                                    <td>Feb 12, 2026</td>
-                                    <td><span class="badge bg-warning text-dark">Pending</span></td>
-                                </tr>
-                                <tr>
-                                    <td>INV-2409</td>
-                                    <td>Ken Lim</td>
-                                    <td>PHP 3,800</td>
-                                    <td>Bank Transfer</td>
-                                    <td>Feb 11, 2026</td>
-                                    <td><span class="badge bg-success">Paid</span></td>
-                                </tr>
-                                <tr>
-                                    <td>INV-2406</td>
-                                    <td>Angela Cruz</td>
-                                    <td>PHP 2,500</td>
-                                    <td>Cash</td>
-                                    <td>Feb 10, 2026</td>
-                                    <td><span class="badge bg-secondary">On Hold</span></td>
-                                </tr>
+                                @if (transactions.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">No payment records found.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var payment in transactions)
+                                    {
+                                        <tr>
+                                            <td class="text-nowrap">@payment.InvoiceNumber</td>
+                                            <td>
+                                                <div class="fw-semibold">@payment.MemberDisplayName</div>
+                                                <div class="text-muted small">@payment.MemberEmail</div>
+                                            </td>
+                                            <td class="text-nowrap">PHP @payment.Amount.ToString("N2")</td>
+                                            <td>
+                                                <div class="text-nowrap">@payment.Method</div>
+                                                @if (!string.IsNullOrWhiteSpace(payment.GatewayProvider))
+                                                {
+                                                    <div class="text-muted small">@payment.GatewayProvider</div>
+                                                }
+                                            </td>
+                                            <td class="text-nowrap">@payment.PaidAtUtc.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</td>
+                                            <td><span class="badge @StatusBadgeClass(payment.Status)">@payment.Status</span></td>
+                                        </tr>
+                                    }
+                                }
                             </tbody>
                         </table>
                     </div>

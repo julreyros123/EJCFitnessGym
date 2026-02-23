@@ -1,0 +1,143 @@
+@page
+@using EJCFitnessGym.Models.Admin
+@model EJCFitnessGym.Pages.Admin.ReplacementRequestsModel
+@{
+    ViewData["Title"] = "Replacement Requests";
+}
+
+<section class="ejc-admin-page">
+    <div class="ejc-admin-layout" data-admin-layout>
+        <partial name="/Pages/Shared/_AdminSidebar.cshtml" />
+
+        <div class="ejc-admin-content">
+            <div class="ejc-page-header">
+                <div>
+                    <span class="ejc-eyebrow">Admin Queue</span>
+                    <h1 class="display-6 mb-0">Replacement Requests</h1>
+                    <p class="ejc-muted mb-0">Review and resolve staff-submitted concerns and replacement needs.</p>
+                </div>
+            </div>
+
+            @if (Model.HasFlashMessage)
+            {
+                <div class="alert @(Model.FlashIsError ? "alert-danger" : "alert-success") mt-3" role="alert">
+                    @Model.FlashMessage
+                </div>
+            }
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <span class="ejc-muted small">Requested</span>
+                            <h2 class="h3 mb-0">@Model.RequestedCount</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <span class="ejc-muted small">In Review</span>
+                            <h2 class="h3 mb-0">@Model.InReviewCount</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <span class="ejc-muted small">Closed</span>
+                            <h2 class="h3 mb-0">@Model.CompletedCount</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Queue</h5>
+                    <span class="text-muted small">@Model.Requests.Count requests</span>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.Requests.Count == 0)
+                    {
+                        <div class="p-4">
+                            <p class="ejc-muted mb-0">No requests found for your branch scope.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Request #</th>
+                                        <th>Branch</th>
+                                        <th>Type</th>
+                                        <th>Subject</th>
+                                        <th>Priority</th>
+                                        <th>Status</th>
+                                        <th>Requested By</th>
+                                        <th>Updated (local)</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in Model.Requests)
+                                    {
+                                        <tr>
+                                            <td class="text-nowrap">@row.RequestNumber</td>
+                                            <td>@row.BranchId</td>
+                                            <td>@row.RequestType</td>
+                                            <td>
+                                                <div class="fw-semibold">@row.Subject</div>
+                                                <div class="small text-muted">@row.Description</div>
+                                                @if (!string.IsNullOrWhiteSpace(row.AdminNotes))
+                                                {
+                                                    <div class="small mt-1"><strong>Note:</strong> @row.AdminNotes</div>
+                                                }
+                                            </td>
+                                            <td><span class="@ReplacementRequestsModel.PriorityBadge(row.Priority)">@row.Priority</span></td>
+                                            <td><span class="@ReplacementRequestsModel.StatusBadge(row.Status)">@row.Status</span></td>
+                                            <td>
+                                                <div>@row.RequestedBy</div>
+                                                @if (!string.IsNullOrWhiteSpace(row.ReviewedBy))
+                                                {
+                                                    <div class="small text-muted">Reviewed: @row.ReviewedBy</div>
+                                                }
+                                            </td>
+                                            <td class="text-nowrap">@row.UpdatedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                            <td>
+                                                <form method="post" asp-page-handler="Update" class="d-grid gap-2">
+                                                    <input type="hidden" name="id" value="@row.Id" />
+                                                    <select name="status" class="form-select form-select-sm">
+                                                        @foreach (var status in Enum.GetValues<ReplacementRequestStatus>())
+                                                        {
+                                                            if (status == row.Status)
+                                                            {
+                                                                <option value="@status" selected>@status</option>
+                                                            }
+                                                            else
+                                                            {
+                                                                <option value="@status">@status</option>
+                                                            }
+                                                        }
+                                                    </select>
+                                                    <input type="text"
+                                                           name="adminNotes"
+                                                           value="@row.AdminNotes"
+                                                           class="form-control form-control-sm"
+                                                           placeholder="Optional note" />
+                                                    <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

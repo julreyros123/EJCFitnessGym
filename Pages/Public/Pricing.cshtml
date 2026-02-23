@@ -22,6 +22,22 @@
         }
     </div>
 
+    @if (TempData["StatusMessage"] is string statusMessage && !string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="alert alert-warning mt-3">@statusMessage</div>
+    }
+
+    @if (Model.NextBillingDueDateUtc.HasValue)
+    {
+        var nextBillingLocal = Model.NextBillingDueDateUtc.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz");
+        var reminderLocal = Model.ReminderScheduledDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "-";
+        <div class="alert alert-info mt-3">
+            <strong>Next billing date:</strong> @nextBillingLocal
+            <br />
+            <strong>3-day reminder date:</strong> @reminderLocal
+        </div>
+    }
+
     @if (Model.PlanCards.Count == 0)
     {
         <article class="enterprise-value-card">

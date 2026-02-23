@@ -1,11 +1,7 @@
 @{
     var principal = User;
     var displayName = principal?.Identity?.IsAuthenticated == true ? principal.Identity?.Name : "Admin";
-    var logoutReturnUrl = principal?.IsInRole("SuperAdmin") == true
-        ? "/Identity/Account/SuperAdminLogin"
-        : principal?.IsInRole("Finance") == true
-            ? "/Identity/Account/FinanceLogin"
-            : "/Identity/Account/AdminLogin";
+    var logoutReturnUrl = "/Identity/Account/BackOfficeLogin";
 }
 
 <header class="ejc-admin-topbar">
@@ -25,6 +21,13 @@
             </div>
         </div>
         <div class="ejc-admin-topbar-actions">
+            <button type="button"
+                    class="ejc-theme-toggle"
+                    data-ejc-theme-toggle
+                    title="Toggle theme"
+                    aria-label="Toggle dark and light mode">
+                <i class="bi bi-sun-fill" data-ejc-theme-icon aria-hidden="true"></i>
+            </button>
             <span class="ejc-admin-topbar-user">@displayName</span>
             <form class="d-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
                 <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>

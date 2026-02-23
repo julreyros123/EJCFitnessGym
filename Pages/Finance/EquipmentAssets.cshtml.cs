@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Finance;
+using EJCFitnessGym.Security;
 using EJCFitnessGym.Services.Finance;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -37,13 +38,25 @@ namespace EJCFitnessGym.Pages.Finance
 
         public async Task<IActionResult> OnPostSeedSampleAsync(CancellationToken cancellationToken)
         {
-            var result = await _financeMetricsService.SeedMediumGymSampleAsync(cancellationToken);
+            var branchId = User.GetBranchId();
+            if (string.IsNullOrWhiteSpace(branchId))
+            {
+                return Forbid();
+            }
+
+            var result = await _financeMetricsService.SeedMediumGymSampleAsync(branchId, cancellationToken);
             StatusMessage = $"Seed complete: {result.InsertedCount} added, {result.SkippedCount} skipped.";
             return RedirectToPage();
         }
 
         public async Task<IActionResult> OnPostAddAsync(CancellationToken cancellationToken)
         {
+            var branchId = User.GetBranchId();
+            if (string.IsNullOrWhiteSpace(branchId))
+            {
+                return Forbid();
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadAsync(cancellationToken);
@@ -56,6 +69,7 @@ namespace EJCFitnessGym.Pages.Finance
                 Name = Input.Name.Trim(),
                 Brand = string.IsNullOrWhiteSpace(Input.Brand) ? null : Input.Brand.Trim(),
                 Category = Input.Category.Trim(),
+                BranchId = branchId,
                 Quantity = Input.Quantity,
                 UnitCost = Input.UnitCost,
                 UsefulLifeMonths = Input.UsefulLifeMonths,
@@ -75,8 +89,13 @@ namespace EJCFitnessGym.Pages.Finance
 
         private async Task LoadAsync(CancellationToken cancellationToken)
         {
-            Overview = await _financeMetricsService.GetOverviewAsync(cancellationToken: cancellationToken);
-            Assets = await _financeMetricsService.GetEquipmentAssetsAsync(cancellationToken);
+            var branchId = User.GetBranchId();
+            Overview = await _financeMetricsService.GetOverviewAsync(
+                cancellationToken: cancellationToken,
+                branchId: branchId);
+            Assets = await _financeMetricsService.GetEquipmentAssetsAsync(
+                branchId,
+                cancellationToken);
         }
 
         public sealed class CreateAssetInput

@@ -40,9 +40,9 @@
                             <span class="ejc-admin-metric-icon"><i class="bi bi-people-fill"></i></span>
                         </div>
                         <strong data-kpi-value="activeMembers">0</strong>
-                        <div class="d-flex align-items-center gap-2">
+                        <div class="ejc-admin-metric-foot">
                             <span class="badge text-bg-success" data-kpi-badge="activeMembers">Average</span>
-                            <span class="ejc-admin-metric-meta" data-kpi-meta="activeMembers">for selected period</span>
+                            <span class="ejc-admin-metric-meta" data-kpi-meta="activeMembers">selected range avg</span>
                         </div>
                     </a>
                 </article>
@@ -53,9 +53,9 @@
                             <span class="ejc-admin-metric-icon"><i class="bi bi-person-check-fill"></i></span>
                         </div>
                         <strong data-kpi-value="checkIns">0</strong>
-                        <div class="d-flex align-items-center gap-2">
+                        <div class="ejc-admin-metric-foot">
                             <span class="badge text-bg-primary" data-kpi-badge="checkIns">Total</span>
-                            <span class="ejc-admin-metric-meta" data-kpi-meta="checkIns">for selected period</span>
+                            <span class="ejc-admin-metric-meta" data-kpi-meta="checkIns">selected range total</span>
                         </div>
                     </a>
                 </article>
@@ -66,9 +66,22 @@
                             <span class="ejc-admin-metric-icon"><i class="bi bi-person-lines-fill"></i></span>
                         </div>
                         <strong data-kpi-value="followUps">0</strong>
-                        <div class="d-flex align-items-center gap-2">
+                        <div class="ejc-admin-metric-foot">
                             <span class="badge text-bg-warning" data-kpi-badge="followUps">Daily Avg</span>
-                            <span class="ejc-admin-metric-meta" data-kpi-meta="followUps">from selected dates</span>
+                            <span class="ejc-admin-metric-meta" data-kpi-meta="followUps">open follow-ups per day</span>
+                        </div>
+                    </a>
+                </article>
+                <article class="ejc-admin-metric">
+                    <a class="ejc-admin-metric-link" asp-controller="MemberAccounts" asp-action="Index">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="ejc-admin-metric-label">Plans Expiring (7D)</span>
+                            <span class="ejc-admin-metric-icon"><i class="bi bi-calendar2-week"></i></span>
+                        </div>
+                        <strong data-kpi-value="expiringPlans">0</strong>
+                        <div class="ejc-admin-metric-foot">
+                            <span class="badge text-bg-secondary" data-kpi-badge="expiringPlans">7D</span>
+                            <span class="ejc-admin-metric-meta" data-kpi-meta="expiringPlans">ending in next 7 days</span>
                         </div>
                     </a>
                 </article>
@@ -79,9 +92,9 @@
                             <span class="ejc-admin-metric-icon"><i class="bi bi-shield-exclamation"></i></span>
                         </div>
                         <strong data-kpi-value="auditAlerts">0</strong>
-                        <div class="d-flex align-items-center gap-2">
+                        <div class="ejc-admin-metric-foot">
                             <span class="badge text-bg-danger" data-kpi-badge="auditAlerts">Peak</span>
-                            <span class="ejc-admin-metric-meta" data-kpi-meta="auditAlerts">daily count in range</span>
+                            <span class="ejc-admin-metric-meta" data-kpi-meta="auditAlerts">highest daily count</span>
                         </div>
                     </a>
                 </article>
@@ -126,6 +139,7 @@
                         <div class="card-body">
                             <div class="d-grid gap-2">
                                 <a class="btn btn-outline-primary text-start" asp-controller="MemberAccounts" asp-action="Index">Manage Members</a>
+                                <a class="btn btn-outline-primary text-start" asp-controller="StaffAccounts" asp-action="Index">Manage Staff Accounts</a>
                                 <a class="btn btn-outline-primary text-start" asp-page="/Admin/Payments">Review Payments</a>
                                 <a class="btn btn-outline-primary text-start" asp-page="/Admin/Inventory">Update Inventory</a>
                                 <a class="btn btn-outline-primary text-start" asp-page="/Admin/Reports">Open Reports</a>

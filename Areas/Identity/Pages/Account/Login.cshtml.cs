@@ -116,6 +116,16 @@ public class LoginModel : PageModel
                     }
                 }
 
+                if (roles.Any(AccountFlowHelper.IsBackOfficeRole))
+                {
+                    await _signInManager.SignOutAsync();
+                    ErrorMessage = "Back-office accounts must use the back-office login page.";
+                    return RedirectToPage("./BackOfficeLogin", new
+                    {
+                        returnUrl = AccountFlowHelper.NormalizeBackOfficeReturnUrl(Url, returnUrl, roles)
+                    });
+                }
+
                 var shouldUseRoleLandingPage =
                     string.IsNullOrWhiteSpace(returnUrl) ||
                     returnUrl.Equals("/", StringComparison.Ordinal) ||
@@ -159,11 +169,11 @@ public class LoginModel : PageModel
                     {
                         if (_environment.IsDevelopment())
                         {
-                            ModelState.AddModelError(string.Empty, "Email confirmation is required in production, but is disabled in Development. Restart the app if you recently changed this setting.");
+                            ModelState.AddModelError(string.Empty, "Email verification is required in production, but is disabled in Development. Restart the app if you recently changed this setting.");
                         }
                         else
                         {
-                            ModelState.AddModelError(string.Empty, "You must confirm your email before you can log in.");
+                            ModelState.AddModelError(string.Empty, "You must verify your email before you can log in.");
                         }
                         return Page();
                     }

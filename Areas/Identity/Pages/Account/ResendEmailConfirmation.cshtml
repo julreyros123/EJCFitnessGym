@@ -1,7 +1,7 @@
 @page
 @model ResendEmailConfirmationModel
 @{
-    ViewData["Title"] = "Resend Email Confirmation";
+    ViewData["Title"] = "Resend Verification Code";
 }
 
 <section class="ejc-auth ejc-auth-login">
@@ -10,8 +10,8 @@
             <div class="ejc-auth-brand">
                 <div>
                     <span class="ejc-eyebrow">Account Verification</span>
-                    <h1 class="h2 mb-1">Resend confirmation email</h1>
-                    <p class="ejc-muted mb-0">We will send a new verification link if your account is pending confirmation.</p>
+                    <h1 class="h2 mb-1">Resend verification code</h1>
+                    <p class="ejc-muted mb-0">We will send a new 6-digit verification code if your account is pending verification.</p>
                 </div>
             </div>
 
@@ -27,7 +27,7 @@
                     <label asp-for="Input.Email">Email address</label>
                     <span asp-validation-for="Input.Email" class="text-danger"></span>
                 </div>
-                <button type="submit" class="btn btn-primary w-100 ejc-auth-submit">Resend confirmation</button>
+                <button type="submit" class="btn btn-primary w-100 ejc-auth-submit">Resend code</button>
                 <div class="ejc-auth-links">
                     <a asp-page="./Login">Back to sign in</a>
                 </div>

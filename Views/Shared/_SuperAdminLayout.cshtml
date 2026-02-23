@@ -1,0 +1,82 @@
+@{
+    var title = ViewData["Title"] ?? "Super Admin";
+}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@title - EJCFitnessGym</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/EJCFitnessGym.styles.css" asp-append-version="true" />
+</head>
+<body class="ejc-admin-body ejc-superadmin-body"
+      data-ejc-backoffice-theme="true"
+      data-ejc-theme="dark"
+      data-ejc-authenticated="@(User?.Identity?.IsAuthenticated == true ? "true" : "false")">
+    <script>
+        (() => {
+            try {
+                const storedTheme = localStorage.getItem("ejc.backoffice.theme");
+                if (storedTheme === "light" || storedTheme === "dark") {
+                    document.body.setAttribute("data-ejc-theme", storedTheme);
+                    document.documentElement.setAttribute("data-bs-theme", storedTheme);
+                }
+            } catch {
+                // Ignore blocked storage.
+            }
+        })();
+    </script>
+    <partial name="_SuperAdminTopbar" />
+
+    <div class="container-fluid ejc-admin-shell">
+        <main role="main">
+            <section class="ejc-admin-page">
+                <div class="ejc-admin-layout" data-admin-layout>
+                    <partial name="_SuperAdminSidebar" />
+                    <div class="ejc-admin-content">
+                        @RenderBody()
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="modal fade ejc-superadmin-command-modal"
+         id="ejcSuperAdminCommandModal"
+         tabindex="-1"
+         aria-labelledby="ejcSuperAdminCommandModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="h5 mb-0" id="ejcSuperAdminCommandModalLabel">Quick Navigation</h2>
+                    <span class="ejc-superadmin-command-hint">Ctrl/Cmd + K</span>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group ejc-superadmin-command-search">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="search"
+                               class="form-control"
+                               data-superadmin-command-search
+                               placeholder="Type a page, module, or keyword"
+                               autocomplete="off"
+                               aria-label="Search platform destinations" />
+                    </div>
+                    <div class="ejc-superadmin-command-list mt-3" data-superadmin-command-list></div>
+                    <p class="mb-0 mt-2 text-muted small">Enter to open. Arrow keys to move.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+    <script src="~/js/realtime-events.js" asp-append-version="true"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

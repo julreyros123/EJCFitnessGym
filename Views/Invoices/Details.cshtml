@@ -1,6 +1,9 @@
 @model EJCFitnessGym.Models.Billing.Invoice
 @{
     ViewData["Title"] = "Invoice Details";
+
+    string InvoiceStatusLabel(EJCFitnessGym.Models.Billing.InvoiceStatus value) =>
+        value == EJCFitnessGym.Models.Billing.InvoiceStatus.Overdue ? "Expired" : value.ToString();
 }
 
 <div class="py-4">
@@ -30,7 +33,7 @@
                         <dd class="col-sm-8">@Model.Amount.ToString("0.00")</dd>
 
                         <dt class="col-sm-4">Status</dt>
-                        <dd class="col-sm-8">@Model.Status</dd>
+                        <dd class="col-sm-8">@InvoiceStatusLabel(Model.Status)</dd>
                     </dl>
                 </div>
             </div>

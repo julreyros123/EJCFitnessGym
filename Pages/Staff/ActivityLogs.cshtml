@@ -9,52 +9,52 @@
         <div>
             <span class="ejc-eyebrow">Front Desk</span>
             <h1 class="h2 mb-1">Front Desk Activity Logs</h1>
-            <p class="ejc-muted mb-0">Track front desk actions for attendance handling, complaints, and account updates.</p>
+            <p class="ejc-muted mb-0">Audit trail for attendance actions, membership billing reminders, and payment events.</p>
         </div>
     </div>
 
     <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
             <h5 class="mb-0">Recent Logs</h5>
-            <span class="text-muted small">Audit trail</span>
+            <span class="text-muted small">@Model.Rows.Count entries</span>
         </div>
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm table-striped table-hover align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Handled By</th>
-                            <th>Action</th>
-                            <th>Member</th>
-                            <th>Result</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>08:16 AM</td>
-                            <td>frontdesk@ejcfit.local</td>
-                            <td>Checked in member</td>
-                            <td>Jose Tan</td>
-                            <td>Success</td>
-                        </tr>
-                        <tr>
-                            <td>08:41 AM</td>
-                            <td>frontdesk@ejcfit.local</td>
-                            <td>Logged complaint</td>
-                            <td>Angela Cruz</td>
-                            <td>Pending follow-up</td>
-                        </tr>
-                        <tr>
-                            <td>09:08 AM</td>
-                            <td>frontdesk@ejcfit.local</td>
-                            <td>Updated plan note</td>
-                            <td>Maria Reyes</td>
-                            <td>Escalated to Admin</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            @if (Model.Rows.Count == 0)
+            {
+                <div class="p-4">
+                    <p class="ejc-muted mb-0">No activity logs found for the current branch scope.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Time (local)</th>
+                                <th>Event</th>
+                                <th>Handled By</th>
+                                <th>Member</th>
+                                <th>Message</th>
+                                <th>Outbox State</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Model.Rows)
+                            {
+                                <tr>
+                                    <td class="text-nowrap">@row.TimeLocal.ToString("yyyy-MM-dd HH:mm zzz")</td>
+                                    <td>@row.EventTypeLabel</td>
+                                    <td>@row.HandledBy</td>
+                                    <td>@row.Member</td>
+                                    <td>@row.Result</td>
+                                    <td>@row.DeliveryState</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
         </div>
     </div>
 </div>

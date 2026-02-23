@@ -1,20 +1,19 @@
 using System.ComponentModel.DataAnnotations;
-using System.Text;
-using System.Text.Encodings.Web;
 using EJCFitnessGym.Data;
+using EJCFitnessGym.Models.Admin;
 using EJCFitnessGym.Models;
 using EJCFitnessGym.Models.Billing;
+using EJCFitnessGym.Services.Identity;
 using EJCFitnessGym.Services.Realtime;
+using EJCFitnessGym.Security;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using System.Security.Claims;
 
 #nullable enable
 
@@ -26,9 +25,8 @@ public class RegisterModel : PageModel
     private readonly UserManager<IdentityUser> _userManager;
     private readonly IUserStore<IdentityUser> _userStore;
     private readonly ILogger<RegisterModel> _logger;
-    private readonly IEmailSender _emailSender;
+    private readonly IEmailVerificationCodeService _emailVerificationCodeService;
     private readonly IConfiguration _configuration;
-    private readonly IWebHostEnvironment _environment;
     private readonly ApplicationDbContext _db;
     private readonly IErpEventPublisher _erpEventPublisher;
 
@@ -37,9 +35,8 @@ public class RegisterModel : PageModel
         IUserStore<IdentityUser> userStore,
         SignInManager<IdentityUser> signInManager,
         ILogger<RegisterModel> logger,
-        IEmailSender emailSender,
+        IEmailVerificationCodeService emailVerificationCodeService,
         IConfiguration configuration,
-        IWebHostEnvironment environment,
         ApplicationDbContext db,
         IErpEventPublisher erpEventPublisher)
     {
@@ -47,9 +44,8 @@ public class RegisterModel : PageModel
         _userStore = userStore;
         _signInManager = signInManager;
         _logger = logger;
-        _emailSender = emailSender;
+        _emailVerificationCodeService = emailVerificationCodeService;
         _configuration = configuration;
-        _environment = environment;
         _db = db;
         _erpEventPublisher = erpEventPublisher;
     }
@@ -170,6 +166,28 @@ public class RegisterModel : PageModel
                 return Page();
             }
 
+            var registrationBranchId = await ResolveRegistrationBranchIdAsync(CancellationToken.None);
+            if (string.IsNullOrWhiteSpace(registrationBranchId))
+            {
+                ModelState.AddModelError(string.Empty, "No branch is configured for new member registration. Please contact support.");
+                await transaction.RollbackAsync();
+                return Page();
+            }
+
+            var branchClaimResult = await _userManager.AddClaimAsync(
+                user,
+                new Claim(BranchAccess.BranchIdClaimType, registrationBranchId));
+            if (!branchClaimResult.Succeeded)
+            {
+                foreach (var error in branchClaimResult.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+
+                await transaction.RollbackAsync();
+                return Page();
+            }
+
             _db.MemberProfiles.Add(new MemberProfile
             {
                 UserId = user.Id,
@@ -197,50 +215,24 @@ public class RegisterModel : PageModel
                     selectedPlanName = selectedPlan?.Name
                 });
 
-            var userId = await _userManager.GetUserIdAsync(user);
-            var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
             var postRegistrationReturnUrl = BuildPostRegistrationReturnUrl(returnUrl, selectedPlan?.Id);
 
-            var callbackUrl = AccountFlowHelper.BuildAbsolutePageUrl(
-                Url,
-                Request,
-                _configuration,
-                "/Account/ConfirmEmail",
-                new { area = "Identity", userId, code, returnUrl = postRegistrationReturnUrl });
-
-            if (!string.IsNullOrEmpty(callbackUrl))
+            var requiresConfirmedAccount = _userManager.Options.SignIn.RequireConfirmedAccount;
+            if (requiresConfirmedAccount)
             {
                 try
                 {
-                    await _emailSender.SendEmailAsync(
-                        Input.Email,
-                        "Confirm your email",
-                        $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>clicking here</a>.");
+                    await _emailVerificationCodeService.SendVerificationCodeAsync(user);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to send confirmation email to {Email}.", Input.Email);
-
-                    // In development, SMTP is often not configured yet. Don't block sign-up.
-                    if (!_environment.IsDevelopment() && _userManager.Options.SignIn.RequireConfirmedAccount)
-                    {
-                        // Prevent creating accounts that the user can never confirm.
-                        var createdProfile = await _db.MemberProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
-                        if (createdProfile is not null)
-                        {
-                            _db.MemberProfiles.Remove(createdProfile);
-                            await _db.SaveChangesAsync();
-                        }
-
-                        await _userManager.DeleteAsync(user);
-                        ModelState.AddModelError(string.Empty, "We couldn't send the confirmation email right now. Please try again later.");
-                        return Page();
-                    }
+                    _logger.LogError(ex, "Failed to send verification code to {Email}.", Input.Email);
+                    TempData["StatusMessage"] = "Account created, but we couldn't send the verification code yet. Use resend verification code after SMTP is configured.";
+                    return RedirectToPage("RegisterConfirmation", new { email = Input.Email, returnUrl = postRegistrationReturnUrl });
                 }
             }
 
-            if (_userManager.Options.SignIn.RequireConfirmedAccount)
+            if (requiresConfirmedAccount)
             {
                 return RedirectToPage("RegisterConfirmation", new { email = Input.Email, returnUrl = postRegistrationReturnUrl });
             }
@@ -293,6 +285,76 @@ public class RegisterModel : PageModel
         }
 
         return AccountFlowHelper.NormalizeMemberReturnUrl(Url, fallbackReturnUrl);
+    }
+
+    private async Task<string?> ResolveRegistrationBranchIdAsync(CancellationToken cancellationToken)
+    {
+        var configuredBranchId = _configuration["BranchAccess:DefaultBranchId"]?.Trim();
+        if (!string.IsNullOrWhiteSpace(configuredBranchId))
+        {
+            return configuredBranchId;
+        }
+
+        var activeBranchId = await _db.BranchRecords
+            .AsNoTracking()
+            .Where(branch => branch.IsActive)
+            .OrderBy(branch => branch.BranchId)
+            .Select(branch => branch.BranchId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(activeBranchId))
+        {
+            return activeBranchId;
+        }
+
+        var fallbackBranchId = await _db.BranchRecords
+            .AsNoTracking()
+            .OrderBy(branch => branch.BranchId)
+            .Select(branch => branch.BranchId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(fallbackBranchId))
+        {
+            return fallbackBranchId.Trim();
+        }
+
+        var existingClaimBranchId = await _db.UserClaims
+            .AsNoTracking()
+            .Where(claim =>
+                claim.ClaimType == BranchAccess.BranchIdClaimType &&
+                claim.ClaimValue != null)
+            .OrderByDescending(claim => claim.Id)
+            .Select(claim => claim.ClaimValue)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(existingClaimBranchId))
+        {
+            return existingClaimBranchId.Trim();
+        }
+
+        const string bootstrapBranchId = "BR-CENTRAL";
+        const string bootstrapBranchName = "EJC Central Branch";
+
+        try
+        {
+            _db.BranchRecords.Add(new BranchRecord
+            {
+                BranchId = bootstrapBranchId,
+                Name = bootstrapBranchName,
+                IsActive = true,
+                CreatedUtc = DateTime.UtcNow,
+                UpdatedUtc = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync(cancellationToken);
+            return bootstrapBranchId;
+        }
+        catch (DbUpdateException)
+        {
+            var seededBranchId = await _db.BranchRecords
+                .AsNoTracking()
+                .Where(branch => branch.BranchId == bootstrapBranchId)
+                .Select(branch => branch.BranchId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            return string.IsNullOrWhiteSpace(seededBranchId) ? null : seededBranchId.Trim();
+        }
     }
 
     private IdentityUser CreateUser()

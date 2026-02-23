@@ -7,9 +7,11 @@
 <div class="py-4" data-finance-dashboard>
     <div class="ejc-page-header">
         <div class="ejc-finance-header-intro">
-            <span class="ejc-eyebrow">Finance Hub</span>
-            <h1 class="h2 mb-1">Finance Overview</h1>
-            <p class="ejc-muted mb-0 ejc-finance-header-copy">Use filters and analytics for quick monitoring. Open modules for full transaction details.</p>
+            <span class="ejc-eyebrow">Finance Core</span>
+            <h1 class="h2 mb-1">Audit, Requests, and Forecast</h1>
+            <p class="ejc-muted mb-0 ejc-finance-header-copy">
+                Finance focuses on weekly sales audit from staff, fund requests from admin, and revenue/profit forecasting.
+            </p>
             <div class="ejc-finance-header-state" data-fin-header-state>
                 <i class="bi bi-calendar-range"></i>
                 <span>Last 30 days • Month to month</span>
@@ -25,9 +27,9 @@
                 <i class="bi bi-funnel-fill"></i>
             </button>
             <div class="ejc-finance-link-actions">
-                <a class="btn btn-primary" asp-page="/Finance/FundRequests">Fund Requests</a>
-                <a class="btn btn-outline-primary" asp-page="/Finance/RevenueProfit">Revenue &amp; Profit</a>
-                <a class="btn btn-outline-primary" asp-controller="Invoices" asp-action="Index">Open Invoices</a>
+                <a class="btn btn-primary" asp-page="/Finance/WeeklySalesAudit">Weekly Sales Audit</a>
+                <a class="btn btn-outline-primary" asp-page="/Finance/FundRequests">Fund Requests</a>
+                <a class="btn btn-outline-primary" asp-page="/Finance/OperatingExpenses" asp-route-view="records">Expense Records</a>
             </div>
         </div>
     </div>
@@ -39,7 +41,7 @@
                     <span class="ejc-admin-metric-label">Gross Revenue</span>
                     <span class="ejc-admin-metric-icon"><i class="bi bi-currency-exchange"></i></span>
                 </div>
-                <strong data-fin-kpi-value="grossRevenue">PHP 1,842,300</strong>
+                <strong data-fin-kpi-value="grossRevenue">PHP 1.8M</strong>
                 <span class="ejc-admin-metric-meta text-success" data-fin-kpi-meta="grossRevenue">+8.4% vs previous period</span>
             </div>
         </article>
@@ -49,7 +51,7 @@
                     <span class="ejc-admin-metric-label">Gross Profit</span>
                     <span class="ejc-admin-metric-icon"><i class="bi bi-graph-up"></i></span>
                 </div>
-                <strong data-fin-kpi-value="grossProfit">PHP 1,096,700</strong>
+                <strong data-fin-kpi-value="grossProfit">PHP 1.1M</strong>
                 <span class="ejc-admin-metric-meta" data-fin-kpi-meta="grossProfit">Gross margin 59.5%</span>
             </div>
         </article>
@@ -59,7 +61,7 @@
                     <span class="ejc-admin-metric-label">Net Profit</span>
                     <span class="ejc-admin-metric-icon"><i class="bi bi-wallet2"></i></span>
                 </div>
-                <strong data-fin-kpi-value="netProfit">PHP 612,400</strong>
+                <strong data-fin-kpi-value="netProfit">PHP 612K</strong>
                 <span class="ejc-admin-metric-meta" data-fin-kpi-meta="netProfit">Net margin 33.2%</span>
             </div>
         </article>
@@ -69,7 +71,7 @@
                     <span class="ejc-admin-metric-label">Projected Net Profit</span>
                     <span class="ejc-admin-metric-icon"><i class="bi bi-calculator"></i></span>
                 </div>
-                <strong data-fin-kpi-value="projectedNetProfit">PHP 648,900</strong>
+                <strong data-fin-kpi-value="projectedNetProfit">PHP 649K</strong>
                 <span class="ejc-admin-metric-meta" data-fin-kpi-meta="projectedNetProfit">Next 30 days forecast</span>
             </div>
         </article>
@@ -170,66 +172,45 @@
         <div class="col-xl-7">
             <div class="card h-100">
                 <div class="card-header d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Finance Modules</h5>
-                    <span class="text-muted small">Open detailed tables</span>
+                    <h5 class="mb-0">Focused Modules</h5>
+                    <span class="text-muted small">Minimal finance navigation</span>
                 </div>
                 <div class="card-body">
                     <div class="ejc-finance-module-grid">
+                        <a class="ejc-finance-module-link" asp-page="/Finance/WeeklySalesAudit">
+                            <span class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold">Weekly Sales Audit</span>
+                                <i class="bi bi-clipboard2-check"></i>
+                            </span>
+                            <span class="ejc-muted small">Audit sales submitted by staff before finance signoff.</span>
+                        </a>
                         <a class="ejc-finance-module-link" asp-page="/Finance/FundRequests">
                             <span class="d-flex align-items-center justify-content-between mb-2">
                                 <span class="fw-semibold">Fund Requests</span>
                                 <i class="bi bi-cash-stack"></i>
                             </span>
-                            <span class="ejc-muted small">Pending approvals, priorities, and branch request details.</span>
+                            <span class="ejc-muted small">Review and process requests forwarded by admin.</span>
                         </a>
-                        <a class="ejc-finance-module-link" asp-page="/Finance/OperatingExpenses">
+                        <a class="ejc-finance-module-link" asp-page="/Finance/OperatingExpenses" asp-route-view="records">
                             <span class="d-flex align-items-center justify-content-between mb-2">
                                 <span class="fw-semibold">Operating Expenses</span>
                                 <i class="bi bi-wallet-fill"></i>
                             </span>
-                            <span class="ejc-muted small">Encode recurring and one-time costs for smarter net forecasts.</span>
+                            <span class="ejc-muted small">Maintain expense records and variance checks by category.</span>
                         </a>
                         <a class="ejc-finance-module-link" asp-page="/Finance/RevenueProfit">
                             <span class="d-flex align-items-center justify-content-between mb-2">
                                 <span class="fw-semibold">Revenue &amp; Profit</span>
                                 <i class="bi bi-graph-up-arrow"></i>
                             </span>
-                            <span class="ejc-muted small">Monthly revenue, gross profit, net profit, and trend table.</span>
+                            <span class="ejc-muted small">Track actual margins and financial outcomes.</span>
                         </a>
                         <a class="ejc-finance-module-link" asp-page="/Finance/NetForecast">
                             <span class="d-flex align-items-center justify-content-between mb-2">
                                 <span class="fw-semibold">Net Forecast</span>
                                 <i class="bi bi-calculator-fill"></i>
                             </span>
-                            <span class="ejc-muted small">Forecast inputs, assumptions, and projected net-profit output.</span>
-                        </a>
-                        <a class="ejc-finance-module-link" asp-page="/Finance/CostDamage">
-                            <span class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="fw-semibold">Cost Damage</span>
-                                <i class="bi bi-shield-exclamation"></i>
-                            </span>
-                            <span class="ejc-muted small">Damage incident costs, status tracking, and risk overview.</span>
-                        </a>
-                        <a class="ejc-finance-module-link" asp-page="/Finance/EquipmentAssets">
-                            <span class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="fw-semibold">Equipment Assets</span>
-                                <i class="bi bi-hdd-stack"></i>
-                            </span>
-                            <span class="ejc-muted small">Track total equipment count, investment value, and depreciation impact on profit.</span>
-                        </a>
-                        <a class="ejc-finance-module-link" asp-page="/Finance/Alerts">
-                            <span class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="fw-semibold">Finance Alerts</span>
-                                <i class="bi bi-bell-fill"></i>
-                            </span>
-                            <span class="ejc-muted small">Review risk/anomaly alerts and verify realtime/email delivery audit history.</span>
-                        </a>
-                        <a class="ejc-finance-module-link" asp-page="/Finance/IntegrationOps">
-                            <span class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="fw-semibold">Integration Ops</span>
-                                <i class="bi bi-diagram-3-fill"></i>
-                            </span>
-                            <span class="ejc-muted small">Retry failed events, inspect webhooks, and replay PayMongo events from UI.</span>
+                            <span class="ejc-muted small">Predict next-cycle net results using current trend.</span>
                         </a>
                     </div>
                 </div>

@@ -1,0 +1,51 @@
+@{
+    var principal = User;
+    var displayName = principal?.Identity?.IsAuthenticated == true ? principal.Identity?.Name : "Super Admin";
+}
+
+<header class="ejc-admin-topbar">
+    <div class="ejc-admin-topbar-inner">
+        <div class="ejc-admin-topbar-brand">
+            <button type="button"
+                    class="btn ejc-admin-menu-trigger d-lg-none"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#ejcSuperAdminSidebarOffcanvas"
+                    aria-controls="ejcSuperAdminSidebarOffcanvas"
+                    aria-label="Open platform menu">
+                <i class="bi bi-list" aria-hidden="true"></i>
+            </button>
+            <span class="ejc-brand-badge">EJ</span>
+            <div>
+                <div class="ejc-admin-topbar-title">EJC Fitness Gym</div>
+            </div>
+        </div>
+        <div class="ejc-admin-topbar-actions">
+            <button type="button"
+                    class="btn btn-outline-light btn-sm ejc-superadmin-quick-trigger"
+                    data-superadmin-command-open
+                    aria-label="Open quick navigation (Control plus K)">
+                <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>
+                <span>Quick Jump</span>
+                <span class="ejc-superadmin-shortcut-hint">Ctrl+K</span>
+            </button>
+            <a class="btn btn-outline-light btn-sm ejc-superadmin-resume-link d-none"
+               href="#"
+               data-superadmin-resume-link
+               aria-label="Resume previous page">
+               <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+               <span data-superadmin-resume-label>Resume Last</span>
+            </a>
+            <button type="button"
+                    class="ejc-theme-toggle"
+                    data-ejc-theme-toggle
+                    title="Toggle theme"
+                    aria-label="Toggle dark and light mode">
+                <i class="bi bi-sun-fill" data-ejc-theme-icon aria-hidden="true"></i>
+            </button>
+            <span class="ejc-admin-topbar-user">@displayName</span>
+            <form class="d-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="/Identity/Account/BackOfficeLogin">
+                <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+            </form>
+        </div>
+    </div>
+</header>

@@ -17,6 +17,9 @@ namespace EJCFitnessGym.Models.Finance
         [StringLength(80)]
         public string Category { get; set; } = string.Empty;
 
+        [StringLength(32)]
+        public string? BranchId { get; set; }
+
         [Range(0, 10000)]
         public int Quantity { get; set; } = 1;
 

@@ -20,7 +20,7 @@ public class ConfirmEmailModel : PageModel
     }
 
     public string ReturnUrl { get; private set; } = string.Empty;
-    public string StatusMessage { get; private set; } = "Email confirmation failed.";
+    public string StatusMessage { get; private set; } = "Email verification failed.";
     public bool IsSuccess { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(string? userId = null, string? code = null, string? returnUrl = null)
@@ -29,7 +29,7 @@ public class ConfirmEmailModel : PageModel
 
         if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(code))
         {
-            StatusMessage = "Invalid confirmation request.";
+            StatusMessage = "Invalid verification request.";
             return Page();
         }
 
@@ -47,14 +47,14 @@ public class ConfirmEmailModel : PageModel
 
             IsSuccess = result.Succeeded;
             StatusMessage = result.Succeeded
-                ? "Thank you for confirming your email."
-                : "Email confirmation failed. Request a new confirmation email and try again.";
+                ? "Thank you for verifying your email."
+                : "Email verification failed. Request a new verification code and try again.";
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Email confirmation failed for user {UserId}.", userId);
+            _logger.LogWarning(ex, "Email verification failed for user {UserId}.", userId);
             IsSuccess = false;
-            StatusMessage = "Email confirmation failed. Request a new confirmation email and try again.";
+            StatusMessage = "Email verification failed. Request a new verification code and try again.";
         }
 
         return Page();

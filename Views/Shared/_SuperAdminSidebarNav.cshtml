@@ -1,0 +1,131 @@
+@{
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+    string ActiveIfPrefix(params string[] prefixes)
+    {
+        foreach (var prefix in prefixes)
+        {
+            if (currentPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return "active";
+            }
+        }
+
+        return string.Empty;
+    }
+}
+
+<nav class="ejc-admin-nav" aria-label="Platform navigation">
+    <div class="ejc-admin-nav-group">
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Dashboard/SuperAdmin")"
+           asp-controller="Dashboard"
+           asp-action="SuperAdmin"
+           title="Dashboard"
+           data-superadmin-nav-item
+           data-superadmin-nav-label="Dashboard"
+           data-superadmin-nav-description="Platform health, role matrix, and governance KPIs"
+           data-superadmin-nav-shortcut="Alt+1">
+            <i class="bi bi-speedometer2"></i>
+            <span class="ejc-admin-nav-text">Dashboard</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/UserBranches")"
+           asp-controller="UserBranches"
+           asp-action="Index"
+           title="Branch Access"
+           data-superadmin-nav-item
+           data-superadmin-nav-label="Branch Access"
+           data-superadmin-nav-description="Assign and audit branch scope for back-office users"
+           data-superadmin-nav-shortcut="Alt+2">
+            <i class="bi bi-diagram-3-fill"></i>
+            <span class="ejc-admin-nav-text">Branch Access</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/MemberAccounts", "/Admin/Members")"
+           asp-controller="MemberAccounts"
+           asp-action="Index"
+           title="Member Accounts"
+           data-superadmin-nav-item
+           data-superadmin-nav-label="Member Accounts"
+           data-superadmin-nav-description="Manage member records, subscriptions, and account lifecycle"
+           data-superadmin-nav-shortcut="Alt+3">
+            <i class="bi bi-people-fill"></i>
+            <span class="ejc-admin-nav-text">Member Accounts</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/StaffAccounts")"
+           asp-controller="StaffAccounts"
+           asp-action="Index"
+           title="Staff Accounts"
+           data-superadmin-nav-item
+           data-superadmin-nav-label="Staff Accounts"
+           data-superadmin-nav-description="Create and review branch-scoped staff login accounts">
+            <i class="bi bi-person-badge-fill"></i>
+            <span class="ejc-admin-nav-text">Staff Accounts</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/BackOfficeAccounts")"
+           asp-controller="BackOfficeAccounts"
+           asp-action="Index"
+           title="Back Office Accounts"
+           data-superadmin-nav-item
+           data-superadmin-nav-label="Back Office Accounts"
+           data-superadmin-nav-description="Create Admin and Finance accounts with branch assignment records"
+           data-superadmin-nav-shortcut="Alt+7">
+            <i class="bi bi-shield-lock-fill"></i>
+            <span class="ejc-admin-nav-text">Back Office Accounts</span>
+        </a>
+    </div>
+
+    <div class="ejc-admin-nav-divider"></div>
+
+    <div class="ejc-admin-nav-group">
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Invoices")"
+           asp-controller="Invoices"
+           asp-action="Index"
+           title="Invoices"
+           data-superadmin-nav-item
+           data-superadmin-nav-label="Invoices"
+           data-superadmin-nav-description="Inspect unpaid, paid, and expired billing records"
+           data-superadmin-nav-shortcut="Alt+4">
+            <i class="bi bi-receipt-cutoff"></i>
+            <span class="ejc-admin-nav-text">Invoices</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/ReplacementRequests")"
+           asp-page="/Admin/ReplacementRequests"
+           title="Replacement Requests"
+           data-superadmin-nav-item
+           data-superadmin-nav-label="Replacement Requests"
+           data-superadmin-nav-description="Review staff-submitted concern and replacement queue">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span class="ejc-admin-nav-text">Replacement</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/SubscriptionPlans")"
+           asp-controller="SubscriptionPlans"
+           asp-action="Index"
+           title="Plans"
+           data-superadmin-nav-item
+           data-superadmin-nav-label="Subscription Plans"
+           data-superadmin-nav-description="Configure membership plans, pricing, and billing cadence"
+           data-superadmin-nav-shortcut="Alt+5">
+            <i class="bi bi-journal-text"></i>
+            <span class="ejc-admin-nav-text">Plans</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff")"
+           asp-page="/Staff/Reports"
+           title="Operations"
+           data-superadmin-nav-item
+           data-superadmin-nav-label="Operations"
+           data-superadmin-nav-description="Track staffing, check-ins, and operational status"
+           data-superadmin-nav-shortcut="Alt+6">
+            <i class="bi bi-activity"></i>
+            <span class="ejc-admin-nav-text">Operations</span>
+        </a>
+    </div>
+
+    <div class="ejc-admin-nav-divider"></div>
+
+    <div class="ejc-admin-nav-group">
+        <form class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="/Identity/Account/BackOfficeLogin">
+            <button type="submit" class="ejc-admin-nav-link ejc-admin-nav-link-button" title="Logout">
+                <i class="bi bi-box-arrow-right"></i>
+                <span class="ejc-admin-nav-text">Logout</span>
+            </button>
+        </form>
+    </div>
+</nav>

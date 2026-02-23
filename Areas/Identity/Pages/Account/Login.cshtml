@@ -40,13 +40,9 @@
                     <a asp-page="./ForgotPassword" class="ejc-auth-link">Forgot password?</a>
                 </div>
                 <button type="submit" class="btn btn-primary w-100 ejc-auth-submit">Log in</button>
-                <div class="ejc-auth-links">
-                    <a asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">Create account</a>
-                    <a asp-page="./ResendEmailConfirmation" asp-route-email="@Model.Input.Email">Resend email confirmation</a>
-                </div>
-                <div class="ejc-auth-links">
-                    <span class="ejc-muted">Looking for plans?</span>
-                    <a asp-area="" asp-page="/Public/Pricing">View memberships</a>
+                <div class="ejc-auth-links ejc-auth-links-centered">
+                    <span class="ejc-muted">Don't have an account?</span>
+                    <a asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">Sign up</a>
                 </div>
             </form>
 

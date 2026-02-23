@@ -1,0 +1,221 @@
+@page
+@using EJCFitnessGym.Models.Admin
+@model EJCFitnessGym.Pages.Staff.ReplacementRequestsModel
+@{
+    ViewData["Title"] = "Replacement Requests";
+    var clearDraftAfterCreate = Model.HasFlashMessage && !Model.FlashIsError;
+}
+
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Front Desk</span>
+            <h1 class="h2 mb-1">Replacement Requests</h1>
+            <p class="ejc-muted mb-0">Submit member concerns and replacement needs directly to Admin through the system.</p>
+        </div>
+    </div>
+
+    @if (Model.HasFlashMessage)
+    {
+        <div class="alert @(Model.FlashIsError ? "alert-danger" : "alert-success") mt-3" role="alert">
+            @Model.FlashMessage
+        </div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <span class="ejc-muted small">Open Queue</span>
+                    <h2 class="h3 mb-0">@Model.OpenCount</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <span class="ejc-muted small">High/Urgent</span>
+                    <h2 class="h3 mb-0">@Model.EscalatedCount</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <span class="ejc-muted small">Closed</span>
+                    <h2 class="h3 mb-0">@Model.ClosedCount</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-5">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Create New Request</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" asp-page-handler="Create" id="replacement-create-form">
+                        <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.RequestType" class="form-label">Type</label>
+                            <select asp-for="Input.RequestType" class="form-select">
+                                @foreach (var type in Enum.GetValues<ReplacementRequestType>())
+                                {
+                                    <option value="@type">@type</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Input.RequestType" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Priority" class="form-label">Priority</label>
+                            <select asp-for="Input.Priority" class="form-select">
+                                @foreach (var priority in Enum.GetValues<ReplacementRequestPriority>())
+                                {
+                                    <option value="@priority">@priority</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Input.Priority" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Subject" class="form-label">Subject</label>
+                            <input asp-for="Input.Subject" class="form-control" placeholder="Ex: Treadmill replacement request" />
+                            <span asp-validation-for="Input.Subject" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Description" class="form-label">Details</label>
+                            <textarea asp-for="Input.Description" class="form-control" rows="5" placeholder="Describe the issue, member impact, and what replacement is needed."></textarea>
+                            <span asp-validation-for="Input.Description" class="text-danger small"></span>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Submit to Admin</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-7">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Request Log</h5>
+                    <span class="text-muted small">@Model.Requests.Count requests</span>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.Requests.Count == 0)
+                    {
+                        <div class="p-4">
+                            <p class="ejc-muted mb-0">No requests have been submitted yet.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Request #</th>
+                                        <th>Type</th>
+                                        <th>Subject</th>
+                                        <th>Priority</th>
+                                        <th>Status</th>
+                                        <th>Updated (local)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in Model.Requests)
+                                    {
+                                        <tr>
+                                            <td class="text-nowrap">@row.RequestNumber</td>
+                                            <td><span class="@ReplacementRequestsModel.TypeBadgeClass(row.RequestType)">@row.RequestType</span></td>
+                                            <td>@row.Subject</td>
+                                            <td><span class="@ReplacementRequestsModel.PriorityBadge(row.Priority)">@row.Priority</span></td>
+                                            <td><span class="@ReplacementRequestsModel.StatusBadge(row.Status)">@row.Status</span></td>
+                                            <td class="text-nowrap">@row.UpdatedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const form = document.getElementById('replacement-create-form');
+            if (!form) {
+                return;
+            }
+
+            const storageKey = 'ejc.staff.replacement.createDraft.v1';
+            const clearDraftAfterCreate = @(clearDraftAfterCreate.ToString().ToLowerInvariant());
+
+            const fields = {
+                requestType: document.getElementById('Input_RequestType'),
+                priority: document.getElementById('Input_Priority'),
+                subject: document.getElementById('Input_Subject'),
+                description: document.getElementById('Input_Description')
+            };
+
+            const hasServerValidationErrors =
+                form.querySelector('.validation-summary-errors, .input-validation-error') !== null;
+
+            if (clearDraftAfterCreate) {
+                try {
+                    localStorage.removeItem(storageKey);
+                } catch {
+                    // Ignore storage failures.
+                }
+            } else if (!hasServerValidationErrors) {
+                try {
+                    const raw = localStorage.getItem(storageKey);
+                    if (raw) {
+                        const draft = JSON.parse(raw);
+                        if (typeof draft.requestType === 'string' && fields.requestType) {
+                            fields.requestType.value = draft.requestType;
+                        }
+                        if (typeof draft.priority === 'string' && fields.priority) {
+                            fields.priority.value = draft.priority;
+                        }
+                        if (typeof draft.subject === 'string' && fields.subject) {
+                            fields.subject.value = draft.subject;
+                        }
+                        if (typeof draft.description === 'string' && fields.description) {
+                            fields.description.value = draft.description;
+                        }
+                    }
+                } catch {
+                    // Ignore parsing/storage failures.
+                }
+            }
+
+            const saveDraft = () => {
+                try {
+                    const payload = {
+                        requestType: fields.requestType?.value || '',
+                        priority: fields.priority?.value || '',
+                        subject: fields.subject?.value || '',
+                        description: fields.description?.value || ''
+                    };
+                    localStorage.setItem(storageKey, JSON.stringify(payload));
+                } catch {
+                    // Ignore storage failures.
+                }
+            };
+
+            form.addEventListener('input', saveDraft);
+            form.addEventListener('change', saveDraft);
+
+        })();
+    </script>
+}

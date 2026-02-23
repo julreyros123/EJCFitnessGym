@@ -2,6 +2,9 @@
 @{
     ViewData["Title"] = "Invoices";
     var status = ViewBag.Status as EJCFitnessGym.Models.Billing.InvoiceStatus?;
+
+    string InvoiceStatusLabel(EJCFitnessGym.Models.Billing.InvoiceStatus value) =>
+        value == EJCFitnessGym.Models.Billing.InvoiceStatus.Overdue ? "Expired" : value.ToString();
 }
 
 <div class="py-4">
@@ -19,7 +22,7 @@
                 <a class="btn btn-sm @(status == null ? "btn-primary" : "btn-outline-primary")" asp-action="Index">All</a>
                 @foreach (var s in Enum.GetValues(typeof(EJCFitnessGym.Models.Billing.InvoiceStatus)).Cast<EJCFitnessGym.Models.Billing.InvoiceStatus>())
                 {
-                    <a class="btn btn-sm @(status == s ? "btn-primary" : "btn-outline-primary")" asp-action="Index" asp-route-status="@s">@s</a>
+                    <a class="btn btn-sm @(status == s ? "btn-primary" : "btn-outline-primary")" asp-action="Index" asp-route-status="@s">@InvoiceStatusLabel(s)</a>
                 }
             </div>
         </div>
@@ -49,7 +52,7 @@
                             <td>@inv.IssueDateUtc.ToString("yyyy-MM-dd")</td>
                             <td>@inv.DueDateUtc.ToString("yyyy-MM-dd")</td>
                             <td class="text-end">@inv.Amount.ToString("0.00")</td>
-                            <td>@inv.Status</td>
+                            <td>@InvoiceStatusLabel(inv.Status)</td>
                             <td class="text-end">
                                 <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@inv.Id">View</a>
                             </td>

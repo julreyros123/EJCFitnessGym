@@ -1,7 +1,7 @@
 @page
 @model ConfirmEmailModel
 @{
-    ViewData["Title"] = "Email Confirmation";
+    ViewData["Title"] = "Email Verification";
 }
 
 <section class="ejc-auth ejc-auth-login">
@@ -10,7 +10,7 @@
             <div class="ejc-auth-brand">
                 <div>
                     <span class="ejc-eyebrow">Account Verification</span>
-                    <h1 class="h2 mb-1">Email confirmation</h1>
+                    <h1 class="h2 mb-1">Email verification</h1>
                     <p class="ejc-muted mb-0">@Model.StatusMessage</p>
                 </div>
             </div>
@@ -19,7 +19,7 @@
                 <a class="btn btn-primary" asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Continue to sign in</a>
                 @if (!Model.IsSuccess)
                 {
-                    <a class="btn btn-outline-light" asp-page="./ResendEmailConfirmation">Resend confirmation email</a>
+                    <a class="btn btn-outline-light" asp-page="./ResendEmailConfirmation">Resend verification code</a>
                 }
             </div>
         </div>

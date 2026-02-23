@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Finance;
+using EJCFitnessGym.Security;
 using EJCFitnessGym.Services.Finance;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,24 +10,27 @@ using Microsoft.EntityFrameworkCore;
 namespace EJCFitnessGym.Controllers
 {
     [ApiController]
-    [Authorize(Roles = "Finance,Admin,SuperAdmin")]
+    [Authorize(Policy = "FinanceApiAccess")]
     [Route("api/finance")]
     public class FinanceMetricsController : ControllerBase
     {
         private readonly IFinanceMetricsService _financeMetricsService;
         private readonly IFinanceAlertService _financeAlertService;
         private readonly IFinanceAlertLifecycleService _financeAlertLifecycleService;
+        private readonly IFinanceAiAssistantService _financeAiAssistantService;
         private readonly ApplicationDbContext _db;
 
         public FinanceMetricsController(
             IFinanceMetricsService financeMetricsService,
             IFinanceAlertService financeAlertService,
             IFinanceAlertLifecycleService financeAlertLifecycleService,
+            IFinanceAiAssistantService financeAiAssistantService,
             ApplicationDbContext db)
         {
             _financeMetricsService = financeMetricsService;
             _financeAlertService = financeAlertService;
             _financeAlertLifecycleService = financeAlertLifecycleService;
+            _financeAiAssistantService = financeAiAssistantService;
             _db = db;
         }
 
@@ -36,8 +40,28 @@ namespace EJCFitnessGym.Controllers
             [FromQuery] DateTime? toUtc = null,
             CancellationToken cancellationToken = default)
         {
-            var overview = await _financeMetricsService.GetOverviewAsync(fromUtc, toUtc, cancellationToken);
+            var overview = await _financeMetricsService.GetOverviewAsync(
+                fromUtc,
+                toUtc,
+                cancellationToken,
+                User.GetBranchId());
             return Ok(overview);
+        }
+
+        [HttpGet("ai-overview")]
+        public async Task<IActionResult> GetAiOverview(
+            [FromQuery] DateTime? fromUtc = null,
+            [FromQuery] DateTime? toUtc = null,
+            CancellationToken cancellationToken = default)
+        {
+            var aiOverview = await _financeAiAssistantService.GetBranchAiOverviewAsync(
+                User.GetBranchId(),
+                fromUtc,
+                toUtc,
+                priorityTake: 12,
+                cancellationToken: cancellationToken);
+
+            return Ok(aiOverview);
         }
 
         [HttpGet("insights")]
@@ -46,14 +70,54 @@ namespace EJCFitnessGym.Controllers
             [FromQuery] int forecastDays = 30,
             CancellationToken cancellationToken = default)
         {
-            var insights = await _financeMetricsService.GetInsightsAsync(lookbackDays, forecastDays, cancellationToken);
+            var insights = await _financeMetricsService.GetInsightsAsync(
+                lookbackDays,
+                forecastDays,
+                cancellationToken,
+                User.GetBranchId());
             return Ok(insights);
+        }
+
+        [HttpGet("monthly")]
+        public async Task<IActionResult> GetMonthlySnapshots(
+            [FromQuery] int months = 6,
+            [FromQuery] bool includeProjection = true,
+            CancellationToken cancellationToken = default)
+        {
+            var snapshots = await _financeMetricsService.GetMonthlySnapshotsAsync(
+                months,
+                includeProjection,
+                cancellationToken,
+                User.GetBranchId());
+
+            return Ok(snapshots.Select(snapshot => new
+            {
+                monthStartUtc = snapshot.MonthStartUtc,
+                revenue = snapshot.Revenue,
+                costOfServices = snapshot.CostOfServices,
+                grossProfit = snapshot.GrossProfit,
+                operatingExpenses = snapshot.OperatingExpenses,
+                depreciationCost = snapshot.DepreciationCost,
+                netProfit = snapshot.NetProfit,
+                successfulPaymentsCount = snapshot.SuccessfulPaymentsCount,
+                forReviewCount = snapshot.ForReviewCount,
+                pendingCount = snapshot.PendingCount,
+                queuedCount = snapshot.QueuedCount,
+                approvedCount = snapshot.ApprovedCount,
+                isProjected = snapshot.IsProjected
+            }));
         }
 
         [HttpGet("equipment")]
         public async Task<IActionResult> GetEquipment(CancellationToken cancellationToken)
         {
-            var assets = await _financeMetricsService.GetEquipmentAssetsAsync(cancellationToken);
+            var branchId = User.GetBranchId();
+            if (string.IsNullOrWhiteSpace(branchId))
+            {
+                return Forbid();
+            }
+
+            var assets = await _financeMetricsService.GetEquipmentAssetsAsync(branchId, cancellationToken);
             return Ok(assets.Select(a => new
             {
                 id = a.Id,
@@ -78,7 +142,13 @@ namespace EJCFitnessGym.Controllers
             [FromQuery] DateTime? toUtc = null,
             CancellationToken cancellationToken = default)
         {
-            var expenses = await _financeMetricsService.GetExpensesAsync(fromUtc, toUtc, cancellationToken);
+            var branchId = User.GetBranchId();
+            if (string.IsNullOrWhiteSpace(branchId))
+            {
+                return Forbid();
+            }
+
+            var expenses = await _financeMetricsService.GetExpensesAsync(fromUtc, toUtc, branchId, cancellationToken);
             return Ok(expenses.Select(e => new
             {
                 id = e.Id,
@@ -249,6 +319,12 @@ namespace EJCFitnessGym.Controllers
             [FromBody] CreateExpenseRequest request,
             CancellationToken cancellationToken = default)
         {
+            var branchId = User.GetBranchId();
+            if (string.IsNullOrWhiteSpace(branchId))
+            {
+                return Forbid();
+            }
+
             if (!ModelState.IsValid)
             {
                 return ValidationProblem(ModelState);
@@ -259,6 +335,7 @@ namespace EJCFitnessGym.Controllers
             {
                 Name = request.Name.Trim(),
                 Category = request.Category.Trim(),
+                BranchId = branchId,
                 Amount = request.Amount,
                 ExpenseDateUtc = request.ExpenseDateUtc?.ToUniversalTime() ?? nowUtc,
                 IsRecurring = request.IsRecurring,
@@ -288,16 +365,32 @@ namespace EJCFitnessGym.Controllers
         [HttpPost("alerts/evaluate")]
         public async Task<IActionResult> EvaluateAlerts(CancellationToken cancellationToken = default)
         {
-            var result = await _financeAlertService.EvaluateAndNotifyAsync("finance.alerts.manual", cancellationToken);
-            return Ok(result);
+            var financeResult = await _financeAlertService.EvaluateAndNotifyAsync("finance.alerts.manual", cancellationToken);
+            var churnResult = await _financeAiAssistantService.DispatchNewHighRiskAlertsAsync(
+                "finance.alerts.manual",
+                cancellationToken: cancellationToken);
+
+            return Ok(new
+            {
+                finance = financeResult,
+                churn = churnResult
+            });
         }
 
         [HttpGet("equipment/{id:int}")]
         public async Task<IActionResult> GetEquipmentById(int id, CancellationToken cancellationToken)
         {
+            var branchId = User.GetBranchId();
+            if (string.IsNullOrWhiteSpace(branchId))
+            {
+                return Forbid();
+            }
+
             var asset = await _db.GymEquipmentAssets
                 .AsNoTracking()
-                .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+                .FirstOrDefaultAsync(
+                    a => a.Id == id && a.BranchId == branchId,
+                    cancellationToken);
 
             if (asset is null)
             {
@@ -327,6 +420,12 @@ namespace EJCFitnessGym.Controllers
             [FromBody] CreateEquipmentAssetRequest request,
             CancellationToken cancellationToken)
         {
+            var branchId = User.GetBranchId();
+            if (string.IsNullOrWhiteSpace(branchId))
+            {
+                return Forbid();
+            }
+
             if (!ModelState.IsValid)
             {
                 return ValidationProblem(ModelState);
@@ -338,6 +437,7 @@ namespace EJCFitnessGym.Controllers
                 Name = request.Name.Trim(),
                 Brand = string.IsNullOrWhiteSpace(request.Brand) ? null : request.Brand.Trim(),
                 Category = request.Category.Trim(),
+                BranchId = branchId,
                 Quantity = request.Quantity,
                 UnitCost = request.UnitCost,
                 UsefulLifeMonths = request.UsefulLifeMonths,
@@ -376,7 +476,13 @@ namespace EJCFitnessGym.Controllers
         [HttpPost("equipment/seed-medium-gym")]
         public async Task<IActionResult> SeedMediumGym(CancellationToken cancellationToken)
         {
-            var result = await _financeMetricsService.SeedMediumGymSampleAsync(cancellationToken);
+            var branchId = User.GetBranchId();
+            if (string.IsNullOrWhiteSpace(branchId))
+            {
+                return Forbid();
+            }
+
+            var result = await _financeMetricsService.SeedMediumGymSampleAsync(branchId, cancellationToken);
             _ = await _financeAlertService.EvaluateAndNotifyAsync("finance.equipment.seeded", cancellationToken);
             return Ok(new
             {

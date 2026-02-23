@@ -1,9 +1,14 @@
 @{
     var currentPath = Context.Request.Path.Value ?? string.Empty;
-    var principal = User;
-    var logoutReturnUrl = principal?.IsInRole("SuperAdmin") == true
-        ? "/Identity/Account/SuperAdminLogin"
-        : "/Identity/Account/FinanceLogin";
+    var currentOperatingView = Context.Request.Query["view"].ToString();
+    var logoutReturnUrl = "/Identity/Account/BackOfficeLogin";
+
+    var isOperatingExpensesPath = currentPath.StartsWith("/Finance/OperatingExpenses", StringComparison.OrdinalIgnoreCase);
+    var isOperatingAddView = isOperatingExpensesPath &&
+        (string.IsNullOrWhiteSpace(currentOperatingView) || string.Equals(currentOperatingView, "add", StringComparison.OrdinalIgnoreCase));
+    var isOperatingRecordsView = isOperatingExpensesPath &&
+        string.Equals(currentOperatingView, "records", StringComparison.OrdinalIgnoreCase);
+
     string ActiveIfPrefix(params string[] prefixes)
     {
         foreach (var prefix in prefixes)
@@ -20,18 +25,42 @@
 
 <nav class="ejc-admin-nav" aria-label="Finance navigation">
     <div class="ejc-admin-nav-group">
+        <span class="ejc-admin-nav-section">Finance Modules</span>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/Dashboard")" asp-page="/Finance/Dashboard" title="Dashboard">
             <i class="bi bi-speedometer2"></i>
             <span class="ejc-admin-nav-text">Dashboard</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/WeeklySalesAudit")" asp-page="/Finance/WeeklySalesAudit" title="Weekly Sales Audit">
+            <i class="bi bi-clipboard2-check"></i>
+            <span class="ejc-admin-nav-text">Weekly Sales Audit</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/FundRequests")" asp-page="/Finance/FundRequests" title="Fund Requests">
             <i class="bi bi-cash-stack"></i>
             <span class="ejc-admin-nav-text">Fund Requests</span>
         </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/OperatingExpenses")" asp-page="/Finance/OperatingExpenses" title="Operating Expenses">
-            <i class="bi bi-wallet-fill"></i>
-            <span class="ejc-admin-nav-text">Operating Expenses</span>
-        </a>
+        <details class="ejc-admin-nav-module" @(isOperatingExpensesPath ? "open" : null)>
+            <summary class="ejc-admin-nav-module-trigger" title="Operating Expenses">
+                <i class="bi bi-wallet-fill"></i>
+                <span class="ejc-admin-nav-text">Operating Expenses</span>
+                <i class="bi bi-chevron-down ejc-admin-nav-module-caret" aria-hidden="true"></i>
+            </summary>
+            <div class="ejc-admin-nav-module-links">
+                <a class="ejc-admin-nav-link ejc-admin-nav-link-sub @(isOperatingAddView ? "active" : string.Empty)"
+                   asp-page="/Finance/OperatingExpenses"
+                   asp-route-view="add"
+                   title="Add Operating Expense">
+                    <i class="bi bi-plus-circle"></i>
+                    <span class="ejc-admin-nav-text">Add Expense</span>
+                </a>
+                <a class="ejc-admin-nav-link ejc-admin-nav-link-sub @(isOperatingRecordsView ? "active" : string.Empty)"
+                   asp-page="/Finance/OperatingExpenses"
+                   asp-route-view="records"
+                   title="Expense Records">
+                    <i class="bi bi-table"></i>
+                    <span class="ejc-admin-nav-text">Expense Records</span>
+                </a>
+            </div>
+        </details>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/RevenueProfit")" asp-page="/Finance/RevenueProfit" title="Revenue & Profit">
             <i class="bi bi-graph-up-arrow"></i>
             <span class="ejc-admin-nav-text">Revenue &amp; Profit</span>
@@ -39,35 +68,6 @@
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/NetForecast")" asp-page="/Finance/NetForecast" title="Net Forecast">
             <i class="bi bi-calculator-fill"></i>
             <span class="ejc-admin-nav-text">Net Forecast</span>
-        </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/CostDamage")" asp-page="/Finance/CostDamage" title="Cost Damage">
-            <i class="bi bi-shield-exclamation"></i>
-            <span class="ejc-admin-nav-text">Cost Damage</span>
-        </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/EquipmentAssets")" asp-page="/Finance/EquipmentAssets" title="Equipment Assets">
-            <i class="bi bi-hdd-stack"></i>
-            <span class="ejc-admin-nav-text">Equipment Assets</span>
-        </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/Alerts")" asp-page="/Finance/Alerts" title="Finance Alerts">
-            <i class="bi bi-bell-fill"></i>
-            <span class="ejc-admin-nav-text">Finance Alerts</span>
-        </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/IntegrationOps")" asp-page="/Finance/IntegrationOps" title="Integration Ops">
-            <i class="bi bi-diagram-3-fill"></i>
-            <span class="ejc-admin-nav-text">Integration Ops</span>
-        </a>
-    </div>
-
-    <div class="ejc-admin-nav-divider"></div>
-
-    <div class="ejc-admin-nav-group">
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Invoices")" asp-controller="Invoices" asp-action="Index" title="Invoices">
-            <i class="bi bi-receipt-cutoff"></i>
-            <span class="ejc-admin-nav-text">Invoices</span>
-        </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/SubscriptionPlans")" asp-controller="SubscriptionPlans" asp-action="Index" title="Plans">
-            <i class="bi bi-journal-text"></i>
-            <span class="ejc-admin-nav-text">Plans</span>
         </a>
     </div>
 

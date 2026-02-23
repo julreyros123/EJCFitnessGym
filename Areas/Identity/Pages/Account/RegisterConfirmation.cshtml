@@ -1,7 +1,7 @@
 @page
 @model RegisterConfirmationModel
 @{
-    ViewData["Title"] = "Confirm Email";
+    ViewData["Title"] = "Verify Email";
 }
 
 <section class="ejc-auth ejc-auth-register">
@@ -10,8 +10,8 @@
             <div class="ejc-auth-brand">
                 <div>
                     <span class="ejc-eyebrow">Account Verification</span>
-                    <h1 class="h2 mb-1">Check your email</h1>
-                    <p class="ejc-muted mb-0">We sent a verification link to <strong>@Model.Email</strong>.</p>
+                    <h1 class="h2 mb-1">Enter verification code</h1>
+                    <p class="ejc-muted mb-0">We sent a 6-digit verification code to <strong>@Model.Email</strong>.</p>
                 </div>
             </div>
 
@@ -21,21 +21,28 @@
             }
 
             <p class="ejc-muted">
-                Confirm your email to activate secure member access and finish onboarding.
+                Verify your email to activate secure member access and finish onboarding.
             </p>
 
-            <div class="d-grid gap-2">
-                <a class="btn btn-primary" asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Go to sign in</a>
-                <a class="btn btn-outline-light" asp-page="./ResendEmailConfirmation" asp-route-email="@Model.Email">Resend confirmation email</a>
-            </div>
-
-            @if (!string.IsNullOrWhiteSpace(Model.ConfirmationLink))
+            @if (!Model.IsVerified)
             {
-                <div class="alert alert-warning mt-3 mb-0">
-                    Development shortcut:
-                    <a href="@Model.ConfirmationLink">confirm account now</a>.
-                </div>
+                <form method="post" asp-page-handler="Verify">
+                    <input type="hidden" name="email" value="@Model.Email" />
+                    <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                    <div asp-validation-summary="ModelOnly" class="text-danger ejc-auth-validation"></div>
+                    <div class="form-floating mb-3 ejc-auth-input">
+                        <input asp-for="Input.Code" class="form-control" autocomplete="one-time-code" inputmode="numeric" maxlength="6" placeholder="123456" />
+                        <label asp-for="Input.Code">6-digit verification code</label>
+                        <span asp-validation-for="Input.Code" class="text-danger"></span>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 ejc-auth-submit">Verify email</button>
+                </form>
             }
+
+            <div class="d-grid gap-2 mt-3">
+                <a class="btn btn-outline-light" asp-page="./ResendEmailConfirmation" asp-route-email="@Model.Email">Resend verification code</a>
+                <a class="btn btn-outline-light" asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Go to sign in</a>
+            </div>
         </div>
 
         <div class="ejc-auth-aside">
@@ -45,3 +52,7 @@
         </div>
     </div>
 </section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

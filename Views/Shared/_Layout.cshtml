@@ -12,14 +12,54 @@
 @{
     var principal = User;
     var isAuthenticated = principal?.Identity?.IsAuthenticated == true;
+    var requestPath = Context?.Request?.Path.Value ?? string.Empty;
+    var isAuthAccountPage =
+        requestPath.StartsWith("/Identity/Account/Login", StringComparison.OrdinalIgnoreCase) ||
+        requestPath.StartsWith("/Identity/Account/Register", StringComparison.OrdinalIgnoreCase) ||
+        requestPath.StartsWith("/Identity/Account/ForgotPassword", StringComparison.OrdinalIgnoreCase) ||
+        requestPath.StartsWith("/Identity/Account/ResetPassword", StringComparison.OrdinalIgnoreCase) ||
+        requestPath.StartsWith("/Identity/Account/ExternalLogin", StringComparison.OrdinalIgnoreCase) ||
+        requestPath.StartsWith("/Identity/Account/ResendEmailConfirmation", StringComparison.OrdinalIgnoreCase) ||
+        requestPath.StartsWith("/Identity/Account/RegisterConfirmation", StringComparison.OrdinalIgnoreCase) ||
+        requestPath.StartsWith("/Identity/Account/ConfirmEmail", StringComparison.OrdinalIgnoreCase);
     var isBackOffice =
         (principal?.IsInRole("Staff") ?? false) ||
         (principal?.IsInRole("Finance") ?? false) ||
         (principal?.IsInRole("Admin") ?? false) ||
         (principal?.IsInRole("SuperAdmin") ?? false);
     var isMemberPortalUser = isAuthenticated && !isBackOffice;
+    var rawMobileAccountName = principal?.Identity?.Name;
+    var mobileAccountName = "Account";
+    if (isAuthenticated && !string.IsNullOrWhiteSpace(rawMobileAccountName))
+    {
+        var mobileNameParts = rawMobileAccountName.Split('@', 2, StringSplitOptions.RemoveEmptyEntries);
+        if (mobileNameParts.Length > 0 && !string.IsNullOrWhiteSpace(mobileNameParts[0]))
+        {
+            mobileAccountName = mobileNameParts[0];
+        }
+    }
 }
-<body class="@(isBackOffice ? "ejc-admin-body" : "")" data-ejc-authenticated="@(isAuthenticated ? "true" : "false")">
+<body class="@(isBackOffice ? "ejc-admin-body" : "")"
+      data-ejc-backoffice-theme="@(isBackOffice ? "true" : "false")"
+      data-ejc-theme="@(isBackOffice ? "dark" : "")"
+      data-ejc-authenticated="@(isAuthenticated ? "true" : "false")">
+@if (isBackOffice)
+{
+    <script>
+        (() => {
+            try {
+                const storedTheme = localStorage.getItem("ejc.backoffice.theme");
+                const resolvedTheme = (storedTheme === "light" || storedTheme === "dark")
+                    ? storedTheme
+                    : "dark";
+                document.body.setAttribute("data-ejc-theme", resolvedTheme);
+                document.documentElement.setAttribute("data-bs-theme", resolvedTheme);
+            } catch {
+                document.documentElement.setAttribute("data-bs-theme", "dark");
+            }
+        })();
+    </script>
+}
 @if (isBackOffice)
 {
     <partial name="_AdminTopbar" />
@@ -29,14 +69,30 @@ else
     <header>
         <nav class="navbar navbar-expand-lg navbar-dark ejc-navbar">
             <div class="container-fluid ejc-nav-shell">
-                <a class="navbar-brand ejc-brand" asp-area="" asp-controller="Home" asp-action="Index" aria-label="EJC Fitness Gym home">
-                    <img class="ejc-brand-logo" src="~/images/logo-nav-transparent.png" asp-append-version="true" alt="EJC Fitness Gym logo" />
-                </a>
                 <button class="navbar-toggler ejc-nav-trigger" type="button" data-bs-toggle="offcanvas" data-bs-target="#ejcNavSidebar" aria-controls="ejcNavSidebar"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="offcanvas offcanvas-end ejc-nav-offcanvas" tabindex="-1" id="ejcNavSidebar" aria-label="Site navigation">
+                <a class="navbar-brand ejc-brand" asp-area="" asp-controller="Home" asp-action="Index" aria-label="EJC Fitness Gym home">
+                    <img class="ejc-brand-logo" src="~/images/logo-nav-transparent.png" asp-append-version="true" alt="EJC Fitness Gym logo" />
+                    <span class="ejc-brand-text d-none d-lg-inline">EJC Fitness Gym</span>
+                </a>
+                @if (isAuthenticated)
+                {
+                    <div class="ejc-mobile-account d-lg-none">
+                        <a class="ejc-mobile-quick" asp-area="Identity" asp-page="/Account/Manage/Index" asp-fragment="notifications" aria-label="Open notifications">
+                            <i class="bi bi-bell" aria-hidden="true"></i>
+                        </a>
+                        <a class="ejc-mobile-account-name" asp-area="" asp-controller="Dashboard" asp-action="Profile" aria-label="Open my profile">@mobileAccountName</a>
+                    </div>
+                }
+                else
+                {
+                    <a class="ejc-mobile-quick d-lg-none" asp-area="Identity" asp-page="/Account/Login" aria-label="Open login">
+                        <i class="bi bi-person-circle" aria-hidden="true"></i>
+                    </a>
+                }
+                <div class="offcanvas offcanvas-start ejc-nav-offcanvas" tabindex="-1" id="ejcNavSidebar" aria-label="Site navigation">
                     <div class="offcanvas-header d-lg-none">
                         <div class="ejc-nav-offcanvas-brand">
                             <img class="ejc-brand-logo-offcanvas" src="~/images/logo-nav-transparent.png" asp-append-version="true" alt="EJC Fitness Gym logo" />
@@ -44,7 +100,7 @@ else
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
                     </div>
                     <div class="offcanvas-body ejc-nav-body">
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0 ejc-main-nav">
+                    <ul class="navbar-nav mb-2 mb-lg-0 ejc-main-nav">
                         @if (isMemberPortalUser)
                         {
                             <li class="nav-item">
@@ -81,19 +137,19 @@ else
                         else
                         {
                             <li class="nav-item">
-                                <a class="nav-link ejc-main-link" asp-area="" asp-controller="Home" asp-action="Index" asp-fragment="home">
+                                <a class="nav-link ejc-main-link" href="/#home">
                                     <i class="bi bi-house-door ejc-nav-icon" aria-hidden="true"></i>
                                     <span class="ejc-nav-label">Home</span>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link ejc-main-link" asp-area="" asp-controller="Home" asp-action="Index" asp-fragment="memberships">
+                                <a class="nav-link ejc-main-link" href="/#memberships">
                                     <i class="bi bi-card-checklist ejc-nav-icon" aria-hidden="true"></i>
                                     <span class="ejc-nav-label">Memberships</span>
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link ejc-main-link" asp-area="" asp-controller="Home" asp-action="Index" asp-fragment="contact">
+                                <a class="nav-link ejc-main-link" href="/#contact">
                                     <i class="bi bi-chat-dots ejc-nav-icon" aria-hidden="true"></i>
                                     <span class="ejc-nav-label">Contact</span>
                                 </a>
@@ -113,7 +169,16 @@ else
                                     </a>
                                 </li>
 
-                                @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+                                @if (User.IsInRole("SuperAdmin"))
+                                {
+                                    <li class="nav-item">
+                                        <a class="nav-link ejc-main-link" asp-controller="Dashboard" asp-action="SuperAdmin">
+                                            <i class="bi bi-shield-lock ejc-nav-icon" aria-hidden="true"></i>
+                                            <span class="ejc-nav-label">Platform</span>
+                                        </a>
+                                    </li>
+                                }
+                                else if (User.IsInRole("Admin"))
                                 {
                                     <li class="nav-item">
                                         <a class="nav-link ejc-main-link" asp-page="/Admin/Dashboard">
@@ -123,7 +188,7 @@ else
                                     </li>
                                 }
 
-                                @if (User.IsInRole("Finance") || User.IsInRole("SuperAdmin"))
+                                @if (User.IsInRole("Finance"))
                                 {
                                     <li class="nav-item">
                                         <a class="nav-link ejc-main-link" asp-page="/Finance/Dashboard">
@@ -144,8 +209,28 @@ else
                                 }
                             }
                         }
+
+                        @if (isAuthenticated)
+                        {
+                            <li class="nav-item d-lg-none">
+                                <form class="ejc-nav-mobile-logout-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
+                                    <button type="submit" class="nav-link ejc-main-link ejc-main-link-button">
+                                        <i class="bi bi-box-arrow-right ejc-nav-icon" aria-hidden="true"></i>
+                                        <span class="ejc-nav-label">Logout</span>
+                                    </button>
+                                </form>
+                            </li>
+                        }
                     </ul>
-                    <div class="d-flex align-items-center gap-2 ejc-nav-auth-wrap">
+                    <div class="ejc-nav-offcanvas-help d-lg-none" aria-label="Quick help">
+                        <p class="ejc-nav-offcanvas-help-title">Need help?</p>
+                        <p class="ejc-nav-offcanvas-help-copy">Questions about plans, billing, or schedules?</p>
+                        <div class="ejc-nav-offcanvas-help-actions">
+                            <a class="ejc-nav-offcanvas-help-link" href="/#contact">Contact us</a>
+                            <a class="ejc-nav-offcanvas-help-link" href="tel:09979357906">Call 09979357906</a>
+                        </div>
+                    </div>
+                    <div class="d-none d-lg-flex align-items-center gap-2 ejc-nav-auth-wrap">
                         <partial name="_LoginPartial" />
                     </div>
                     </div>
@@ -155,13 +240,13 @@ else
     </header>
 }
 
-    <div class="container app-shell">
+    <div class="container app-shell @(isMemberPortalUser ? "ejc-member-shell" : "") @(isAuthAccountPage ? "ejc-auth-shell" : "")">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
     </div>
 
-@if (!isBackOffice)
+@if (!isBackOffice && !isMemberPortalUser)
 {
     <footer class="footer ejc-footer">
         <div class="container">

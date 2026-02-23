@@ -8,13 +8,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.23" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="8.0.23" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.23" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.23" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.23" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.23" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.23" />
+    <PackageReference Include="Microsoft.ML" Version="5.0.0" />
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.23" />
+    <PackageReference Include="OpenAI-DotNet" Version="8.8.8" />
   </ItemGroup>
 
   <ItemGroup>
@@ -24,9 +27,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="_buildtest\\**\\*.cs;_efbuild\\**\\*.cs;.codex-build\\**\\*.cs;_verifybuild\\**\\*.cs" />
-    <None Remove="_buildtest\\**\\*;_efbuild\\**\\*;.codex-build\\**\\*;_verifybuild\\**\\*" />
-    <Content Remove="_buildtest\\**\\*;_efbuild\\**\\*;.codex-build\\**\\*;_verifybuild\\**\\*" />
+    <Compile Remove="_buildtest\\**\\*.cs;_efbuild\\**\\*.cs;.codex-build\\**\\*.cs;_verifybuild\\**\\*.cs;artifacts\\**\\*.cs;obj\\**\\*.cs" />
+    <None Remove="_buildtest\\**\\*;_efbuild\\**\\*;.codex-build\\**\\*;_verifybuild\\**\\*;artifacts\\**\\*;obj\\**\\*" />
+    <Content Remove="_buildtest\\**\\*;_efbuild\\**\\*;.codex-build\\**\\*;_verifybuild\\**\\*;artifacts\\**\\*;obj\\**\\*" />
   </ItemGroup>
 
 </Project>

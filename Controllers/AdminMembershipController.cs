@@ -1,5 +1,6 @@
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Billing;
+using EJCFitnessGym.Security;
 using EJCFitnessGym.Services.Integration;
 using EJCFitnessGym.Services.Memberships;
 using Microsoft.AspNetCore.Authorization;
@@ -35,6 +36,11 @@ namespace EJCFitnessGym.Controllers
                 return BadRequest("memberUserId is required.");
             }
 
+            if (!await CanManageMemberAsync(memberUserId, cancellationToken))
+            {
+                return Forbid();
+            }
+
             await _membershipService.RunLifecycleMaintenanceAsync(cancellationToken: cancellationToken);
 
             var subscription = await _membershipService.GetLatestSubscriptionAsync(memberUserId, cancellationToken);
@@ -56,13 +62,70 @@ namespace EJCFitnessGym.Controllers
             });
         }
 
+        [HttpGet("plans")]
+        public async Task<IActionResult> GetPlans(CancellationToken cancellationToken)
+        {
+            var utcToday = DateTime.UtcNow.Date;
+
+            var plans = await _db.SubscriptionPlans
+                .AsNoTracking()
+                .OrderByDescending(p => p.IsActive)
+                .ThenBy(p => p.Price)
+                .ThenBy(p => p.Name)
+                .ToListAsync(cancellationToken);
+
+            var planIds = plans.Select(p => p.Id).ToList();
+            var assignments = await _db.MemberSubscriptions
+                .AsNoTracking()
+                .Where(s => planIds.Contains(s.SubscriptionPlanId))
+                .GroupBy(s => s.SubscriptionPlanId)
+                .Select(g => new
+                {
+                    PlanId = g.Key,
+                    TotalAssignments = g.Count(),
+                    ActiveAssignments = g.Count(s =>
+                        s.Status == SubscriptionStatus.Active &&
+                        (!s.EndDateUtc.HasValue || s.EndDateUtc.Value.Date >= utcToday))
+                })
+                .ToListAsync(cancellationToken);
+
+            var assignmentByPlan = assignments.ToDictionary(
+                x => x.PlanId,
+                x => new
+                {
+                    x.TotalAssignments,
+                    x.ActiveAssignments
+                });
+
+            return Ok(plans.Select(p =>
+            {
+                assignmentByPlan.TryGetValue(p.Id, out var counts);
+                return new
+                {
+                    id = p.Id,
+                    name = p.Name,
+                    description = p.Description,
+                    price = p.Price,
+                    billingCycle = p.BillingCycle.ToString(),
+                    isActive = p.IsActive,
+                    totalAssignments = counts?.TotalAssignments ?? 0,
+                    activeAssignments = counts?.ActiveAssignments ?? 0
+                };
+            }));
+        }
+
         [HttpPost("{memberUserId}/renew")]
-        [Authorize(Roles = "Finance,SuperAdmin")]
+        [Authorize(Roles = "Admin,Finance,SuperAdmin")]
         public async Task<IActionResult> Renew(string memberUserId, [FromBody] RenewMembershipRequest request, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(memberUserId))
             {
                 return BadRequest("memberUserId is required.");
+            }
+
+            if (!await CanManageMemberAsync(memberUserId, cancellationToken))
+            {
+                return Forbid();
             }
 
             await _membershipService.RunLifecycleMaintenanceAsync(cancellationToken: cancellationToken);
@@ -130,12 +193,17 @@ namespace EJCFitnessGym.Controllers
         }
 
         [HttpPost("{memberUserId}/pause")]
-        [Authorize(Roles = "Finance,SuperAdmin")]
+        [Authorize(Roles = "Admin,Finance,SuperAdmin")]
         public async Task<IActionResult> Pause(string memberUserId, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(memberUserId))
             {
                 return BadRequest("memberUserId is required.");
+            }
+
+            if (!await CanManageMemberAsync(memberUserId, cancellationToken))
+            {
+                return Forbid();
             }
 
             await _membershipService.RunLifecycleMaintenanceAsync(cancellationToken: cancellationToken);
@@ -193,12 +261,17 @@ namespace EJCFitnessGym.Controllers
         }
 
         [HttpPost("{memberUserId}/resume")]
-        [Authorize(Roles = "Finance,SuperAdmin")]
+        [Authorize(Roles = "Admin,Finance,SuperAdmin")]
         public async Task<IActionResult> Resume(string memberUserId, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(memberUserId))
             {
                 return BadRequest("memberUserId is required.");
+            }
+
+            if (!await CanManageMemberAsync(memberUserId, cancellationToken))
+            {
+                return Forbid();
             }
 
             await _membershipService.RunLifecycleMaintenanceAsync(cancellationToken: cancellationToken);
@@ -249,12 +322,17 @@ namespace EJCFitnessGym.Controllers
         }
 
         [HttpPost("{memberUserId}/cancel")]
-        [Authorize(Roles = "Finance,SuperAdmin")]
+        [Authorize(Roles = "Admin,Finance,SuperAdmin")]
         public async Task<IActionResult> Cancel(string memberUserId, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(memberUserId))
             {
                 return BadRequest("memberUserId is required.");
+            }
+
+            if (!await CanManageMemberAsync(memberUserId, cancellationToken))
+            {
+                return Forbid();
             }
 
             await _membershipService.RunLifecycleMaintenanceAsync(cancellationToken: cancellationToken);
@@ -307,7 +385,7 @@ namespace EJCFitnessGym.Controllers
         }
 
         [HttpPost("lifecycle/run")]
-        [Authorize(Roles = "Finance,SuperAdmin")]
+        [Authorize(Roles = "Admin,Finance,SuperAdmin")]
         public async Task<IActionResult> RunLifecycleMaintenance(CancellationToken cancellationToken)
         {
             var result = await _membershipService.RunLifecycleMaintenanceAsync(cancellationToken: cancellationToken);
@@ -317,6 +395,28 @@ namespace EJCFitnessGym.Controllers
                 expiredSubscriptions = result.ExpiredSubscriptions,
                 overdueInvoices = result.OverdueInvoices
             });
+        }
+
+        private async Task<bool> CanManageMemberAsync(string memberUserId, CancellationToken cancellationToken)
+        {
+            if (User.IsInRole("SuperAdmin"))
+            {
+                return true;
+            }
+
+            var currentBranchId = User.GetBranchId();
+            if (string.IsNullOrWhiteSpace(currentBranchId))
+            {
+                return false;
+            }
+
+            return await _db.UserClaims
+                .AsNoTracking()
+                .AnyAsync(c =>
+                    c.UserId == memberUserId &&
+                    c.ClaimType == BranchAccess.BranchIdClaimType &&
+                    c.ClaimValue == currentBranchId,
+                    cancellationToken);
         }
 
         private async Task<MemberSubscription?> UpdateStatusAsync(int subscriptionId, SubscriptionStatus status, DateTime? endDateUtc, CancellationToken cancellationToken)

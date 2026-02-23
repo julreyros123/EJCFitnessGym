@@ -1,9 +1,13 @@
 @{
-    if (User.IsInRole("Finance"))
+    if (User.IsInRole("SuperAdmin"))
+    {
+        Layout = "/Views/Shared/_SuperAdminLayout.cshtml";
+    }
+    else if (User.IsInRole("Finance"))
     {
         Layout = "/Pages/Shared/_FinanceLayout.cshtml";
     }
-    else if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+    else if (User.IsInRole("Admin"))
     {
         Layout = "/Views/Shared/_AdminLayout.cshtml";
     }

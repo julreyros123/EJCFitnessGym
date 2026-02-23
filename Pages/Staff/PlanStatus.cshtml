@@ -9,52 +9,107 @@
         <div>
             <span class="ejc-eyebrow">Front Desk</span>
             <h1 class="h2 mb-1">Member Plan Status</h1>
-            <p class="ejc-muted mb-0">Verify active plans, flag expirations, and escalate overdue memberships.</p>
+            <p class="ejc-muted mb-0">Track renewal dates, exact billing schedule, and members with pending PayMongo payments.</p>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <span class="ejc-muted small">Active</span>
+                    <h2 class="h3 mb-0">@Model.ActiveCount</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <span class="ejc-muted small">Expiring Soon</span>
+                    <h2 class="h3 mb-0">@Model.ExpiringSoonCount</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <span class="ejc-muted small">Payment Pending</span>
+                    <h2 class="h3 mb-0">@Model.PendingPaymentCount</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <span class="ejc-muted small">Expired</span>
+                    <h2 class="h3 mb-0">@Model.ExpiredCount</h2>
+                </div>
+            </div>
         </div>
     </div>
 
     <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
             <h5 class="mb-0">Plan Monitoring</h5>
-            <span class="text-muted small">Current members</span>
+            <span class="text-muted small">@Model.Members.Count members</span>
         </div>
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm table-striped table-hover align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th>Member</th>
-                            <th>Plan</th>
-                            <th>Renewal Date</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Jose Tan</td>
-                            <td>Premium Annual</td>
-                            <td>Dec 14, 2026</td>
-                            <td><span class="badge ejc-badge">Active</span></td>
-                            <td><button class="btn btn-sm btn-outline-primary">View</button></td>
-                        </tr>
-                        <tr>
-                            <td>Maria Reyes</td>
-                            <td>Monthly Flex</td>
-                            <td>Mar 05, 2026</td>
-                            <td><span class="badge bg-warning text-dark">Expiring Soon</span></td>
-                            <td><button class="btn btn-sm btn-outline-primary">Notify</button></td>
-                        </tr>
-                        <tr>
-                            <td>Luis Javier</td>
-                            <td>Monthly Flex</td>
-                            <td>Feb 20, 2026</td>
-                            <td><span class="badge bg-danger">Overdue</span></td>
-                            <td><button class="btn btn-sm btn-outline-primary">Escalate</button></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            @if (Model.Members.Count == 0)
+            {
+                <div class="p-4">
+                    <p class="ejc-muted mb-0">No members found for your current scope.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Member</th>
+                                <th>Plan</th>
+                                <th>Renewal Date (local)</th>
+                                <th>Next Billing Date (local)</th>
+                                <th>3-Day Reminder Date (local)</th>
+                                <th class="text-end">Outstanding</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Model.Members)
+                            {
+                                var renewalLocal = row.RenewalDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "-";
+                                var nextBillingLocal = row.NextBillingDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "-";
+                                var reminderLocal = row.ReminderDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "-";
+                                <tr>
+                                    <td>@row.MemberName</td>
+                                    <td>@row.PlanName</td>
+                                    <td class="text-nowrap">@renewalLocal</td>
+                                    <td class="text-nowrap">@nextBillingLocal</td>
+                                    <td class="text-nowrap">@reminderLocal</td>
+                                    <td class="text-end text-nowrap">PHP @row.OutstandingBalance.ToString("N2")</td>
+                                    <td>
+                                        <span class="badge @row.StatusBadgeClass">@row.StatusLabel</span>
+                                        @if (row.HasPendingPayment && !string.IsNullOrWhiteSpace(row.PendingInvoiceNumber))
+                                        {
+                                            <div class="small text-muted mt-1">Invoice: @row.PendingInvoiceNumber</div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a class="btn btn-sm btn-outline-primary"
+                                           asp-controller="MemberAccounts"
+                                           asp-action="Details"
+                                           asp-route-id="@row.MemberUserId">
+                                            View
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
         </div>
     </div>
 </div>

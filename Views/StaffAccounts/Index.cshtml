@@ -1,0 +1,379 @@
+@model EJCFitnessGym.Models.Admin.StaffAccountIndexViewModel
+@{
+    ViewData["Title"] = "Staff Accounts";
+    var activeStaffAccounts = Model.ActiveStaffAccounts?.ToList() ?? new List<EJCFitnessGym.Models.Admin.StaffAccountListItemViewModel>();
+    var archivedStaffAccounts = Model.ArchivedStaffAccounts?.ToList() ?? new List<EJCFitnessGym.Models.Admin.StaffAccountListItemViewModel>();
+}
+
+<div class="py-4">
+    <div class="ejc-table-toolbar mb-3">
+        <div>
+            <h1 class="display-6 mb-0">Staff Accounts</h1>
+            <p class="ejc-muted mb-0">
+                Admin can create staff logins only. Member accounts must be created through member registration flow.
+            </p>
+        </div>
+    </div>
+
+    @if (TempData["StatusMessage"] is string status && !string.IsNullOrWhiteSpace(status))
+    {
+        <div class="alert alert-info">@status</div>
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-3"></div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-5">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Create Staff Account</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-light border small mb-3">
+                        Staff credentials flow:
+                        <strong>Gmail login</strong>, <strong>PH mobile (+63)</strong>, auto-generated secure password, and instant credential email.
+                    </div>
+                    <form asp-action="Create" method="post" data-staff-create-form>
+                        @Html.AntiForgeryToken()
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label asp-for="CreateInput.Email" class="form-label"></label>
+                                <div class="input-group">
+                                    <input type="text"
+                                           id="CreateInput_EmailLocal"
+                                           class="form-control"
+                                           placeholder="staffname"
+                                           autocomplete="off"
+                                           data-email-local />
+                                    <span class="input-group-text">@@gmail.com</span>
+                                </div>
+                                <input type="hidden" asp-for="CreateInput.Email" data-email-full />
+                                <div class="form-text">Example: <code>juan.delacruz@@gmail.com</code></div>
+                                <span asp-validation-for="CreateInput.Email" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="CreateInput.PhoneNumber" class="form-label"></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">+63</span>
+                                    <input type="tel"
+                                           id="CreateInput_PhoneLocal"
+                                           class="form-control"
+                                           placeholder="9XXXXXXXXX"
+                                           inputmode="numeric"
+                                           maxlength="10"
+                                           autocomplete="tel-national"
+                                           data-phone-local />
+                                </div>
+                                <input type="hidden" asp-for="CreateInput.PhoneNumber" data-phone-full />
+                                <div class="form-text">Enter 10-digit PH mobile number without country code.</div>
+                                <span asp-validation-for="CreateInput.PhoneNumber" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="CreateInput.Position" class="form-label"></label>
+                                <select asp-for="CreateInput.Position" class="form-select">
+                                    @foreach (var position in Model.PositionOptions)
+                                    {
+                                        <option value="@position.Value">@position.Label</option>
+                                    }
+                                </select>
+                                <span asp-validation-for="CreateInput.Position" class="text-danger small"></span>
+                            </div>
+
+                            @if (Model.CanChooseBranch)
+                            {
+                                <div class="col-md-6">
+                                    <label asp-for="CreateInput.BranchId" class="form-label"></label>
+                                    <select asp-for="CreateInput.BranchId" class="form-select">
+                                        <option value="">Select active branch</option>
+                                        @foreach (var branch in Model.BranchOptions)
+                                        {
+                                            <option value="@branch.BranchId">@branch.BranchId - @branch.BranchName</option>
+                                        }
+                                    </select>
+                                    <span asp-validation-for="CreateInput.BranchId" class="text-danger small"></span>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="col-md-6">
+                                    <label class="form-label">Branch</label>
+                                    <input type="text"
+                                           class="form-control"
+                                           value="@(string.IsNullOrWhiteSpace(Model.DefaultBranchName) ? Model.DefaultBranchId : $"{Model.DefaultBranchId} - {Model.DefaultBranchName}")"
+                                           readonly />
+                                    <input type="hidden" asp-for="CreateInput.BranchId" />
+                                </div>
+                            }
+
+                            <div class="col-12">
+                                <label class="form-label">Password</label>
+                                <input type="text" class="form-control" value="Auto-generated secure password" readonly />
+                                <div class="form-text">Password is generated on submit and sent directly to the staff Gmail.</div>
+                            </div>
+
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary w-100">Create Staff &amp; Send Credentials</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-7">
+            <div class="card">
+                <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <h5 class="mb-0">Staff Directory</h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge text-bg-success">Active: @activeStaffAccounts.Count</span>
+                        <span class="badge text-bg-secondary">Archived: @archivedStaffAccounts.Count</span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="nav nav-tabs px-3 pt-3" id="staffArchiveTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active"
+                                    id="staff-active-tab"
+                                    data-bs-toggle="tab"
+                                    data-bs-target="#staff-active-pane"
+                                    type="button"
+                                    role="tab"
+                                    aria-controls="staff-active-pane"
+                                    aria-selected="true">
+                                Active Staff (@activeStaffAccounts.Count)
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link"
+                                    id="staff-archived-tab"
+                                    data-bs-toggle="tab"
+                                    data-bs-target="#staff-archived-pane"
+                                    type="button"
+                                    role="tab"
+                                    aria-controls="staff-archived-pane"
+                                    aria-selected="false">
+                                Archived Staff (@archivedStaffAccounts.Count)
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active"
+                             id="staff-active-pane"
+                             role="tabpanel"
+                             aria-labelledby="staff-active-tab"
+                             tabindex="0">
+                            <div class="ejc-table-shell-host">
+                                <div class="table-responsive ejc-table-shell">
+                                    <table
+                                        class="table table-striped table-hover align-middle mb-0"
+                                        data-ejc-page-size="8"
+                                        data-ejc-search-placeholder="Search active staff by email, position, phone, or branch">
+                                        <thead>
+                                            <tr>
+                                                <th>Email</th>
+                                                <th>Position</th>
+                                                <th>Phone</th>
+                                                <th>Branch</th>
+                                                <th class="text-end">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @if (activeStaffAccounts.Count == 0)
+                                            {
+                                                <tr>
+                                                    <td colspan="5" class="text-center text-muted py-4">No active staff accounts found.</td>
+                                                </tr>
+                                            }
+                                            @foreach (var staff in activeStaffAccounts)
+                                            {
+                                                <tr>
+                                                    <td>
+                                                        <div class="fw-semibold">@staff.Email</div>
+                                                        <div class="small text-muted">@staff.UserId</div>
+                                                    </td>
+                                                    <td class="text-nowrap">
+                                                        <span class="badge bg-light text-dark border">
+                                                            @(string.IsNullOrWhiteSpace(staff.Position) ? "Unassigned" : staff.Position)
+                                                        </span>
+                                                    </td>
+                                                    <td>@(string.IsNullOrWhiteSpace(staff.PhoneNumber) ? "-" : staff.PhoneNumber)</td>
+                                                    <td>
+                                                        @if (string.IsNullOrWhiteSpace(staff.BranchId))
+                                                        {
+                                                            <span class="badge bg-danger">No Branch</span>
+                                                        }
+                                                        else if (string.IsNullOrWhiteSpace(staff.BranchName))
+                                                        {
+                                                            <span class="badge bg-warning text-dark">Unknown Branch (@staff.BranchId)</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted">@staff.BranchId</span>
+                                                            <div class="small">@staff.BranchName</div>
+                                                        }
+                                                    </td>
+                                                    <td class="text-end text-nowrap">
+                                                        <form asp-action="Archive"
+                                                              method="post"
+                                                              class="d-inline"
+                                                              onsubmit="return confirm('Archive this staff account? Archived users cannot sign in until restored.');">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="userId" value="@staff.UserId" />
+                                                            <input type="hidden" name="reason" value="Archived from staff directory by admin." />
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger">Archive</button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade"
+                             id="staff-archived-pane"
+                             role="tabpanel"
+                             aria-labelledby="staff-archived-tab"
+                             tabindex="0">
+                            <div class="ejc-table-shell-host">
+                                <div class="table-responsive ejc-table-shell">
+                                    <table
+                                        class="table table-striped table-hover align-middle mb-0"
+                                        data-ejc-page-size="6"
+                                        data-ejc-search-placeholder="Search archived staff">
+                                        <thead>
+                                            <tr>
+                                                <th>Email</th>
+                                                <th>Archived At</th>
+                                                <th>Archive Reason</th>
+                                                <th class="text-end">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @if (archivedStaffAccounts.Count == 0)
+                                            {
+                                                <tr>
+                                                    <td colspan="4" class="text-center text-muted py-4">No archived staff records yet.</td>
+                                                </tr>
+                                            }
+                                            @foreach (var staff in archivedStaffAccounts)
+                                            {
+                                                <tr>
+                                                    <td>
+                                                        <div class="fw-semibold">@staff.Email</div>
+                                                        <div class="small text-muted">@staff.UserId</div>
+                                                    </td>
+                                                    <td class="text-nowrap">
+                                                        @(staff.ArchivedAtUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "-")
+                                                    </td>
+                                                    <td>
+                                                        @(string.IsNullOrWhiteSpace(staff.ArchiveReason) ? "No reason provided." : staff.ArchiveReason)
+                                                    </td>
+                                                    <td class="text-end text-nowrap">
+                                                        <form asp-action="Restore"
+                                                              method="post"
+                                                              class="d-inline"
+                                                              onsubmit="return confirm('Restore this archived staff account?');">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="userId" value="@staff.UserId" />
+                                                            <button type="submit" class="btn btn-sm btn-outline-success">Restore</button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const form = document.querySelector('[data-staff-create-form]');
+            if (!form) {
+                return;
+            }
+
+            const gmailSuffix = '@@gmail.com';
+            const emailLocalInput = form.querySelector('[data-email-local]');
+            const emailFullInput = form.querySelector('[data-email-full]');
+            const phoneLocalInput = form.querySelector('[data-phone-local]');
+            const phoneFullInput = form.querySelector('[data-phone-full]');
+
+            const sanitizeEmailLocal = (value) => {
+                const normalized = (value || '').trim().toLowerCase();
+                const beforeAt = normalized.includes('@@') ? normalized.split('@@')[0] : normalized;
+                return beforeAt.replace(/[^a-z0-9._%+-]/g, '');
+            };
+
+            const syncEmail = () => {
+                const local = sanitizeEmailLocal(emailLocalInput.value);
+                emailLocalInput.value = local;
+                emailFullInput.value = local ? `${local}${gmailSuffix}` : '';
+            };
+
+            const hydrateEmailLocal = () => {
+                const fullEmail = (emailFullInput.value || '').trim().toLowerCase();
+                if (!fullEmail) {
+                    emailLocalInput.value = '';
+                    return;
+                }
+
+                if (fullEmail.endsWith(gmailSuffix)) {
+                    emailLocalInput.value = sanitizeEmailLocal(fullEmail.slice(0, -gmailSuffix.length));
+                    return;
+                }
+
+                emailLocalInput.value = sanitizeEmailLocal(fullEmail);
+            };
+
+            const sanitizePhoneLocal = (value) => {
+                let digits = (value || '').replace(/\D/g, '');
+                if (digits.startsWith('63')) {
+                    digits = digits.slice(2);
+                }
+                if (digits.startsWith('0')) {
+                    digits = digits.slice(1);
+                }
+                return digits.slice(0, 10);
+            };
+
+            const syncPhone = () => {
+                const local = sanitizePhoneLocal(phoneLocalInput.value);
+                phoneLocalInput.value = local;
+                phoneFullInput.value = local ? `+63${local}` : '';
+            };
+
+            const hydratePhoneLocal = () => {
+                phoneLocalInput.value = sanitizePhoneLocal(phoneFullInput.value);
+            };
+
+            hydrateEmailLocal();
+            syncEmail();
+            hydratePhoneLocal();
+            syncPhone();
+
+            emailLocalInput.addEventListener('input', syncEmail);
+            phoneLocalInput.addEventListener('input', syncPhone);
+            form.addEventListener('submit', () => {
+                syncEmail();
+                syncPhone();
+            });
+        })();
+    </script>
+}

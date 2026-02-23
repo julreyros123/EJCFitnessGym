@@ -1,6 +1,11 @@
 @model EJCFitnessGym.Models.Admin.MemberAccountDetailsViewModel
 @{
     ViewData["Title"] = "Member Details";
+    var checkInQrPayload = $"EJC-MEMBER:{Model.UserId}";
+    var hasAiDetails =
+        !string.IsNullOrWhiteSpace(Model.AiSegmentLabel) ||
+        !string.IsNullOrWhiteSpace(Model.AiSegmentDescription) ||
+        Model.HasOpenRetentionAction;
 }
 
 <div class="py-4">
@@ -15,6 +20,9 @@
     <div class="card">
         <div class="card-body">
             <dl class="row mb-0">
+                <dt class="col-sm-3">Account Number</dt>
+                <dd class="col-sm-9">@Model.UserId</dd>
+
                 <dt class="col-sm-3">Name</dt>
                 <dd class="col-sm-9">@Model.FullName</dd>
 
@@ -28,7 +36,12 @@
                 <dd class="col-sm-9">@Model.PlanName</dd>
 
                 <dt class="col-sm-3">Status</dt>
-                <dd class="col-sm-9">@Model.SubscriptionStatus</dd>
+                <dd class="col-sm-9">
+                    <span class="badge @(Model.IsMembershipActive ? "text-bg-success" : "text-bg-secondary")">
+                        @(Model.IsMembershipActive ? "Active" : "Inactive")
+                    </span>
+                    <span class="ms-2 text-muted">@((Model.SubscriptionStatus?.ToString()) ?? "None")</span>
+                </dd>
 
                 <dt class="col-sm-3">Start Date</dt>
                 <dd class="col-sm-9">@Model.StartDateUtc?.ToString("yyyy-MM-dd")</dd>
@@ -39,11 +52,124 @@
         </div>
     </div>
 
-    <div class="mt-3 d-flex gap-2">
-        <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.UserId">Edit</a>
-        @if (User.IsInRole("SuperAdmin"))
-        {
-            <a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@Model.UserId">Delete</a>
-        }
+    <div class="card mt-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">AI Insights</h5>
+            @if (Model.AiSegmentCapturedAtUtc.HasValue)
+            {
+                <span class="text-muted small">Updated @Model.AiSegmentCapturedAtUtc.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+            }
+        </div>
+        <div class="card-body">
+            @if (!hasAiDetails)
+            {
+                <p class="text-muted mb-0">No AI insights available for this member yet.</p>
+            }
+            else
+            {
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">Segment</dt>
+                    <dd class="col-sm-9">
+                        @if (string.IsNullOrWhiteSpace(Model.AiSegmentLabel))
+                        {
+                            <span class="text-muted">Not clustered</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-primary">@Model.AiSegmentLabel</span>
+                            @if (Model.AiClusterId.HasValue)
+                            {
+                                <span class="ms-2 text-muted">Cluster @Model.AiClusterId</span>
+                            }
+                        }
+                    </dd>
+
+                    <dt class="col-sm-3">Segment Notes</dt>
+                    <dd class="col-sm-9">
+                        @if (string.IsNullOrWhiteSpace(Model.AiSegmentDescription))
+                        {
+                            <span class="text-muted">No notes</span>
+                        }
+                        else
+                        {
+                            @Model.AiSegmentDescription
+                        }
+                    </dd>
+
+                    <dt class="col-sm-3">Retention Action</dt>
+                    <dd class="col-sm-9">
+                        @if (!Model.HasOpenRetentionAction)
+                        {
+                            <span class="badge text-bg-success">No open action</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-warning">@Model.RetentionActionStatus</span>
+                            @if (Model.RetentionDueDateUtc.HasValue)
+                            {
+                                <span class="ms-2 text-muted">Due @Model.RetentionDueDateUtc.Value.ToLocalTime().ToString("yyyy-MM-dd")</span>
+                            }
+                        }
+                    </dd>
+
+                    @if (Model.HasOpenRetentionAction && !string.IsNullOrWhiteSpace(Model.RetentionReason))
+                    {
+                        <dt class="col-sm-3">Reason</dt>
+                        <dd class="col-sm-9">@Model.RetentionReason</dd>
+                    }
+
+                    @if (Model.HasOpenRetentionAction && !string.IsNullOrWhiteSpace(Model.RetentionSuggestedOffer))
+                    {
+                        <dt class="col-sm-3">Suggested Offer</dt>
+                        <dd class="col-sm-9">@Model.RetentionSuggestedOffer</dd>
+                    }
+                </dl>
+            }
+        </div>
     </div>
+
+    <div class="card mt-3">
+        <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+            <div>
+                <h5 class="mb-1">Member Check-In QR</h5>
+                <p class="text-muted mb-2">Use this code for front desk QR check-in.</p>
+                <div><strong>Token:</strong> @checkInQrPayload</div>
+            </div>
+            <div id="member-detail-qr"
+                 data-member-qr="@checkInQrPayload"
+                 style="width:180px;height:180px;"></div>
+        </div>
+    </div>
+
+    @if (User.IsInRole("Admin") || User.IsInRole("Finance"))
+    {
+        <div class="mt-3 d-flex gap-2">
+            <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.UserId">Edit</a>
+            <a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@Model.UserId">Delete</a>
+        </div>
+    }
 </div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        (() => {
+            const qrContainer = document.getElementById("member-detail-qr");
+            if (!qrContainer || typeof QRCode === "undefined") {
+                return;
+            }
+
+            const payload = qrContainer.getAttribute("data-member-qr");
+            if (!payload) {
+                return;
+            }
+
+            new QRCode(qrContainer, {
+                text: payload,
+                width: 180,
+                height: 180,
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        })();
+    </script>
+}

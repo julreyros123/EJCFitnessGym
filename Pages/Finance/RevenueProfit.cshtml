@@ -1,4 +1,6 @@
 @page
+@model EJCFitnessGym.Pages.Finance.RevenueProfitModel
+@using System.Globalization
 @{
     ViewData["Title"] = "Revenue & Profit";
 }
@@ -20,44 +22,59 @@
             <div class="card h-100">
                 <div class="card-header d-flex align-items-center justify-content-between">
                     <h5 class="mb-0">Revenue and Profit Summary</h5>
-                    <span class="text-muted small">Current cycle</span>
+                    <span class="text-muted small">
+                        @Model.CurrentCycle.MonthStartUtc.ToString("MMM yyyy") cycle
+                    </span>
                 </div>
                 <div class="card-body">
                     <div class="ejc-finance-stat">
                         <span class="ejc-muted">Total Revenue</span>
-                        <strong>PHP 1,842,300</strong>
+                        <strong title="@($"PHP {Model.CurrentCycle.Revenue:N2}")">@Model.CurrentCycle.Revenue.ToCompactCurrency()</strong>
                     </div>
                     <div class="ejc-finance-stat">
-                        <span class="ejc-muted">Cost of Goods / Services</span>
-                        <strong>PHP 745,600</strong>
+                        <span class="ejc-muted">Cost of Services</span>
+                        <strong title="@($"PHP {Model.CurrentCycle.CostOfServices:N2}")">@Model.CurrentCycle.CostOfServices.ToCompactCurrency()</strong>
                     </div>
                     <div class="ejc-finance-stat">
                         <span class="ejc-muted">Gross Profit</span>
-                        <strong>PHP 1,096,700</strong>
+                        <strong title="@($"PHP {Model.CurrentCycle.GrossProfit:N2}")">@Model.CurrentCycle.GrossProfit.ToCompactCurrency()</strong>
                     </div>
                     <div class="ejc-finance-stat">
                         <span class="ejc-muted">Operating Expenses</span>
-                        <strong>PHP 484,300</strong>
+                        <strong title="@($"PHP {Model.CurrentCycle.OperatingExpenses:N2}")">@Model.CurrentCycle.OperatingExpenses.ToCompactCurrency()</strong>
+                    </div>
+                    <div class="ejc-finance-stat">
+                        <span class="ejc-muted">Depreciation Cost</span>
+                        <strong title="@($"PHP {Model.CurrentCycle.DepreciationCost:N2}")">@Model.CurrentCycle.DepreciationCost.ToCompactCurrency()</strong>
                     </div>
                     <div class="ejc-finance-stat mb-3">
                         <span class="ejc-muted">Net Profit</span>
-                        <strong class="text-success">PHP 612,400</strong>
+                        <strong class="@(Model.CurrentCycle.NetProfit >= 0m ? "text-success" : "text-danger")"
+                                title="@($"PHP {Model.CurrentCycle.NetProfit:N2}")">
+                            @Model.CurrentCycle.NetProfit.ToCompactCurrency()
+                        </strong>
                     </div>
 
                     <div class="mb-2">
                         <div class="d-flex justify-content-between small mb-1">
                             <span class="ejc-muted">Gross Margin</span>
-                            <span>59.5%</span>
+                            <span>@Model.GrossMarginPercent.ToString("0.0")%</span>
                         </div>
-                        <div class="progress"><div class="progress-bar bg-info" style="width: 59.5%"></div></div>
+                        <div class="progress">
+                            <div class="progress-bar bg-info"
+                                 style="width: @Model.GrossMarginWidthPercent.ToString("0.##", CultureInfo.InvariantCulture)%"></div>
+                        </div>
                     </div>
 
                     <div>
                         <div class="d-flex justify-content-between small mb-1">
                             <span class="ejc-muted">Net Margin</span>
-                            <span>33.2%</span>
+                            <span>@Model.NetMarginPercent.ToString("0.0")%</span>
                         </div>
-                        <div class="progress"><div class="progress-bar bg-success" style="width: 33.2%"></div></div>
+                        <div class="progress">
+                            <div class="progress-bar bg-success"
+                                 style="width: @Model.NetMarginWidthPercent.ToString("0.##", CultureInfo.InvariantCulture)%"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -72,7 +89,7 @@
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-sm table-hover align-middle mb-0 ejc-finance-table ejc-table-sticky"
-                               data-ejc-page-size="6"
+                               data-ejc-page-size="7"
                                data-ejc-search-placeholder="Search period, trend, or amount">
                             <thead>
                                 <tr>
@@ -85,62 +102,33 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    <td>Sep 2025</td>
-                                    <td class="text-end text-nowrap">PHP 1,521,000</td>
-                                    <td class="text-end text-nowrap">PHP 881,100</td>
-                                    <td class="text-end text-nowrap">PHP 463,400</td>
-                                    <td class="text-end">30.5%</td>
-                                    <td><span class="badge bg-secondary">Baseline</span></td>
-                                </tr>
-                                <tr>
-                                    <td>Oct 2025</td>
-                                    <td class="text-end text-nowrap">PHP 1,603,800</td>
-                                    <td class="text-end text-nowrap">PHP 938,000</td>
-                                    <td class="text-end text-nowrap">PHP 501,200</td>
-                                    <td class="text-end">31.2%</td>
-                                    <td><span class="badge ejc-badge">Up</span></td>
-                                </tr>
-                                <tr>
-                                    <td>Nov 2025</td>
-                                    <td class="text-end text-nowrap">PHP 1,645,100</td>
-                                    <td class="text-end text-nowrap">PHP 972,300</td>
-                                    <td class="text-end text-nowrap">PHP 519,600</td>
-                                    <td class="text-end">31.6%</td>
-                                    <td><span class="badge ejc-badge">Up</span></td>
-                                </tr>
-                                <tr>
-                                    <td>Dec 2025</td>
-                                    <td class="text-end text-nowrap">PHP 1,713,900</td>
-                                    <td class="text-end text-nowrap">PHP 1,024,500</td>
-                                    <td class="text-end text-nowrap">PHP 554,900</td>
-                                    <td class="text-end">32.4%</td>
-                                    <td><span class="badge ejc-badge">Up</span></td>
-                                </tr>
-                                <tr>
-                                    <td>Jan 2026</td>
-                                    <td class="text-end text-nowrap">PHP 1,788,600</td>
-                                    <td class="text-end text-nowrap">PHP 1,067,900</td>
-                                    <td class="text-end text-nowrap">PHP 596,800</td>
-                                    <td class="text-end">33.4%</td>
-                                    <td><span class="badge ejc-badge">Up</span></td>
-                                </tr>
-                                <tr>
-                                    <td>Feb 2026</td>
-                                    <td class="text-end text-nowrap">PHP 1,842,300</td>
-                                    <td class="text-end text-nowrap">PHP 1,096,700</td>
-                                    <td class="text-end text-nowrap">PHP 612,400</td>
-                                    <td class="text-end">33.2%</td>
-                                    <td><span class="badge ejc-badge">Stable</span></td>
-                                </tr>
-                                <tr>
-                                    <td>Mar 2026 (Projected)</td>
-                                    <td class="text-end text-nowrap">PHP 1,906,000</td>
-                                    <td class="text-end text-nowrap">PHP 1,132,400</td>
-                                    <td class="text-end text-nowrap">PHP 648,900</td>
-                                    <td class="text-end">34.0%</td>
-                                    <td><span class="badge bg-info text-dark">Forecast</span></td>
-                                </tr>
+                                @if (Model.Rows.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-3">No revenue data available for this branch yet.</td>
+                                    </tr>
+                                }
+                                @foreach (var row in Model.Rows)
+                                {
+                                    var snapshot = row.Snapshot;
+                                    var netMargin = snapshot.Revenue > 0m
+                                        ? (snapshot.NetProfit / snapshot.Revenue) * 100m
+                                        : 0m;
+                                    <tr>
+                                        <td>
+                                            @snapshot.MonthStartUtc.ToString("MMM yyyy")
+                                            @if (snapshot.IsProjected)
+                                            {
+                                                <span class="small text-muted">(Projected)</span>
+                                            }
+                                        </td>
+                                        <td class="text-end text-nowrap">PHP @snapshot.Revenue.ToString("N2")</td>
+                                        <td class="text-end text-nowrap">PHP @snapshot.GrossProfit.ToString("N2")</td>
+                                        <td class="text-end text-nowrap">PHP @snapshot.NetProfit.ToString("N2")</td>
+                                        <td class="text-end">@netMargin.ToString("0.0")%</td>
+                                        <td><span class="@row.TrendBadgeClass">@row.TrendLabel</span></td>
+                                    </tr>
+                                }
                             </tbody>
                         </table>
                     </div>

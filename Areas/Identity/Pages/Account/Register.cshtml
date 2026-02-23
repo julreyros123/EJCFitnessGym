@@ -11,13 +11,13 @@
                 <div>
                     <span class="ejc-eyebrow">Join EJC Fitness</span>
                     <h1 class="h2 mb-1">Create your account</h1>
-                    <p class="ejc-muted mb-0">Create your member identity first, then activate your preferred membership plan.</p>
+                    <p class="ejc-muted mb-0">Create your member identity and start using your member portal.</p>
                 </div>
             </div>
 
             <form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
-                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
-                <div class="row g-3 mb-1">
+                <div asp-validation-summary="ModelOnly" class="text-danger ejc-auth-validation"></div>
+                <div class="row g-3 mb-3">
                     <div class="col-md-6">
                         <div class="form-floating ejc-auth-input">
                             <input asp-for="Input.FirstName" class="form-control" autocomplete="given-name" aria-required="true" placeholder="First name" />
@@ -43,16 +43,6 @@
                     <label asp-for="Input.PhoneNumber"></label>
                     <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
                 </div>
-                <div class="mb-3 ejc-auth-input">
-                    <label asp-for="Input.SubscriptionPlanId" class="form-label"></label>
-                    <select asp-for="Input.SubscriptionPlanId" asp-items="Model.AvailablePlans" class="form-select">
-                        <option value="">Choose later in Memberships</option>
-                    </select>
-                    <span asp-validation-for="Input.SubscriptionPlanId" class="text-danger"></span>
-                    <small class="text-muted d-block mt-2">
-                        You can continue without selecting a plan and activate membership after sign-in.
-                    </small>
-                </div>
                 <div class="form-floating mb-3 ejc-auth-input ejc-password-field">
                     <input asp-for="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="Password" />
                     <label asp-for="Input.Password">Password</label>
@@ -73,10 +63,6 @@
                 <div class="ejc-auth-links">
                     <span class="ejc-muted">Already have an account?</span>
                     <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Sign in</a>
-                </div>
-                <div class="ejc-auth-links">
-                    <span class="ejc-muted">Need plan details first?</span>
-                    <a asp-area="" asp-page="/Public/Pricing">View memberships</a>
                 </div>
             </form>
 

@@ -9,38 +9,118 @@
         <div>
             <span class="ejc-eyebrow">Front Desk</span>
             <h1 class="h2 mb-1">Member Check-In / Check-Out</h1>
-            <p class="ejc-muted mb-0">Handle entry and exit logs, verify plan validity, and assist members at the desk.</p>
+            <p class="ejc-muted mb-0">Check-in is required, manual check-out is optional, and sessions auto-close after @Model.AutoCheckoutHours hours.</p>
         </div>
     </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="alert @(Model.StatusIsError ? "alert-danger" : "alert-success") mb-4">@Model.StatusMessage</div>
+    }
 
     <div class="row g-4 mb-4">
         <div class="col-xl-8">
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Scan or Search Member</h5>
+                    <h5 class="mb-0">Search Member</h5>
                     <span class="text-muted small">Front desk flow</span>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Member ID / Name</label>
-                            <input class="form-control" placeholder="Scan QR or type member name" />
+                    <form method="post" asp-page-handler="Search" data-ejc-checkin-search-form>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-9">
+                                <label class="form-label">Member ID / 6-digit Account / Name / Email / QR</label>
+                                <input asp-for="SearchTerm" class="form-control" placeholder="Scan QR or type 6-digit account/member name" />
+                            </div>
+                            <div class="col-md-3 d-grid">
+                                <button type="submit" class="btn btn-primary">Search</button>
+                            </div>
                         </div>
-                        <div class="col-md-3 d-grid">
-                            <label class="form-label d-none d-md-block">&nbsp;</label>
-                            <button class="btn btn-primary">Check In</button>
+                    </form>
+                    <div class="border rounded p-3 mt-3">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <div>
+                                <div class="fw-semibold">QR Scanner</div>
+                                <div class="small text-muted">Scan member QR from phone or printed card for fast lookup.</div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button id="start-qr-scan" type="button" class="btn btn-sm btn-outline-primary">Start Scanner</button>
+                                <button id="stop-qr-scan" type="button" class="btn btn-sm btn-outline-secondary" disabled>Stop</button>
+                            </div>
                         </div>
-                        <div class="col-md-3 d-grid">
-                            <label class="form-label d-none d-md-block">&nbsp;</label>
-                            <button class="btn btn-outline-primary">Check Out</button>
-                        </div>
+                        <div id="checkin-qr-reader" class="mt-3"></div>
+                        <div id="checkin-qr-status" class="small text-muted mt-2">Scanner is off.</div>
                     </div>
-                    <div class="alert alert-info mt-3 mb-0">
-                        Replace this with scanner integration and check-in service logic.
-                    </div>
+
+                    @if (Model.SelectedMember is not null)
+                    {
+                        var member = Model.SelectedMember;
+                        var membershipEndLocal = member.MembershipEndDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "-";
+                        var nextBillingLocal = member.NextBillingDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "-";
+
+                        <div class="border rounded p-3 mt-4">
+                            <div class="d-flex flex-wrap justify-content-between gap-3">
+                                <div>
+                                    <h6 class="mb-1">@member.MemberDisplayName</h6>
+                                    <div class="text-muted small">@member.Email</div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <form method="post" asp-page-handler="CheckIn">
+                                        <input type="hidden" asp-for="SearchTerm" />
+                                        <input type="hidden" asp-for="MemberUserId" value="@member.MemberUserId" />
+                                        <button type="submit" class="btn btn-primary">Check In</button>
+                                    </form>
+                                    <form method="post" asp-page-handler="CheckOut">
+                                        <input type="hidden" asp-for="SearchTerm" />
+                                        <input type="hidden" asp-for="MemberUserId" value="@member.MemberUserId" />
+                                        <button type="submit" class="btn btn-outline-primary">Check Out</button>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mt-2 small">
+                                <div class="col-md-4"><span class="text-muted">Plan:</span> @member.PlanName</div>
+                                <div class="col-md-4"><span class="text-muted">Membership Ends:</span> @membershipEndLocal</div>
+                                <div class="col-md-4"><span class="text-muted">Next Billing:</span> @nextBillingLocal</div>
+                                <div class="col-md-4"><span class="text-muted">Status:</span> @member.SubscriptionStatus</div>
+                                <div class="col-md-4"><span class="text-muted">Outstanding:</span> PHP @member.OutstandingBalance.ToString("N2")</div>
+                                <div class="col-md-4">
+                                    <span class="text-muted">PayMongo Pending:</span>
+                                    @if (member.HasPendingPayMongoPayment)
+                                    {
+                                        <span class="badge bg-warning text-dark">Yes</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge ejc-badge">No</span>
+                                    }
+                                </div>
+                            </div>
+
+                            @if (!member.HasActiveMembership)
+                            {
+                                <div class="alert alert-warning mt-3 mb-0">
+                                    Membership is not active. Activate or renew before check-in.
+                                </div>
+                            }
+                            else if (member.HasPendingPayMongoPayment)
+                            {
+                                <div class="alert alert-warning mt-3 mb-0">
+                                    Pending PayMongo payment detected. Resolve payment before check-in.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-info mt-3 mb-0">
+                                    Manual check-out is optional. If not checked out manually, the session auto-closes after @Model.AutoCheckoutHours hours.
+                                </div>
+                            }
+                        </div>
+                    }
                 </div>
             </div>
         </div>
+
         <div class="col-xl-4">
             <div class="card h-100">
                 <div class="card-header d-flex align-items-center justify-content-between">
@@ -48,10 +128,10 @@
                     <span class="text-muted small">Live</span>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex justify-content-between mb-2"><span class="ejc-muted">Checked-In Now</span><strong>46</strong></div>
-                    <div class="d-flex justify-content-between mb-2"><span class="ejc-muted">Checked-Out</span><strong>112</strong></div>
-                    <div class="d-flex justify-content-between mb-2"><span class="ejc-muted">Plan Expiring Today</span><strong>7</strong></div>
-                    <div class="d-flex justify-content-between"><span class="ejc-muted">Open Complaints</span><strong>3</strong></div>
+                    <div class="d-flex justify-content-between mb-2"><span class="ejc-muted">Checked-In Now</span><strong>@Model.Snapshot.CheckedInNow</strong></div>
+                    <div class="d-flex justify-content-between mb-2"><span class="ejc-muted">Closed Today (Manual + Auto)</span><strong>@Model.Snapshot.CheckedOutToday</strong></div>
+                    <div class="d-flex justify-content-between mb-2"><span class="ejc-muted">Plan Expiring Today</span><strong>@Model.Snapshot.PlanExpiringToday</strong></div>
+                    <div class="d-flex justify-content-between"><span class="ejc-muted">Pending Payments</span><strong>@Model.Snapshot.PendingPayments</strong></div>
                 </div>
             </div>
         </div>
@@ -63,49 +143,179 @@
             <span class="text-muted small">Latest actions</span>
         </div>
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm table-striped table-hover align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Member</th>
-                            <th>Action</th>
-                            <th>Handled By</th>
-                            <th>Plan Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>08:12 AM</td>
-                            <td>Jose Tan</td>
-                            <td>Check In</td>
-                            <td>Front Desk A</td>
-                            <td><span class="badge ejc-badge">Active</span></td>
-                        </tr>
-                        <tr>
-                            <td>08:26 AM</td>
-                            <td>Angela Cruz</td>
-                            <td>Check In</td>
-                            <td>Front Desk A</td>
-                            <td><span class="badge bg-warning text-dark">Expiring Soon</span></td>
-                        </tr>
-                        <tr>
-                            <td>09:04 AM</td>
-                            <td>Ken Lim</td>
-                            <td>Check Out</td>
-                            <td>Front Desk B</td>
-                            <td><span class="badge ejc-badge">Active</span></td>
-                        </tr>
-                        <tr>
-                            <td>09:19 AM</td>
-                            <td>Maria Reyes</td>
-                            <td>Plan Inquiry</td>
-                            <td>Front Desk B</td>
-                            <td><span class="badge bg-secondary">On Hold</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            @if (Model.RecentActivities.Count == 0)
+            {
+                <div class="p-4">
+                    <p class="ejc-muted mb-0">No attendance activity captured yet for today.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Time (local)</th>
+                                <th>Member</th>
+                                <th>Action</th>
+                                <th>Handled By</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var activity in Model.RecentActivities)
+                            {
+                                <tr>
+                                    <td>@activity.TimeLocal.ToString("yyyy-MM-dd HH:mm zzz")</td>
+                                    <td>@activity.MemberDisplayName</td>
+                                    <td>@activity.Action</td>
+                                    <td>@activity.HandledByUserId</td>
+                                    <td><span class="@activity.StatusBadgeClass">@activity.StatusLabel</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+    <script>
+        (() => {
+            const form = document.querySelector("[data-ejc-checkin-search-form]");
+            const searchInput = document.getElementById("SearchTerm");
+            const readerElementId = "checkin-qr-reader";
+            const startButton = document.getElementById("start-qr-scan");
+            const stopButton = document.getElementById("stop-qr-scan");
+            const statusText = document.getElementById("checkin-qr-status");
+
+            if (!form || !searchInput || !startButton || !stopButton || !statusText) {
+                return;
+            }
+
+            if (typeof Html5Qrcode === "undefined") {
+                startButton.disabled = true;
+                setStatus("QR scanner library did not load.", true);
+                return;
+            }
+
+            const scanner = new Html5Qrcode(readerElementId, { verbose: false });
+            let scanning = false;
+            let scanLocked = false;
+
+            function normalizePayload(rawValue) {
+                const value = (rawValue || "").trim().replace(/^["']|["']$/g, "");
+                if (!value) {
+                    return "";
+                }
+
+                const prefix = "EJC-MEMBER:";
+                if (value.toUpperCase().startsWith(prefix)) {
+                    return value.substring(prefix.length).trim();
+                }
+
+                return value;
+            }
+
+            function setStatus(message, isError) {
+                statusText.textContent = message;
+                statusText.className = `small mt-2 ${isError ? "text-danger" : "text-muted"}`;
+            }
+
+            function refreshButtonState() {
+                startButton.disabled = scanning;
+                stopButton.disabled = !scanning;
+            }
+
+            async function startScanner() {
+                if (scanning) {
+                    return;
+                }
+
+                try {
+                    await scanner.start(
+                        { facingMode: "environment" },
+                        { fps: 10, qrbox: { width: 220, height: 220 } },
+                        onScanSuccess,
+                        () => { }
+                    );
+                    scanning = true;
+                    refreshButtonState();
+                    setStatus("Scanner is active. Point camera at member QR.", false);
+                } catch {
+                    try {
+                        const cameras = await Html5Qrcode.getCameras();
+                        if (!cameras || cameras.length === 0) {
+                            setStatus("No camera detected for QR scanning.", true);
+                            return;
+                        }
+
+                        await scanner.start(
+                            { deviceId: { exact: cameras[0].id } },
+                            { fps: 10, qrbox: { width: 220, height: 220 } },
+                            onScanSuccess,
+                            () => { }
+                        );
+                        scanning = true;
+                        refreshButtonState();
+                        setStatus("Scanner is active. Point camera at member QR.", false);
+                    } catch {
+                        setStatus("Unable to start camera scanner on this device.", true);
+                    }
+                }
+            }
+
+            async function stopScanner() {
+                if (!scanning) {
+                    return;
+                }
+
+                try {
+                    await scanner.stop();
+                    await scanner.clear();
+                } catch {
+                    // Ignore stop errors to keep UI responsive.
+                }
+
+                scanning = false;
+                refreshButtonState();
+                setStatus("Scanner is off.", false);
+            }
+
+            async function onScanSuccess(decodedText) {
+                if (scanLocked) {
+                    return;
+                }
+
+                const memberToken = normalizePayload(decodedText);
+                if (!memberToken) {
+                    setStatus("QR read failed. Try again.", true);
+                    return;
+                }
+
+                scanLocked = true;
+                searchInput.value = memberToken;
+                setStatus("QR detected. Searching member...", false);
+                await stopScanner();
+                form.submit();
+            }
+
+            startButton.addEventListener("click", () => {
+                void startScanner();
+            });
+
+            stopButton.addEventListener("click", () => {
+                void stopScanner();
+            });
+
+            window.addEventListener("beforeunload", () => {
+                if (scanning) {
+                    void stopScanner();
+                }
+            });
+        })();
+    </script>
+}

@@ -8,6 +8,9 @@ namespace EJCFitnessGym.Models.Billing
 
         public int InvoiceId { get; set; }
 
+        [StringLength(32)]
+        public string? BranchId { get; set; }
+
         [Range(0, 999999)]
         public decimal Amount { get; set; }
 

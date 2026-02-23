@@ -1,11 +1,6 @@
 @{
     var currentPath = Context.Request.Path.Value ?? string.Empty;
-    var principal = User;
-    var logoutReturnUrl = principal?.IsInRole("SuperAdmin") == true
-        ? "/Identity/Account/SuperAdminLogin"
-        : principal?.IsInRole("Admin") == true
-            ? "/Identity/Account/AdminLogin"
-            : "/Identity/Account/StaffLogin";
+    var logoutReturnUrl = "/Identity/Account/BackOfficeLogin";
     string ActiveIfPrefix(string prefix) =>
         currentPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
 }
@@ -27,6 +22,10 @@
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/CommunicationHub")" asp-page="/Staff/CommunicationHub" title="Comms Hub">
             <i class="bi bi-telephone-forward-fill"></i>
             <span class="ejc-admin-nav-text">Comms Hub</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/ReplacementRequests")" asp-page="/Staff/ReplacementRequests" title="Replacement Requests">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span class="ejc-admin-nav-text">Replacement</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/ActivityLogs")" asp-page="/Staff/ActivityLogs" title="Activity Logs">
             <i class="bi bi-clipboard2-data-fill"></i>

@@ -1,5 +1,8 @@
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Billing;
+using EJCFitnessGym.Security;
+using EJCFitnessGym.Services.Integration;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace EJCFitnessGym.Services.Memberships
@@ -7,10 +10,20 @@ namespace EJCFitnessGym.Services.Memberships
     public class MembershipService : IMembershipService
     {
         private readonly ApplicationDbContext _db;
+        private readonly IIntegrationOutbox? _integrationOutbox;
+        private readonly IEmailSender? _emailSender;
+        private readonly ILogger<MembershipService>? _logger;
 
-        public MembershipService(ApplicationDbContext db)
+        public MembershipService(
+            ApplicationDbContext db,
+            IIntegrationOutbox? integrationOutbox = null,
+            IEmailSender? emailSender = null,
+            ILogger<MembershipService>? logger = null)
         {
             _db = db;
+            _integrationOutbox = integrationOutbox;
+            _emailSender = emailSender;
+            _logger = logger;
         }
 
         public async Task<MemberSubscription?> GetLatestSubscriptionAsync(string memberUserId, CancellationToken cancellationToken = default)
@@ -24,7 +37,13 @@ namespace EJCFitnessGym.Services.Memberships
                 .AsNoTracking()
                 .Where(s => s.MemberUserId == memberUserId)
                 .Include(s => s.SubscriptionPlan)
-                .OrderByDescending(s => s.StartDateUtc)
+                .OrderBy(s => s.Status == SubscriptionStatus.Active
+                    ? 0
+                    : s.Status == SubscriptionStatus.Paused
+                        ? 1
+                        : 2)
+                .ThenByDescending(s => s.EndDateUtc ?? DateTime.MinValue)
+                .ThenByDescending(s => s.StartDateUtc)
                 .ThenByDescending(s => s.Id)
                 .FirstOrDefaultAsync(cancellationToken);
         }
@@ -232,6 +251,8 @@ namespace EJCFitnessGym.Services.Memberships
             CancellationToken cancellationToken = default)
         {
             var effectiveUtc = ToUtc(asOfUtc ?? DateTime.UtcNow);
+            var generatedRenewalInvoices = 0;
+            var threeDayRemindersQueued = 0;
 
             var subscriptionsToExpire = await _db.MemberSubscriptions
                 .Where(s =>
@@ -256,7 +277,162 @@ namespace EJCFitnessGym.Services.Memberships
                 invoice.Status = InvoiceStatus.Overdue;
             }
 
-            if (subscriptionsToExpire.Count > 0 || invoicesToMarkOverdue.Count > 0)
+            var activeSubscriptions = await _db.MemberSubscriptions
+                .Include(subscription => subscription.SubscriptionPlan)
+                .Where(subscription =>
+                    subscription.Status == SubscriptionStatus.Active &&
+                    subscription.EndDateUtc.HasValue &&
+                    subscription.EndDateUtc.Value > effectiveUtc &&
+                    subscription.SubscriptionPlan != null &&
+                    subscription.SubscriptionPlan.IsActive)
+                .ToListAsync(cancellationToken);
+
+            if (activeSubscriptions.Count > 0)
+            {
+                var activeSubscriptionIds = activeSubscriptions
+                    .Select(subscription => subscription.Id)
+                    .ToList();
+                var activeMemberIds = activeSubscriptions
+                    .Select(subscription => subscription.MemberUserId)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+
+                var branchByMemberId = await _db.UserClaims
+                    .AsNoTracking()
+                    .Where(claim =>
+                        claim.ClaimType == BranchAccess.BranchIdClaimType &&
+                        claim.ClaimValue != null &&
+                        activeMemberIds.Contains(claim.UserId))
+                    .GroupBy(claim => claim.UserId)
+                    .Select(group => new
+                    {
+                        MemberUserId = group.Key,
+                        BranchId = group
+                            .OrderByDescending(claim => claim.Id)
+                            .Select(claim => claim.ClaimValue)
+                            .FirstOrDefault()
+                    })
+                    .ToDictionaryAsync(
+                        item => item.MemberUserId,
+                        item => item.BranchId,
+                        StringComparer.Ordinal,
+                        cancellationToken);
+
+                var existingInvoiceKeys = await _db.Invoices
+                    .AsNoTracking()
+                    .Where(invoice =>
+                        invoice.MemberSubscriptionId.HasValue &&
+                        activeSubscriptionIds.Contains(invoice.MemberSubscriptionId.Value) &&
+                        invoice.Status != InvoiceStatus.Voided)
+                    .Select(invoice => new
+                    {
+                        SubscriptionId = invoice.MemberSubscriptionId!.Value,
+                        invoice.DueDateUtc
+                    })
+                    .ToListAsync(cancellationToken);
+
+                var existingSet = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var key in existingInvoiceKeys)
+                {
+                    existingSet.Add(BuildInvoiceCycleKey(key.SubscriptionId, key.DueDateUtc));
+                }
+
+                foreach (var subscription in activeSubscriptions)
+                {
+                    var dueDateUtc = subscription.EndDateUtc!.Value;
+                    var cycleKey = BuildInvoiceCycleKey(subscription.Id, dueDateUtc);
+                    if (existingSet.Contains(cycleKey))
+                    {
+                        continue;
+                    }
+
+                    var plan = subscription.SubscriptionPlan!;
+                    var issueDateUtc = effectiveUtc < dueDateUtc ? effectiveUtc : dueDateUtc;
+                    var noteLines = new List<string>
+                    {
+                        $"Renewal invoice for {plan.Name}.",
+                        $"[sub:{subscription.Id}]",
+                        $"[plan:{plan.Id}]",
+                        $"[cycle:{dueDateUtc:yyyyMMdd}]"
+                    };
+
+                    _db.Invoices.Add(new Invoice
+                    {
+                        InvoiceNumber = GenerateInvoiceNumber(),
+                        MemberUserId = subscription.MemberUserId,
+                        BranchId = branchByMemberId.TryGetValue(subscription.MemberUserId, out var branchId) ? branchId : null,
+                        MemberSubscriptionId = subscription.Id,
+                        IssueDateUtc = issueDateUtc,
+                        DueDateUtc = dueDateUtc,
+                        Amount = plan.Price,
+                        Status = InvoiceStatus.Unpaid,
+                        Notes = string.Join(" ", noteLines)
+                    });
+
+                    existingSet.Add(cycleKey);
+                    generatedRenewalInvoices++;
+                }
+            }
+
+            var reminderTargetStartUtc = effectiveUtc.Date.AddDays(3);
+            var reminderTargetEndUtc = reminderTargetStartUtc.AddDays(1);
+            var invoicesForReminder = await _db.Invoices
+                .Where(invoice =>
+                    invoice.Status == InvoiceStatus.Unpaid &&
+                    invoice.DueDateUtc >= reminderTargetStartUtc &&
+                    invoice.DueDateUtc < reminderTargetEndUtc)
+                .ToListAsync(cancellationToken);
+
+            foreach (var invoice in invoicesForReminder)
+            {
+                var reminderMarker = BuildThreeDayReminderMarker(invoice.Id, invoice.DueDateUtc);
+                if (HasReminderMarker(invoice.Notes, reminderMarker))
+                {
+                    continue;
+                }
+
+                if (_integrationOutbox is not null && !string.IsNullOrWhiteSpace(invoice.MemberUserId))
+                {
+                    var daysUntilDue = Math.Max(0, (invoice.DueDateUtc.Date - effectiveUtc.Date).Days);
+                    await _integrationOutbox.EnqueueUserAsync(
+                        invoice.MemberUserId,
+                        "billing.invoice.reminder",
+                        $"Billing reminder: Invoice {invoice.InvoiceNumber} is due on {invoice.DueDateUtc.ToLocalTime():yyyy-MM-dd HH:mm}.",
+                        new
+                        {
+                            invoiceId = invoice.Id,
+                            invoiceNumber = invoice.InvoiceNumber,
+                            amount = invoice.Amount,
+                            dueDateUtc = invoice.DueDateUtc,
+                            daysUntilDue
+                        },
+                        cancellationToken);
+
+                    await _integrationOutbox.EnqueueBackOfficeAsync(
+                        "billing.invoice.reminder.queued",
+                        "A 3-day billing reminder was queued for a member.",
+                        new
+                        {
+                            invoiceId = invoice.Id,
+                            invoiceNumber = invoice.InvoiceNumber,
+                            memberUserId = invoice.MemberUserId,
+                            amount = invoice.Amount,
+                            dueDateUtc = invoice.DueDateUtc,
+                            daysUntilDue
+                        },
+                        cancellationToken);
+
+                    threeDayRemindersQueued++;
+                }
+
+                await TrySendDueReminderEmailAsync(invoice, effectiveUtc, cancellationToken);
+                invoice.Notes = AppendReminderMarker(invoice.Notes, reminderMarker);
+            }
+
+            if (subscriptionsToExpire.Count > 0 ||
+                invoicesToMarkOverdue.Count > 0 ||
+                generatedRenewalInvoices > 0 ||
+                threeDayRemindersQueued > 0)
             {
                 await _db.SaveChangesAsync(cancellationToken);
             }
@@ -265,7 +441,9 @@ namespace EJCFitnessGym.Services.Memberships
             {
                 AsOfUtc = effectiveUtc,
                 ExpiredSubscriptions = subscriptionsToExpire.Count,
-                OverdueInvoices = invoicesToMarkOverdue.Count
+                OverdueInvoices = invoicesToMarkOverdue.Count,
+                GeneratedRenewalInvoices = generatedRenewalInvoices,
+                ThreeDayRemindersQueued = threeDayRemindersQueued
             };
         }
 
@@ -290,6 +468,83 @@ namespace EJCFitnessGym.Services.Memberships
             return value.Kind == DateTimeKind.Unspecified
                 ? DateTime.SpecifyKind(value, DateTimeKind.Utc)
                 : value.ToUniversalTime();
+        }
+
+        private static string GenerateInvoiceNumber()
+        {
+            return $"INV-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+        }
+
+        private static string BuildInvoiceCycleKey(int subscriptionId, DateTime dueDateUtc)
+        {
+            return $"{subscriptionId}:{dueDateUtc.Ticks}";
+        }
+
+        private static string BuildThreeDayReminderMarker(int invoiceId, DateTime dueDateUtc)
+        {
+            return $"[reminder-3d:{invoiceId}:{dueDateUtc:yyyyMMddHHmm}]";
+        }
+
+        private static bool HasReminderMarker(string? notes, string reminderMarker)
+        {
+            if (string.IsNullOrWhiteSpace(notes))
+            {
+                return false;
+            }
+
+            return notes.Contains(reminderMarker, StringComparison.Ordinal);
+        }
+
+        private static string AppendReminderMarker(string? notes, string reminderMarker)
+        {
+            if (string.IsNullOrWhiteSpace(notes))
+            {
+                return reminderMarker;
+            }
+
+            return $"{notes} {reminderMarker}".Trim();
+        }
+
+        private async Task TrySendDueReminderEmailAsync(Invoice invoice, DateTime effectiveUtc, CancellationToken cancellationToken)
+        {
+            if (_emailSender is null || string.IsNullOrWhiteSpace(invoice.MemberUserId))
+            {
+                return;
+            }
+
+            var recipientEmail = await _db.Users
+                .AsNoTracking()
+                .Where(user => user.Id == invoice.MemberUserId)
+                .Select(user => user.Email)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (string.IsNullOrWhiteSpace(recipientEmail))
+            {
+                return;
+            }
+
+            var daysUntilDue = Math.Max(0, (invoice.DueDateUtc.Date - effectiveUtc.Date).Days);
+            var dueLocal = invoice.DueDateUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz");
+            var amountLabel = invoice.Amount.ToString("N2");
+            var subject = $"Payment due reminder - {invoice.InvoiceNumber}";
+            var htmlMessage =
+                $"Your invoice <strong>{invoice.InvoiceNumber}</strong> is due in <strong>{daysUntilDue}</strong> day(s).<br/>" +
+                $"Due date: <strong>{dueLocal}</strong><br/>" +
+                $"Amount due: <strong>PHP {amountLabel}</strong><br/>" +
+                "Please settle before the due date to keep your membership active.";
+
+            try
+            {
+                await _emailSender.SendEmailAsync(recipientEmail, subject, htmlMessage);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(
+                    ex,
+                    "Could not send due reminder email for invoice {InvoiceId} to member {MemberUserId}.",
+                    invoice.Id,
+                    invoice.MemberUserId);
+            }
         }
     }
 }

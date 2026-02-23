@@ -1,24 +1,13 @@
 using System.ComponentModel.DataAnnotations;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace EJCFitnessGym.Areas.Identity.Pages.Account;
 
+[AllowAnonymous]
 public class SuperAdminLoginModel : PageModel
 {
-    private readonly SignInManager<IdentityUser> _signInManager;
-    private readonly UserManager<IdentityUser> _userManager;
-    private readonly ILogger<SuperAdminLoginModel> _logger;
-
-    public SuperAdminLoginModel(SignInManager<IdentityUser> signInManager, UserManager<IdentityUser> userManager, ILogger<SuperAdminLoginModel> logger)
-    {
-        _signInManager = signInManager;
-        _userManager = userManager;
-        _logger = logger;
-    }
-
     [BindProperty]
     public InputModel Input { get; set; } = new();
 
@@ -38,67 +27,10 @@ public class SuperAdminLoginModel : PageModel
         public bool RememberMe { get; set; }
     }
 
-    public async Task OnGetAsync(string? returnUrl = null)
-    {
-        ReturnUrl = returnUrl ?? Url.Content("~/Admin/Dashboard")!;
-        await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-    }
+    public IActionResult OnGet(string? returnUrl = null) => RedirectToBackOffice(returnUrl);
 
-    public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
-    {
-        returnUrl ??= Url.Content("~/Admin/Dashboard");
-        Input.Email = (Input.Email ?? string.Empty).Trim().ToLowerInvariant();
+    public IActionResult OnPost(string? returnUrl = null) => RedirectToBackOffice(returnUrl);
 
-        if (!ModelState.IsValid)
-        {
-            return Page();
-        }
-
-        var user = await _userManager.FindByEmailAsync(Input.Email);
-        if (user is null)
-        {
-            ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-            return Page();
-        }
-
-        if (!await _userManager.HasPasswordAsync(user))
-        {
-            ModelState.AddModelError(string.Empty, "This account does not have a password. Please sign in using Google.");
-            return Page();
-        }
-
-        var result = await _signInManager.PasswordSignInAsync(user, Input.Password, Input.RememberMe, lockoutOnFailure: true);
-        if (result.Succeeded)
-        {
-            var roles = await _userManager.GetRolesAsync(user);
-            if (roles.Contains("SuperAdmin"))
-            {
-                _logger.LogInformation("SuperAdmin login success for {Email}.", Input.Email);
-                return LocalRedirect(returnUrl);
-            }
-
-            await _signInManager.SignOutAsync();
-            ModelState.AddModelError(string.Empty, "This login is for SuperAdmin accounts only.");
-            return Page();
-        }
-
-        if (result.RequiresTwoFactor)
-        {
-            return RedirectToPage("./LoginWith2fa", new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
-        }
-
-        if (result.IsNotAllowed)
-        {
-            ModelState.AddModelError(string.Empty, "You must confirm your email before you can log in.");
-            return Page();
-        }
-
-        if (result.IsLockedOut)
-        {
-            return RedirectToPage("./Lockout");
-        }
-
-        ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-        return Page();
-    }
+    private IActionResult RedirectToBackOffice(string? returnUrl) =>
+        RedirectToPage("./BackOfficeLogin", new { returnUrl });
 }
