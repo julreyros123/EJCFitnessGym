@@ -21,6 +21,7 @@ _verifybuild/
 # ASP.NET Core
 appsettings.*.json
 !appsettings.json
+!appsettings.Production.json
 
 # Logs
 *.log

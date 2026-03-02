@@ -9,6 +9,7 @@ using EJCFitnessGym.Services.Monitoring;
 using EJCFitnessGym.Services.Realtime;
 using EJCFitnessGym.Services.AI;
 using EJCFitnessGym.Services.Staff;
+using EJCFitnessGym.Services.Inventory;
 using EJCFitnessGym.Security;
 using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Areas.Identity.Pages.Account;
@@ -19,11 +20,18 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging.EventLog;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (!builder.Environment.IsDevelopment() && OperatingSystem.IsWindows())
+{
+    // Avoid hard startup failures when the hosting identity cannot write to Windows Event Log.
+    builder.Logging.AddFilter<EventLogLoggerProvider>(_ => false);
+}
 
 var smtpHost = builder.Configuration["Email:Smtp:Host"]?.Trim();
 var smtpUserName = builder.Configuration["Email:Smtp:UserName"]?.Trim();
@@ -242,23 +250,29 @@ builder.Services.Configure<MembershipLifecycleWorkerOptions>(builder.Configurati
 builder.Services.Configure<IntegrationOutboxDispatcherOptions>(builder.Configuration.GetSection("IntegrationOutbox"));
 builder.Services.Configure<OperationalHealthOptions>(builder.Configuration.GetSection("OperationalHealth"));
 builder.Services.Configure<StaffAttendanceOptions>(builder.Configuration.GetSection("StaffAttendance"));
+builder.Services.Configure<AutoBillingWorkerOptions>(builder.Configuration.GetSection("AutoBilling"));
 builder.Services.AddHttpClient<PayMongoClient>();
 builder.Services.AddScoped<IPayMongoMembershipReconciliationService, PayMongoMembershipReconciliationService>();
 builder.Services.AddScoped<IMembershipService, MembershipService>();
 builder.Services.AddScoped<IIntegrationOutbox, IntegrationOutboxService>();
 builder.Services.AddScoped<IStaffAttendanceService, StaffAttendanceService>();
+builder.Services.AddScoped<IAutoBillingService, AutoBillingService>();
 builder.Services.AddHostedService<IntegrationOutboxDispatcherWorker>();
 builder.Services.AddHostedService<MembershipLifecycleWorker>();
 builder.Services.AddHostedService<FinanceAlertEvaluatorWorker>();
 builder.Services.AddHostedService<StaffAttendanceAutoCloseWorker>();
+builder.Services.AddHostedService<AutoBillingWorker>();
 builder.Services.AddScoped<IFinanceMetricsService, FinanceMetricsService>();
 builder.Services.AddScoped<IFinanceAlertService, FinanceAlertService>();
 builder.Services.AddScoped<IFinanceAlertLifecycleService, FinanceAlertLifecycleService>();
 builder.Services.AddScoped<IFinanceAiAssistantService, FinanceAiAssistantService>();
+builder.Services.AddScoped<IGeneralLedgerService, GeneralLedgerService>();
 builder.Services.AddScoped<IErpEventPublisher, SignalRErpEventPublisher>();
 builder.Services.AddScoped<IMemberSegmentationService, MemberSegmentationService>();
 builder.Services.AddScoped<IMemberAiInsightWriter, MemberAiInsightWriter>();
 builder.Services.AddScoped<IMemberChurnRiskService, MemberChurnRiskService>();
+builder.Services.AddScoped<IProductSalesService, ProductSalesService>();
+builder.Services.AddScoped<ISupplyRequestService, SupplyRequestService>();
 builder.Services.AddHealthChecks()
     .AddCheck(
         "self",
@@ -274,6 +288,16 @@ builder.Services.Configure<EmailSmtpOptions>(builder.Configuration.GetSection("E
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<IEmailVerificationCodeService, EmailVerificationCodeService>();
 builder.Services.AddControllersWithViews();
+
+// Session for POS cart state
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromHours(4);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+});
 
 var app = builder.Build();
 
@@ -331,6 +355,7 @@ if (args.Any(arg => string.Equals(arg, "--bulk-repair-paymongo", StringCompariso
     var updatedMembers = 0;
     var totalChanges = 0;
     var repairedPaidInvoiceLinks = 0;
+    var voidedFailedCheckoutInvoices = 0;
 
     foreach (var memberUserId in memberUserIds)
     {
@@ -412,15 +437,52 @@ if (args.Any(arg => string.Equals(arg, "--bulk-repair-paymongo", StringCompariso
             repairedPaidInvoiceLinks);
     }
 
+    var failedCheckoutInvoicesToVoid = await db.Invoices
+        .Where(invoice =>
+            (invoice.Status == InvoiceStatus.Unpaid || invoice.Status == InvoiceStatus.Overdue) &&
+            invoice.MemberSubscriptionId == null &&
+            invoice.Notes != null &&
+            invoice.Notes.Contains("Subscription purchase:"))
+        .Where(invoice =>
+            db.Payments.Any(payment =>
+                payment.InvoiceId == invoice.Id &&
+                payment.Method == PaymentMethod.OnlineGateway &&
+                payment.GatewayProvider == "PayMongo"))
+        .Where(invoice =>
+            !db.Payments.Any(payment =>
+                payment.InvoiceId == invoice.Id &&
+                payment.Status == PaymentStatus.Pending))
+        .Where(invoice =>
+            !db.Payments.Any(payment =>
+                payment.InvoiceId == invoice.Id &&
+                payment.Status == PaymentStatus.Succeeded))
+        .ToListAsync();
+
+    foreach (var invoice in failedCheckoutInvoicesToVoid)
+    {
+        invoice.Status = InvoiceStatus.Voided;
+        voidedFailedCheckoutInvoices++;
+    }
+
+    if (voidedFailedCheckoutInvoices > 0)
+    {
+        await db.SaveChangesAsync();
+        totalChanges += voidedFailedCheckoutInvoices;
+        logger.LogInformation(
+            "Voided {VoidedFailedCheckoutInvoices} failed PayMongo checkout invoice(s) that were incorrectly left unpaid.",
+            voidedFailedCheckoutInvoices);
+    }
+
     logger.LogInformation(
-        "Bulk PayMongo reconciliation completed. Processed members: {ProcessedMembers}, updated members: {UpdatedMembers}, repaired paid-invoice links: {RepairedPaidInvoiceLinks}, total repaired records: {TotalChanges}.",
+        "Bulk PayMongo reconciliation completed. Processed members: {ProcessedMembers}, updated members: {UpdatedMembers}, repaired paid-invoice links: {RepairedPaidInvoiceLinks}, voided failed checkout invoices: {VoidedFailedCheckoutInvoices}, total repaired records: {TotalChanges}.",
         processedMembers,
         updatedMembers,
         repairedPaidInvoiceLinks,
+        voidedFailedCheckoutInvoices,
         totalChanges);
 
     Console.WriteLine(
-        $"Bulk PayMongo reconciliation completed. Processed members: {processedMembers}, updated members: {updatedMembers}, repaired paid-invoice links: {repairedPaidInvoiceLinks}, total repaired records: {totalChanges}.");
+        $"Bulk PayMongo reconciliation completed. Processed members: {processedMembers}, updated members: {updatedMembers}, repaired paid-invoice links: {repairedPaidInvoiceLinks}, voided failed checkout invoices: {voidedFailedCheckoutInvoices}, total repaired records: {totalChanges}.");
     return;
 }
 
@@ -442,6 +504,7 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAuthentication();
+app.UseSession();
 app.UseMiddleware<BranchScopeMiddleware>();
 app.UseAuthorization();
 
@@ -453,9 +516,16 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var db = services.GetRequiredService<ApplicationDbContext>();
-        if (app.Environment.IsDevelopment())
+        
+        // Try to apply pending migrations, but don't crash the app if it fails
+        try
         {
             await db.Database.MigrateAsync();
+        }
+        catch (Exception migrationEx)
+        {
+            startupLogger.LogError(migrationEx, "Database migration failed. The app will continue but some features may not work.");
+            // Continue without migration - app should still work for existing features
         }
 
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
@@ -463,6 +533,7 @@ using (var scope = app.Services.CreateScope())
         var roles = new[] { "Member", "Staff", "Finance", "Admin", "SuperAdmin" };
         const string defaultBranchId = "BR-CENTRAL";
         const string defaultBranchName = "EJC Central Branch";
+        var generalLedgerService = services.GetRequiredService<IGeneralLedgerService>();
 
         foreach (var role in roles)
         {
@@ -492,6 +563,27 @@ using (var scope = app.Services.CreateScope())
             defaultBranch.IsActive = true;
             defaultBranch.UpdatedUtc = DateTime.UtcNow;
             await db.SaveChangesAsync();
+        }
+
+        try
+        {
+            var pendingMigrations = await db.Database.GetPendingMigrationsAsync();
+            if (pendingMigrations.Any())
+            {
+                startupLogger.LogWarning(
+                    "Skipping General Ledger default account seeding because pending migrations were detected: {PendingMigrations}.",
+                    string.Join(", ", pendingMigrations));
+            }
+            else
+            {
+                await generalLedgerService.EnsureDefaultAccountsAsync(defaultBranchId);
+            }
+        }
+        catch (Exception ex)
+        {
+            startupLogger.LogWarning(
+                ex,
+                "General Ledger default account seeding was skipped. Apply database migrations to enable General Ledger features.");
         }
 
         var branchScopedRoleIds = await db.Roles
@@ -723,12 +815,8 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         startupLogger.LogError(ex, "Database initialization failed at startup.");
-        if (!app.Environment.IsDevelopment())
-        {
-            throw;
-        }
-
-        startupLogger.LogWarning("Continuing startup in Development mode without database initialization.");
+        // Don't crash the app - continue so existing features can still work
+        startupLogger.LogWarning("Continuing startup without database initialization. Some features may not work.");
     }
 }
 
