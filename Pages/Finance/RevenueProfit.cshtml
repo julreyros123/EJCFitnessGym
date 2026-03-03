@@ -1,58 +1,205 @@
 @page
 @model EJCFitnessGym.Pages.Finance.RevenueProfitModel
 @using System.Globalization
+@using System.Linq
 @{
     ViewData["Title"] = "Revenue & Profit";
 }
 
-<div class="py-4">
+<div class="py-4" data-finance-revenue-profit>
     <div class="ejc-page-header">
         <div>
             <span class="ejc-eyebrow">Finance Module</span>
             <h1 class="h2 mb-1">Revenue &amp; Profit</h1>
             <p class="ejc-muted mb-0">Track monthly revenue performance, gross profit, net profit, and margin trend.</p>
         </div>
-        <div class="ejc-actions">
+        <div class="ejc-actions d-flex flex-wrap gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#monthlyDetailTable"
+                    aria-expanded="false"
+                    aria-controls="monthlyDetailTable">
+                Monthly Detail
+            </button>
             <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Back to Overview</a>
         </div>
     </div>
 
+    @{
+        var actualRows = Model.Rows.Where(row => !row.Snapshot.IsProjected).ToList();
+        var latestActual = actualRows.Count > 0 ? actualRows[^1] : null;
+        var previousActual = actualRows.Count > 1 ? actualRows[^2] : null;
+        decimal? monthOverMonthRevenueDelta = null;
+        decimal? monthOverMonthGrossProfitDelta = null;
+        decimal? monthOverMonthNetProfitDelta = null;
+        decimal? monthOverMonthNetMarginDelta = null;
+        if (latestActual is not null && previousActual is not null)
+        {
+            monthOverMonthRevenueDelta = latestActual.Snapshot.Revenue - previousActual.Snapshot.Revenue;
+            monthOverMonthGrossProfitDelta = latestActual.Snapshot.GrossProfit - previousActual.Snapshot.GrossProfit;
+            monthOverMonthNetProfitDelta = latestActual.Snapshot.NetProfit - previousActual.Snapshot.NetProfit;
+
+            var latestNetMargin = latestActual.Snapshot.Revenue > 0m
+                ? (latestActual.Snapshot.NetProfit / latestActual.Snapshot.Revenue) * 100m
+                : 0m;
+            var previousNetMargin = previousActual.Snapshot.Revenue > 0m
+                ? (previousActual.Snapshot.NetProfit / previousActual.Snapshot.Revenue) * 100m
+                : 0m;
+            monthOverMonthNetMarginDelta = latestNetMargin - previousNetMargin;
+        }
+
+        string TrendClass(decimal? delta)
+        {
+            return !delta.HasValue
+                ? "is-neutral"
+                : delta.Value > 0m
+                    ? "is-up"
+                    : delta.Value < 0m
+                        ? "is-down"
+                        : "is-flat";
+        }
+
+        string TrendIcon(decimal? delta)
+        {
+            return !delta.HasValue
+                ? "bi-dash-lg"
+                : delta.Value > 0m
+                    ? "bi-arrow-up-right"
+                    : delta.Value < 0m
+                        ? "bi-arrow-down-right"
+                        : "bi-arrow-left-right";
+        }
+
+        string MoneyDeltaText(decimal? delta)
+        {
+            if (!delta.HasValue)
+            {
+                return "No prior month";
+            }
+
+            var sign = delta.Value >= 0m ? "+" : "-";
+            return $"{sign}PHP {Math.Abs(delta.Value).ToString("N2")}";
+        }
+
+        string PercentPointDeltaText(decimal? delta)
+        {
+            if (!delta.HasValue)
+            {
+                return "No prior month";
+            }
+
+            var sign = delta.Value >= 0m ? "+" : "-";
+            return $"{sign}{Math.Abs(delta.Value).ToString("0.0")} pp";
+        }
+
+        var trendSubtitle = previousActual is null || latestActual is null
+            ? "No comparison period yet"
+            : $"{previousActual.Snapshot.MonthStartUtc.ToString("MMM yyyy")} to {latestActual.Snapshot.MonthStartUtc.ToString("MMM yyyy")}";
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            <article class="ejc-admin-metric ejc-rp-kpi h-100">
+                <div class="ejc-admin-metric-link">
+                    <span class="ejc-admin-metric-label">Current Revenue</span>
+                    <strong title="@($"PHP {Model.CurrentCycle.Revenue:N2}")">@Model.CurrentCycle.Revenue.ToCompactCurrency()</strong>
+                    <span class="ejc-rp-kpi-trend @TrendClass(monthOverMonthRevenueDelta)">
+                        <i class="bi @TrendIcon(monthOverMonthRevenueDelta)"></i>
+                        @MoneyDeltaText(monthOverMonthRevenueDelta)
+                    </span>
+                    <span class="ejc-admin-metric-meta">@Model.CurrentCycle.MonthStartUtc.ToString("MMM yyyy")</span>
+                </div>
+            </article>
+        </div>
+        <div class="col-6 col-xl-3">
+            <article class="ejc-admin-metric ejc-rp-kpi h-100">
+                <div class="ejc-admin-metric-link">
+                    <span class="ejc-admin-metric-label">Gross Profit</span>
+                    <strong title="@($"PHP {Model.CurrentCycle.GrossProfit:N2}")">@Model.CurrentCycle.GrossProfit.ToCompactCurrency()</strong>
+                    <span class="ejc-rp-kpi-trend @TrendClass(monthOverMonthGrossProfitDelta)">
+                        <i class="bi @TrendIcon(monthOverMonthGrossProfitDelta)"></i>
+                        @MoneyDeltaText(monthOverMonthGrossProfitDelta)
+                    </span>
+                    <span class="ejc-admin-metric-meta">Before operating expenses</span>
+                </div>
+            </article>
+        </div>
+        <div class="col-6 col-xl-3">
+            <article class="ejc-admin-metric ejc-rp-kpi h-100">
+                <div class="ejc-admin-metric-link">
+                    <span class="ejc-admin-metric-label">Net Profit</span>
+                    <strong class="@(Model.CurrentCycle.NetProfit >= 0m ? "text-success" : "text-danger")"
+                            title="@($"PHP {Model.CurrentCycle.NetProfit:N2}")">
+                        @Model.CurrentCycle.NetProfit.ToCompactCurrency()
+                    </strong>
+                    <span class="ejc-rp-kpi-trend @TrendClass(monthOverMonthNetProfitDelta)">
+                        <i class="bi @TrendIcon(monthOverMonthNetProfitDelta)"></i>
+                        @MoneyDeltaText(monthOverMonthNetProfitDelta)
+                    </span>
+                    <span class="ejc-admin-metric-meta">After all costs</span>
+                </div>
+            </article>
+        </div>
+        <div class="col-6 col-xl-3">
+            <article class="ejc-admin-metric ejc-rp-kpi h-100">
+                <div class="ejc-admin-metric-link">
+                    <span class="ejc-admin-metric-label">Net Margin</span>
+                    <strong class="@(Model.NetMarginPercent >= 0m ? "text-success" : "text-danger")">@Model.NetMarginPercent.ToString("0.0")%</strong>
+                    <span class="ejc-rp-kpi-trend @TrendClass(monthOverMonthNetMarginDelta)">
+                        <i class="bi @TrendIcon(monthOverMonthNetMarginDelta)"></i>
+                        @PercentPointDeltaText(monthOverMonthNetMarginDelta)
+                    </span>
+                    <span class="ejc-admin-metric-meta">Profit from every PHP 100 sales</span>
+                </div>
+            </article>
+        </div>
+    </div>
+
+    <section class="ejc-rp-kpi-trend-strip mb-4" aria-label="Month-over-month KPI trend">
+        <div class="ejc-rp-kpi-trend-head">
+            <span class="fw-semibold">KPI Trend (Month-over-Month)</span>
+            <span class="small text-muted">@trendSubtitle</span>
+        </div>
+        <div class="ejc-rp-kpi-trend-grid">
+            <article class="ejc-rp-kpi-trend-pill @TrendClass(monthOverMonthRevenueDelta)">
+                <span>Revenue</span>
+                <strong>@MoneyDeltaText(monthOverMonthRevenueDelta)</strong>
+            </article>
+            <article class="ejc-rp-kpi-trend-pill @TrendClass(monthOverMonthGrossProfitDelta)">
+                <span>Gross Profit</span>
+                <strong>@MoneyDeltaText(monthOverMonthGrossProfitDelta)</strong>
+            </article>
+            <article class="ejc-rp-kpi-trend-pill @TrendClass(monthOverMonthNetProfitDelta)">
+                <span>Net Profit</span>
+                <strong>@MoneyDeltaText(monthOverMonthNetProfitDelta)</strong>
+            </article>
+            <article class="ejc-rp-kpi-trend-pill @TrendClass(monthOverMonthNetMarginDelta)">
+                <span>Net Margin</span>
+                <strong>@PercentPointDeltaText(monthOverMonthNetMarginDelta)</strong>
+            </article>
+        </div>
+    </section>
+
     <div class="row g-4 mb-4">
-        <div class="col-lg-5">
+        <div class="col-lg-6">
             <div class="card h-100">
                 <div class="card-header d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Revenue and Profit Summary</h5>
-                    <span class="text-muted small">
-                        @Model.CurrentCycle.MonthStartUtc.ToString("MMM yyyy") cycle
-                    </span>
+                    <h5 class="mb-0">Simple Cycle Breakdown</h5>
+                    <span class="text-muted small">@Model.CurrentCycle.MonthStartUtc.ToString("MMM yyyy")</span>
                 </div>
                 <div class="card-body">
-                    <div class="ejc-finance-stat">
-                        <span class="ejc-muted">Total Revenue</span>
-                        <strong title="@($"PHP {Model.CurrentCycle.Revenue:N2}")">@Model.CurrentCycle.Revenue.ToCompactCurrency()</strong>
-                    </div>
                     <div class="ejc-finance-stat">
                         <span class="ejc-muted">Cost of Services</span>
                         <strong title="@($"PHP {Model.CurrentCycle.CostOfServices:N2}")">@Model.CurrentCycle.CostOfServices.ToCompactCurrency()</strong>
                     </div>
                     <div class="ejc-finance-stat">
-                        <span class="ejc-muted">Gross Profit</span>
-                        <strong title="@($"PHP {Model.CurrentCycle.GrossProfit:N2}")">@Model.CurrentCycle.GrossProfit.ToCompactCurrency()</strong>
-                    </div>
-                    <div class="ejc-finance-stat">
                         <span class="ejc-muted">Operating Expenses</span>
                         <strong title="@($"PHP {Model.CurrentCycle.OperatingExpenses:N2}")">@Model.CurrentCycle.OperatingExpenses.ToCompactCurrency()</strong>
                     </div>
-                    <div class="ejc-finance-stat">
+                    <div class="ejc-finance-stat mb-3">
                         <span class="ejc-muted">Depreciation Cost</span>
                         <strong title="@($"PHP {Model.CurrentCycle.DepreciationCost:N2}")">@Model.CurrentCycle.DepreciationCost.ToCompactCurrency()</strong>
-                    </div>
-                    <div class="ejc-finance-stat mb-3">
-                        <span class="ejc-muted">Net Profit</span>
-                        <strong class="@(Model.CurrentCycle.NetProfit >= 0m ? "text-success" : "text-danger")"
-                                title="@($"PHP {Model.CurrentCycle.NetProfit:N2}")">
-                            @Model.CurrentCycle.NetProfit.ToCompactCurrency()
-                        </strong>
                     </div>
 
                     <div class="mb-2">
@@ -80,58 +227,102 @@
             </div>
         </div>
 
-        <div class="col-lg-7">
+        <div class="col-lg-6">
             <div class="card h-100">
                 <div class="card-header d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Revenue, Gross Profit, and Net Profit Analytics</h5>
-                    <span class="text-muted small">Last 6 months + next month projection</span>
+                    <h5 class="mb-0">Quick Reading</h5>
+                    <span class="text-muted small">How to interpret quickly</span>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle mb-0 ejc-finance-table ejc-table-sticky"
-                               data-ejc-page-size="7"
-                               data-ejc-search-placeholder="Search period, trend, or amount">
-                            <thead>
-                                <tr>
-                                    <th>Period</th>
-                                    <th class="text-end">Revenue</th>
-                                    <th class="text-end">Gross Profit</th>
-                                    <th class="text-end">Net Profit</th>
-                                    <th class="text-end">Net Margin</th>
-                                    <th>Trend</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @if (Model.Rows.Count == 0)
-                                {
-                                    <tr>
-                                        <td colspan="6" class="text-center text-muted py-3">No revenue data available for this branch yet.</td>
-                                    </tr>
-                                }
-                                @foreach (var row in Model.Rows)
-                                {
-                                    var snapshot = row.Snapshot;
-                                    var netMargin = snapshot.Revenue > 0m
-                                        ? (snapshot.NetProfit / snapshot.Revenue) * 100m
-                                        : 0m;
-                                    <tr>
-                                        <td>
-                                            @snapshot.MonthStartUtc.ToString("MMM yyyy")
-                                            @if (snapshot.IsProjected)
-                                            {
-                                                <span class="small text-muted">(Projected)</span>
-                                            }
-                                        </td>
-                                        <td class="text-end text-nowrap">PHP @snapshot.Revenue.ToString("N2")</td>
-                                        <td class="text-end text-nowrap">PHP @snapshot.GrossProfit.ToString("N2")</td>
-                                        <td class="text-end text-nowrap">PHP @snapshot.NetProfit.ToString("N2")</td>
-                                        <td class="text-end">@netMargin.ToString("0.0")%</td>
-                                        <td><span class="@row.TrendBadgeClass">@row.TrendLabel</span></td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="ejc-muted">Net profit trend vs previous month</span>
+                        @if (monthOverMonthNetProfitDelta.HasValue)
+                        {
+                            <span class="badge @(monthOverMonthNetProfitDelta.Value >= 0m ? "bg-success" : "bg-danger")">
+                                @(monthOverMonthNetProfitDelta.Value >= 0m ? "Up" : "Down")
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">No comparison yet</span>
+                        }
                     </div>
+
+                    @if (monthOverMonthNetProfitDelta.HasValue)
+                    {
+                        <div class="alert @(monthOverMonthNetProfitDelta.Value >= 0m ? "alert-success" : "alert-warning") py-2 px-3">
+                            Net profit change: <strong>PHP @Math.Abs(monthOverMonthNetProfitDelta.Value).ToString("N2")</strong>
+                            @(monthOverMonthNetProfitDelta.Value >= 0m ? "increase" : "decrease") month-over-month.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info py-2 px-3">
+                            We need at least two actual months to compute month-over-month net profit change.
+                        </div>
+                    }
+
+                    <ul class="mb-0 small">
+                        <li>Use <strong>Net Margin</strong> to know how much profit remains from total revenue.</li>
+                        <li>If <strong>Net Profit</strong> is positive and margin is stable, operations are healthy.</li>
+                        <li>Open the monthly detail table only when you need line-by-line amounts.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="collapse mt-2" id="monthlyDetailTable">
+        <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="mb-0">Revenue, Gross Profit, and Net Profit Analytics</h5>
+                <span class="text-muted small">Last 6 months + next month projection</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0 ejc-finance-table ejc-table-sticky"
+                           data-ejc-page-size="7"
+                           data-ejc-search-placeholder="Search period, trend, or amount">
+                        <thead>
+                            <tr>
+                                <th>Period</th>
+                                <th class="text-end">Revenue</th>
+                                <th class="text-end">Gross Profit</th>
+                                <th class="text-end">Net Profit</th>
+                                <th class="text-end">Net Margin</th>
+                                <th>Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Rows.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-3">No revenue data available for this branch yet.</td>
+                                </tr>
+                            }
+                            @foreach (var row in Model.Rows)
+                            {
+                                var snapshot = row.Snapshot;
+                                var netMargin = snapshot.Revenue > 0m
+                                    ? (snapshot.NetProfit / snapshot.Revenue) * 100m
+                                    : 0m;
+                                <tr>
+                                    <td>
+                                        @snapshot.MonthStartUtc.ToString("MMM yyyy")
+                                        @if (snapshot.IsProjected)
+                                        {
+                                            <span class="small text-muted">(Projected)</span>
+                                        }
+                                    </td>
+                                    <td class="text-end text-nowrap">PHP @snapshot.Revenue.ToString("N2")</td>
+                                    <td class="text-end text-nowrap">PHP @snapshot.GrossProfit.ToString("N2")</td>
+                                    <td class="text-end text-nowrap">PHP @snapshot.NetProfit.ToString("N2")</td>
+                                    <td class="text-end">@netMargin.ToString("0.0")%</td>
+                                    <td><span class="@row.TrendBadgeClass">@row.TrendLabel</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

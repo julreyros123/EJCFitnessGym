@@ -27,6 +27,25 @@
         <div class="alert alert-warning mt-3">@statusMessage</div>
     }
 
+    @if (Model.ActivePendingCheckout is not null)
+    {
+        var pendingStartedLocal = Model.ActivePendingCheckout.StartedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz");
+        var pendingDueLocal = Model.ActivePendingCheckout.DueDateUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz");
+        <div class="alert alert-warning mt-3">
+            <strong>Pending checkout detected:</strong>
+            Invoice @Model.ActivePendingCheckout.InvoiceNumber (started @pendingStartedLocal, due @pendingDueLocal).
+            If you selected the wrong payment method, cancel this pending checkout below and start again.
+            <form method="post" asp-page-handler="CancelPendingCheckout" class="mt-2 d-inline-block">
+                <input type="hidden" name="paymentId" value="@Model.ActivePendingCheckout.PaymentId" />
+                @if (Model.SelectedPlanId.HasValue)
+                {
+                    <input type="hidden" name="planId" value="@Model.SelectedPlanId.Value" />
+                }
+                <button type="submit" class="btn btn-sm btn-outline-danger">Cancel Pending Checkout</button>
+            </form>
+        </div>
+    }
+
     @if (Model.NextBillingDueDateUtc.HasValue)
     {
         var nextBillingLocal = Model.NextBillingDueDateUtc.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz");

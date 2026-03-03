@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Globalization;
 using System.Security.Claims;
 
 namespace EJCFitnessGym.Pages.Public
@@ -47,13 +48,18 @@ namespace EJCFitnessGym.Pages.Public
         public int? SelectedPlanId { get; private set; }
         public DateTime? NextBillingDueDateUtc { get; private set; }
         public DateTime? ReminderScheduledDateUtc { get; private set; }
+        public PendingCheckoutSummary? ActivePendingCheckout { get; private set; }
 
-        public async Task OnGet(int? planId = null)
+        public async Task OnGet(
+            int? planId = null,
+            string? checkout = null,
+            int? paymentId = null,
+            CancellationToken cancellationToken = default)
         {
             var activePlans = await _db.SubscriptionPlans
                 .Where(p => p.IsActive)
                 .OrderBy(p => p.Price)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             var monthlyPlans = activePlans
                 .Where(p => p.BillingCycle == BillingCycle.Monthly)
@@ -77,7 +83,7 @@ namespace EJCFitnessGym.Pages.Public
                         try
                         {
                             await _payMongoMembershipReconciliationService
-                                .ReconcilePendingMemberPaymentsAsync(memberUserId);
+                                .ReconcilePendingMemberPaymentsAsync(memberUserId, cancellationToken);
                         }
                         catch (Exception ex)
                         {
@@ -91,6 +97,20 @@ namespace EJCFitnessGym.Pages.Public
                         }
                     }
 
+                    if (paymentId.HasValue && IsCancelledCheckoutState(checkout))
+                    {
+                        var cancelled = await TryMarkPendingCheckoutAsFailedAsync(
+                            memberUserId,
+                            paymentId.Value,
+                            cancellationToken);
+
+                        if (cancelled)
+                        {
+                            TempData["StatusMessage"] =
+                                "Checkout was cancelled. No payment was charged. You can choose another payment method.";
+                        }
+                    }
+
                     NextBillingDueDateUtc = await _db.Invoices
                         .AsNoTracking()
                         .Where(invoice =>
@@ -98,7 +118,7 @@ namespace EJCFitnessGym.Pages.Public
                             (invoice.Status == InvoiceStatus.Unpaid || invoice.Status == InvoiceStatus.Overdue))
                         .OrderBy(invoice => invoice.DueDateUtc)
                         .Select(invoice => (DateTime?)invoice.DueDateUtc)
-                        .FirstOrDefaultAsync();
+                        .FirstOrDefaultAsync(cancellationToken);
 
                     if (!NextBillingDueDateUtc.HasValue)
                     {
@@ -109,15 +129,16 @@ namespace EJCFitnessGym.Pages.Public
                                 (subscription.Status == SubscriptionStatus.Active || subscription.Status == SubscriptionStatus.Paused))
                             .OrderByDescending(subscription => subscription.EndDateUtc ?? DateTime.MinValue)
                             .Select(subscription => subscription.EndDateUtc)
-                            .FirstOrDefaultAsync();
+                            .FirstOrDefaultAsync(cancellationToken);
                     }
 
                     ReminderScheduledDateUtc = NextBillingDueDateUtc?.AddDays(-3);
+                    ActivePendingCheckout = await GetLatestPendingCheckoutSummaryAsync(memberUserId, cancellationToken);
                 }
             }
         }
 
-        public async Task<IActionResult> OnPostSubscribeAsync(int planId)
+        public async Task<IActionResult> OnPostSubscribeAsync(int planId, CancellationToken cancellationToken)
         {
             if (User?.Identity?.IsAuthenticated != true)
             {
@@ -142,7 +163,7 @@ namespace EJCFitnessGym.Pages.Public
                 return Challenge();
             }
 
-            var memberBranchId = await ResolveOrAssignMemberBranchIdAsync(memberUserId, CancellationToken.None);
+            var memberBranchId = await ResolveOrAssignMemberBranchIdAsync(memberUserId, cancellationToken);
 
             if (string.IsNullOrWhiteSpace(memberBranchId))
             {
@@ -169,21 +190,13 @@ namespace EJCFitnessGym.Pages.Public
                     payment.Invoice.MemberUserId == memberUserId)
                 .OrderByDescending(payment => payment.PaidAtUtc)
                 .ThenByDescending(payment => payment.Id)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (existingPendingPayment is not null)
             {
                 if (existingPendingPayment.PaidAtUtc < stalePendingThresholdUtc)
                 {
-                    existingPendingPayment.Status = PaymentStatus.Failed;
-                    if (existingPendingPayment.Invoice is not null &&
-                        existingPendingPayment.Invoice.Status == InvoiceStatus.Unpaid &&
-                        existingPendingPayment.Invoice.DueDateUtc < nowUtc)
-                    {
-                        existingPendingPayment.Invoice.Status = InvoiceStatus.Overdue;
-                    }
-
-                    await _db.SaveChangesAsync();
+                    await MarkPendingCheckoutAsFailedAsync(existingPendingPayment, nowUtc, cancellationToken);
                 }
                 else
                 {
@@ -193,7 +206,7 @@ namespace EJCFitnessGym.Pages.Public
                     var pendingStartedLocal = existingPendingPayment.PaidAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz");
 
                     TempData["StatusMessage"] =
-                        $"You already have a pending PayMongo checkout (Invoice {pendingInvoiceNumber}, started {pendingStartedLocal}, due {pendingDueLocal}). Complete or expire it before starting another payment.";
+                        $"You already have a pending PayMongo checkout (Invoice {pendingInvoiceNumber}, started {pendingStartedLocal}, due {pendingDueLocal}). Complete it, or cancel it from the pricing page before starting a new payment.";
                     return RedirectToPage("/Public/Pricing", new { planId });
                 }
             }
@@ -210,7 +223,7 @@ namespace EJCFitnessGym.Pages.Public
                      (invoice.Notes != null && invoice.Notes.Contains(planToken))))
                 .OrderBy(invoice => invoice.DueDateUtc)
                 .ThenBy(invoice => invoice.Id)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(cancellationToken);
 
             var invoice = openInvoice;
             if (invoice is null)
@@ -223,7 +236,7 @@ namespace EJCFitnessGym.Pages.Public
                         (subscription.Status == SubscriptionStatus.Active || subscription.Status == SubscriptionStatus.Paused))
                     .OrderByDescending(subscription => subscription.EndDateUtc ?? DateTime.MinValue)
                     .ThenByDescending(subscription => subscription.Id)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync(cancellationToken);
 
                 var dueDateUtc = activeSubscription?.EndDateUtc ?? nowUtc.AddDays(1);
                 if (dueDateUtc <= nowUtc)
@@ -245,7 +258,7 @@ namespace EJCFitnessGym.Pages.Public
                 };
 
                 _db.Invoices.Add(invoice);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
             }
 
             var payment = new Payment
@@ -262,15 +275,29 @@ namespace EJCFitnessGym.Pages.Public
             };
 
             _db.Payments.Add(payment);
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(cancellationToken);
 
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
             var successUrl = string.IsNullOrWhiteSpace(_payMongoOptions.SuccessUrl)
-                ? baseUrl + Url.Page("/Public/Pricing", values: new { planId })
-                : _payMongoOptions.SuccessUrl;
+                ? baseUrl + Url.Page("/Public/Pricing", values: new { planId, checkout = "success", paymentId = payment.Id })
+                : AppendQueryParameters(
+                    _payMongoOptions.SuccessUrl,
+                    new Dictionary<string, string>
+                    {
+                        ["planId"] = planId.ToString(CultureInfo.InvariantCulture),
+                        ["checkout"] = "success",
+                        ["paymentId"] = payment.Id.ToString(CultureInfo.InvariantCulture)
+                    });
             var cancelUrl = string.IsNullOrWhiteSpace(_payMongoOptions.CancelUrl)
-                ? baseUrl + Url.Page("/Public/Pricing", values: new { planId })
-                : _payMongoOptions.CancelUrl;
+                ? baseUrl + Url.Page("/Public/Pricing", values: new { planId, checkout = "cancelled", paymentId = payment.Id })
+                : AppendQueryParameters(
+                    _payMongoOptions.CancelUrl,
+                    new Dictionary<string, string>
+                    {
+                        ["planId"] = planId.ToString(CultureInfo.InvariantCulture),
+                        ["checkout"] = "cancelled",
+                        ["paymentId"] = payment.Id.ToString(CultureInfo.InvariantCulture)
+                    });
 
             var checkoutRequest = new CreateCheckoutSessionRequest
             {
@@ -319,7 +346,7 @@ namespace EJCFitnessGym.Pages.Public
             catch (Exception ex)
             {
                 payment.Status = PaymentStatus.Failed;
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
 
                 _logger.LogError(
                     ex,
@@ -333,7 +360,7 @@ namespace EJCFitnessGym.Pages.Public
             }
 
             payment.ReferenceNumber = checkout.CheckoutSessionId;
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(cancellationToken);
 
             var realtimePayload = new
             {
@@ -362,6 +389,33 @@ namespace EJCFitnessGym.Pages.Public
             return Redirect(checkout.CheckoutUrl);
         }
 
+        public async Task<IActionResult> OnPostCancelPendingCheckoutAsync(int paymentId, int? planId = null, CancellationToken cancellationToken = default)
+        {
+            if (User?.Identity?.IsAuthenticated != true)
+            {
+                var returnUrl = BuildPricingReturnUrl(planId);
+                return RedirectToPage("/Account/Login", new { area = "Identity", returnUrl });
+            }
+
+            if (!User.IsInRole("Member"))
+            {
+                return Forbid();
+            }
+
+            var memberUserId = _userManager.GetUserId(User);
+            if (string.IsNullOrWhiteSpace(memberUserId))
+            {
+                return Challenge();
+            }
+
+            var cancelled = await TryMarkPendingCheckoutAsFailedAsync(memberUserId, paymentId, cancellationToken);
+            TempData["StatusMessage"] = cancelled
+                ? "Pending checkout cancelled. No charge was made. You can start a new payment."
+                : "No pending checkout was found to cancel.";
+
+            return RedirectToPage("/Public/Pricing", new { planId });
+        }
+
         private static string GenerateInvoiceNumber()
         {
             return $"INV-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
@@ -374,6 +428,110 @@ namespace EJCFitnessGym.Pages.Public
                 : Url.Page("/Public/Pricing");
 
             return string.IsNullOrWhiteSpace(pricingUrl) ? Url.Content("~/") : pricingUrl;
+        }
+
+        private async Task<PendingCheckoutSummary?> GetLatestPendingCheckoutSummaryAsync(string memberUserId, CancellationToken cancellationToken)
+        {
+            var pendingPayment = await _db.Payments
+                .AsNoTracking()
+                .Include(payment => payment.Invoice)
+                .Where(payment =>
+                    payment.Status == PaymentStatus.Pending &&
+                    payment.Method == PaymentMethod.OnlineGateway &&
+                    payment.GatewayProvider == "PayMongo" &&
+                    payment.Invoice != null &&
+                    payment.Invoice.MemberUserId == memberUserId)
+                .OrderByDescending(payment => payment.PaidAtUtc)
+                .ThenByDescending(payment => payment.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (pendingPayment is null || pendingPayment.Invoice is null)
+            {
+                return null;
+            }
+
+            return new PendingCheckoutSummary
+            {
+                PaymentId = pendingPayment.Id,
+                InvoiceNumber = pendingPayment.Invoice.InvoiceNumber,
+                StartedAtUtc = pendingPayment.PaidAtUtc,
+                DueDateUtc = pendingPayment.Invoice.DueDateUtc
+            };
+        }
+
+        private async Task<bool> TryMarkPendingCheckoutAsFailedAsync(
+            string memberUserId,
+            int paymentId,
+            CancellationToken cancellationToken)
+        {
+            var pendingPayment = await _db.Payments
+                .Include(payment => payment.Invoice)
+                .Where(payment =>
+                    payment.Id == paymentId &&
+                    payment.Status == PaymentStatus.Pending &&
+                    payment.Method == PaymentMethod.OnlineGateway &&
+                    payment.GatewayProvider == "PayMongo" &&
+                    payment.Invoice != null &&
+                    payment.Invoice.MemberUserId == memberUserId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (pendingPayment is null)
+            {
+                return false;
+            }
+
+            await MarkPendingCheckoutAsFailedAsync(pendingPayment, DateTime.UtcNow, cancellationToken);
+            return true;
+        }
+
+        private async Task MarkPendingCheckoutAsFailedAsync(
+            Payment pendingPayment,
+            DateTime asOfUtc,
+            CancellationToken cancellationToken)
+        {
+            pendingPayment.Status = PaymentStatus.Failed;
+
+            if (pendingPayment.Invoice is not null)
+            {
+                var succeededAmounts = await _db.Payments
+                    .AsNoTracking()
+                    .Where(payment =>
+                        payment.InvoiceId == pendingPayment.InvoiceId &&
+                        payment.Status == PaymentStatus.Succeeded)
+                    .Select(payment => payment.Amount)
+                    .ToListAsync(cancellationToken);
+                var successfulPaidTotal = succeededAmounts.Sum();
+
+                pendingPayment.Invoice.Status = InvoiceStatusPolicy.ResolveAfterFailedCheckoutAttempt(
+                    pendingPayment.Invoice,
+                    successfulPaidTotal,
+                    asOfUtc);
+            }
+
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        private static bool IsCancelledCheckoutState(string? checkoutState)
+        {
+            if (string.IsNullOrWhiteSpace(checkoutState))
+            {
+                return false;
+            }
+
+            return string.Equals(checkoutState, "cancelled", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(checkoutState, "canceled", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string AppendQueryParameters(string baseUrl, IReadOnlyDictionary<string, string> queryParameters)
+        {
+            var result = baseUrl;
+            foreach (var parameter in queryParameters)
+            {
+                var separator = result.Contains('?') ? "&" : "?";
+                result = $"{result}{separator}{Uri.EscapeDataString(parameter.Key)}={Uri.EscapeDataString(parameter.Value)}";
+            }
+
+            return result;
         }
 
         private async Task<string?> ResolveOrAssignMemberBranchIdAsync(string memberUserId, CancellationToken cancellationToken)
@@ -470,6 +628,14 @@ namespace EJCFitnessGym.Pages.Public
             }
 
             return resolvedBranchId.Trim();
+        }
+
+        public sealed class PendingCheckoutSummary
+        {
+            public int PaymentId { get; init; }
+            public string InvoiceNumber { get; init; } = string.Empty;
+            public DateTime StartedAtUtc { get; init; }
+            public DateTime DueDateUtc { get; init; }
         }
     }
 }

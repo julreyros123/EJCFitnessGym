@@ -8,8 +8,8 @@
     <div class="ejc-page-header">
         <div>
             <span class="ejc-eyebrow">Front Desk</span>
-            <h1 class="h2 mb-1">Member Check-In / Check-Out</h1>
-            <p class="ejc-muted mb-0">Check-in is required, manual check-out is optional, and sessions auto-close after @Model.AutoCheckoutHours hours.</p>
+            <h1 class="h2 mb-1">Member Check-In Desk</h1>
+            <p class="ejc-muted mb-0">Step 1: Find the member. Step 2: Confirm details. Step 3: Record check-in or check-out.</p>
         </div>
     </div>
 
@@ -22,15 +22,16 @@
         <div class="col-xl-8">
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Search Member</h5>
-                    <span class="text-muted small">Front desk flow</span>
+                    <h5 class="mb-0">Step 1: Find Member</h5>
+                    <span class="text-muted small">Scan or search</span>
                 </div>
                 <div class="card-body">
                     <form method="post" asp-page-handler="Search" data-ejc-checkin-search-form>
                         <div class="row g-3 align-items-end">
                             <div class="col-md-9">
-                                <label class="form-label">Member ID / 6-digit Account / Name / Email / QR</label>
-                                <input asp-for="SearchTerm" class="form-control" placeholder="Scan QR or type 6-digit account/member name" />
+                                <label class="form-label">Member ID / Account Code / Name / Email / QR Value</label>
+                                <input asp-for="SearchTerm" class="form-control" placeholder="Example: 6-digit code, member name, email, or scanned QR value" />
+                                <div class="form-text">Tip: you can scan QR first, then the member profile loads automatically.</div>
                             </div>
                             <div class="col-md-3 d-grid">
                                 <button type="submit" class="btn btn-primary">Search</button>
@@ -57,18 +58,25 @@
                         var member = Model.SelectedMember;
                         var membershipEndLocal = member.MembershipEndDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "-";
                         var nextBillingLocal = member.NextBillingDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "-";
+                        var canCheckIn = member.HasActiveMembership && !member.HasPendingPayMongoPayment;
 
                         <div class="border rounded p-3 mt-4">
                             <div class="d-flex flex-wrap justify-content-between gap-3">
                                 <div>
-                                    <h6 class="mb-1">@member.MemberDisplayName</h6>
+                                    <h6 class="mb-1">Step 2: Confirm Member</h6>
+                                    <div class="fw-semibold">@member.MemberDisplayName</div>
                                     <div class="text-muted small">@member.Email</div>
                                 </div>
                                 <div class="d-flex gap-2">
                                     <form method="post" asp-page-handler="CheckIn">
                                         <input type="hidden" asp-for="SearchTerm" />
                                         <input type="hidden" asp-for="MemberUserId" value="@member.MemberUserId" />
-                                        <button type="submit" class="btn btn-primary">Check In</button>
+                                        <button type="submit"
+                                                class="btn btn-primary"
+                                                disabled="@(!canCheckIn)"
+                                                title="@(canCheckIn ? "Record member check-in." : "Resolve membership/payment issue before check-in.")">
+                                            Check In
+                                        </button>
                                     </form>
                                     <form method="post" asp-page-handler="CheckOut">
                                         <input type="hidden" asp-for="SearchTerm" />
@@ -80,41 +88,54 @@
 
                             <div class="row g-2 mt-2 small">
                                 <div class="col-md-4"><span class="text-muted">Plan:</span> @member.PlanName</div>
+                                <div class="col-md-4"><span class="text-muted">Plan Status:</span> @member.SubscriptionStatus</div>
                                 <div class="col-md-4"><span class="text-muted">Membership Ends:</span> @membershipEndLocal</div>
                                 <div class="col-md-4"><span class="text-muted">Next Billing:</span> @nextBillingLocal</div>
-                                <div class="col-md-4"><span class="text-muted">Status:</span> @member.SubscriptionStatus</div>
                                 <div class="col-md-4"><span class="text-muted">Outstanding:</span> PHP @member.OutstandingBalance.ToString("N2")</div>
                                 <div class="col-md-4">
-                                    <span class="text-muted">PayMongo Pending:</span>
-                                    @if (member.HasPendingPayMongoPayment)
-                                    {
-                                        <span class="badge bg-warning text-dark">Yes</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge ejc-badge">No</span>
-                                    }
+                                    <span class="text-muted">Pending Online Payment:</span>
+                                    <span class="badge @(member.HasPendingPayMongoPayment ? "bg-warning text-dark" : "bg-success")">
+                                        @(member.HasPendingPayMongoPayment ? "Yes" : "None")
+                                    </span>
+                                </div>
+                                <div class="col-md-4">
+                                    <span class="text-muted">Membership Active:</span>
+                                    <span class="badge @(member.HasActiveMembership ? "ejc-badge" : "bg-warning text-dark")">
+                                        @(member.HasActiveMembership ? "Yes" : "No")
+                                    </span>
+                                </div>
+                                <div class="col-md-4">
+                                    <span class="text-muted">Check-In Allowed:</span>
+                                    <span class="badge @(canCheckIn ? "bg-success" : "bg-danger")">
+                                        @(canCheckIn ? "Yes" : "No")
+                                    </span>
                                 </div>
                             </div>
 
                             @if (!member.HasActiveMembership)
                             {
                                 <div class="alert alert-warning mt-3 mb-0">
-                                    Membership is not active. Activate or renew before check-in.
+                                    Check-in blocked: membership is not active. Renew/activate membership first.
                                 </div>
                             }
                             else if (member.HasPendingPayMongoPayment)
                             {
                                 <div class="alert alert-warning mt-3 mb-0">
-                                    Pending PayMongo payment detected. Resolve payment before check-in.
+                                    Check-in blocked: pending online payment detected. Resolve payment first.
                                 </div>
                             }
                             else
                             {
                                 <div class="alert alert-info mt-3 mb-0">
-                                    Manual check-out is optional. If not checked out manually, the session auto-closes after @Model.AutoCheckoutHours hours.
+                                    Check-in is ready. Manual check-out is optional; system auto-closes after @Model.AutoCheckoutHours hours.
                                 </div>
                             }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-light border mt-4 mb-0">
+                            No member selected yet. Search by name/code/email or use the QR scanner.
                         </div>
                     }
                 </div>
@@ -128,19 +149,30 @@
                     <span class="text-muted small">Live</span>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex justify-content-between mb-2"><span class="ejc-muted">Checked-In Now</span><strong>@Model.Snapshot.CheckedInNow</strong></div>
-                    <div class="d-flex justify-content-between mb-2"><span class="ejc-muted">Closed Today (Manual + Auto)</span><strong>@Model.Snapshot.CheckedOutToday</strong></div>
-                    <div class="d-flex justify-content-between mb-2"><span class="ejc-muted">Plan Expiring Today</span><strong>@Model.Snapshot.PlanExpiringToday</strong></div>
-                    <div class="d-flex justify-content-between"><span class="ejc-muted">Pending Payments</span><strong>@Model.Snapshot.PendingPayments</strong></div>
+                    <a class="d-flex justify-content-between mb-2 text-decoration-none text-reset" href="#today-frontdesk-activity">
+                        <span class="ejc-muted">On Floor Now</span>
+                        <strong>@Model.Snapshot.CheckedInNow</strong>
+                    </a>
+                    <a class="d-flex justify-content-between mb-2 text-decoration-none text-reset" href="#today-frontdesk-activity">
+                        <span class="ejc-muted">Closed Today (Manual + Auto)</span>
+                        <strong>@Model.Snapshot.CheckedOutToday</strong>
+                    </a>
+                    <a class="d-flex justify-content-between text-decoration-none text-reset" asp-page="/Staff/PlanStatus">
+                        <span class="ejc-muted">Plan Expiring Today</span>
+                        <strong>@Model.Snapshot.PlanExpiringToday</strong>
+                    </a>
+                    <div class="small text-muted mt-3">
+                        Pending payment monitoring is available in <a class="text-decoration-none" asp-page="/Staff/PlanStatus">Plan Status</a>.
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="today-frontdesk-activity">
         <div class="card-header d-flex align-items-center justify-content-between">
-            <h5 class="mb-0">Recent Front Desk Activity</h5>
-            <span class="text-muted small">Latest actions</span>
+            <h5 class="mb-0">Today's Front Desk Activity</h5>
+            <span class="text-muted small">Latest check-ins / check-outs</span>
         </div>
         <div class="card-body p-0">
             @if (Model.RecentActivities.Count == 0)
@@ -158,7 +190,7 @@
                                 <th>Time (local)</th>
                                 <th>Member</th>
                                 <th>Action</th>
-                                <th>Handled By</th>
+                                <th>Staff</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -169,7 +201,7 @@
                                     <td>@activity.TimeLocal.ToString("yyyy-MM-dd HH:mm zzz")</td>
                                     <td>@activity.MemberDisplayName</td>
                                     <td>@activity.Action</td>
-                                    <td>@activity.HandledByUserId</td>
+                                    <td>@activity.HandledBy</td>
                                     <td><span class="@activity.StatusBadgeClass">@activity.StatusLabel</span></td>
                                 </tr>
                             }
@@ -182,7 +214,7 @@
 </div>
 
 @section Scripts {
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+    <script src="~/lib/html5-qrcode/html5-qrcode.min.js" asp-append-version="true"></script>
     <script>
         (() => {
             const form = document.querySelector("[data-ejc-checkin-search-form]");
@@ -202,8 +234,10 @@
                 return;
             }
 
-            const scanner = new Html5Qrcode(readerElementId, { verbose: false });
+            const scannerConfig = { fps: 10, qrbox: { width: 220, height: 220 } };
+            let scanner = null;
             let scanning = false;
+            let starting = false;
             let scanLocked = false;
 
             function normalizePayload(rawValue) {
@@ -226,26 +260,70 @@
             }
 
             function refreshButtonState() {
-                startButton.disabled = scanning;
-                stopButton.disabled = !scanning;
+                startButton.disabled = scanning || starting;
+                stopButton.disabled = !scanning && !starting;
+            }
+
+            function toStatusMessage(error, fallbackMessage) {
+                const rawMessage = (error && typeof error.message === "string")
+                    ? error.message
+                    : (typeof error === "string" ? error : "");
+
+                const normalized = rawMessage.toLowerCase();
+                if (normalized.includes("notallowederror") || normalized.includes("permission")) {
+                    return "Camera access was blocked. Allow camera permission in your browser and retry.";
+                }
+
+                if (normalized.includes("notfounderror") || normalized.includes("no camera")) {
+                    return "No camera was detected for this device.";
+                }
+
+                if (normalized.includes("notreadableerror") || normalized.includes("could not start video source")) {
+                    return "Camera is busy or unavailable. Close other apps using the camera and retry.";
+                }
+
+                if (!window.isSecureContext &&
+                    window.location.hostname !== "localhost" &&
+                    window.location.hostname !== "127.0.0.1") {
+                    return "Camera requires HTTPS (or localhost). Open this page over a secure URL.";
+                }
+
+                return fallbackMessage;
+            }
+
+            async function startWithConstraint(cameraConstraint) {
+                const readerElement = document.getElementById(readerElementId);
+                if (readerElement) {
+                    readerElement.innerHTML = "";
+                }
+
+                const nextScanner = new Html5Qrcode(readerElementId, { verbose: false });
+                await nextScanner.start(
+                    cameraConstraint,
+                    scannerConfig,
+                    onScanSuccess,
+                    () => { }
+                );
+
+                scanner = nextScanner;
+                scanning = true;
             }
 
             async function startScanner() {
-                if (scanning) {
+                if (scanning || starting) {
                     return;
                 }
 
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    setStatus("This browser does not support camera access for QR scanning.", true);
+                    return;
+                }
+
+                starting = true;
+                refreshButtonState();
+                setStatus("Starting camera scanner...", false);
+
                 try {
-                    await scanner.start(
-                        { facingMode: "environment" },
-                        { fps: 10, qrbox: { width: 220, height: 220 } },
-                        onScanSuccess,
-                        () => { }
-                    );
-                    scanning = true;
-                    refreshButtonState();
-                    setStatus("Scanner is active. Point camera at member QR.", false);
-                } catch {
                     try {
                         const cameras = await Html5Qrcode.getCameras();
                         if (!cameras || cameras.length === 0) {
@@ -253,34 +331,54 @@
                             return;
                         }
 
-                        await scanner.start(
-                            { deviceId: { exact: cameras[0].id } },
-                            { fps: 10, qrbox: { width: 220, height: 220 } },
-                            onScanSuccess,
-                            () => { }
-                        );
-                        scanning = true;
-                        refreshButtonState();
+                        const preferredCamera = cameras.find(camera =>
+                            /back|rear|environment/i.test(camera.label ?? ""))
+                            ?? cameras[0];
+
+                        await startWithConstraint({ deviceId: { exact: preferredCamera.id } });
                         setStatus("Scanner is active. Point camera at member QR.", false);
-                    } catch {
-                        setStatus("Unable to start camera scanner on this device.", true);
+                    } catch (cameraListError) {
+                        try {
+                            await startWithConstraint({ facingMode: "environment" });
+                            setStatus("Scanner is active. Point camera at member QR.", false);
+                        } catch (startError) {
+                            setStatus(
+                                toStatusMessage(
+                                    startError,
+                                    toStatusMessage(cameraListError, "Unable to start camera scanner on this device.")),
+                                true);
+                        }
                     }
+                } finally {
+                    starting = false;
+                    refreshButtonState();
                 }
             }
 
             async function stopScanner() {
-                if (!scanning) {
+                if (!scanning && !starting) {
                     return;
                 }
 
                 try {
-                    await scanner.stop();
-                    await scanner.clear();
+                    if (scanner) {
+                        await scanner.stop();
+                    }
                 } catch {
                     // Ignore stop errors to keep UI responsive.
                 }
 
+                try {
+                    if (scanner) {
+                        await scanner.clear();
+                    }
+                } catch {
+                    // Ignore clear errors to keep UI responsive.
+                }
+
+                scanner = null;
                 scanning = false;
+                starting = false;
                 refreshButtonState();
                 setStatus("Scanner is off.", false);
             }

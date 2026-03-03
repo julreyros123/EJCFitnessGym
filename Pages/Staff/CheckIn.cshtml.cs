@@ -331,6 +331,27 @@ namespace EJCFitnessGym.Pages.Staff
         {
             var todayUtc = DateTime.UtcNow.Date;
             var attendanceEvents = await ReadAttendanceEventsAsync(todayUtc, cancellationToken);
+            var handlerIds = attendanceEvents
+                .Select(evt => evt.HandledByUserId)
+                .Where(userId => !string.IsNullOrWhiteSpace(userId))
+                .Select(userId => userId!.Trim())
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            var handlerDisplayById = await _userManager.Users
+                .AsNoTracking()
+                .Where(user => handlerIds.Contains(user.Id))
+                .Select(user => new
+                {
+                    user.Id,
+                    Display = user.Email ?? user.UserName ?? user.Id
+                })
+                .ToDictionaryAsync(
+                    user => user.Id,
+                    user => user.Display,
+                    StringComparer.Ordinal,
+                    cancellationToken);
+
             var latestAttendanceByMember = attendanceEvents
                 .GroupBy(evt => evt.MemberUserId, StringComparer.Ordinal)
                 .ToDictionary(
@@ -355,24 +376,11 @@ namespace EJCFitnessGym.Pages.Staff
                     subscription.EndDateUtc.Value.Date == todayUtc)
                 .CountAsync(cancellationToken);
 
-            var pendingPaymentCount = await _db.Payments
-                .AsNoTracking()
-                .Where(payment =>
-                    payment.Status == PaymentStatus.Pending &&
-                    payment.Method == PaymentMethod.OnlineGateway &&
-                    payment.GatewayProvider == "PayMongo" &&
-                    payment.Invoice != null &&
-                    scopedMemberIds.Contains(payment.Invoice.MemberUserId))
-                .Select(payment => payment.Invoice!.MemberUserId)
-                .Distinct()
-                .CountAsync(cancellationToken);
-
             Snapshot = new ShiftSnapshot
             {
                 CheckedInNow = checkedInNow,
                 CheckedOutToday = checkedOutToday,
-                PlanExpiringToday = expiringTodayCount,
-                PendingPayments = pendingPaymentCount
+                PlanExpiringToday = expiringTodayCount
             };
 
             RecentActivities = attendanceEvents
@@ -388,7 +396,7 @@ namespace EJCFitnessGym.Pages.Staff
                         TimeLocal = evt.EventUtc.ToLocalTime(),
                         MemberDisplayName = evt.MemberDisplayName,
                         Action = StaffAttendanceEvents.ActionLabel(evt.EventType, evt.IsAutoCheckout),
-                        HandledByUserId = string.IsNullOrWhiteSpace(evt.HandledByUserId) ? "-" : evt.HandledByUserId!,
+                        HandledBy = ResolveHandlerDisplay(evt.HandledByUserId, handlerDisplayById),
                         StatusLabel = isCheckIn ? "On Floor" : isAutoCheckout ? "Auto Closed" : "Completed",
                         StatusBadgeClass = isCheckIn
                             ? "badge bg-info text-dark"
@@ -398,6 +406,21 @@ namespace EJCFitnessGym.Pages.Staff
                     };
                 })
                 .ToList();
+        }
+
+        private static string ResolveHandlerDisplay(
+            string? handledByUserId,
+            IReadOnlyDictionary<string, string> handlerDisplayById)
+        {
+            if (string.IsNullOrWhiteSpace(handledByUserId))
+            {
+                return "-";
+            }
+
+            var normalizedUserId = handledByUserId.Trim();
+            return handlerDisplayById.TryGetValue(normalizedUserId, out var display)
+                ? display
+                : normalizedUserId;
         }
 
         private async Task<string?> ResolveMemberBySearchAsync(
@@ -605,8 +628,9 @@ namespace EJCFitnessGym.Pages.Staff
             var messages = await _db.IntegrationOutboxMessages
                 .AsNoTracking()
                 .Where(message =>
-                    message.EventType == StaffAttendanceEvents.CheckInEventType ||
-                    message.EventType == StaffAttendanceEvents.CheckOutEventType)
+                    message.Target == Models.Integration.IntegrationOutboxTarget.BackOffice &&
+                    (message.EventType == StaffAttendanceEvents.CheckInEventType ||
+                    message.EventType == StaffAttendanceEvents.CheckOutEventType))
                 .OrderByDescending(message => message.CreatedUtc)
                 .ThenByDescending(message => message.Id)
                 .Take(400)
@@ -628,8 +652,9 @@ namespace EJCFitnessGym.Pages.Staff
             var query = _db.IntegrationOutboxMessages
                 .AsNoTracking()
                 .Where(message =>
-                    message.EventType == StaffAttendanceEvents.CheckInEventType ||
-                    message.EventType == StaffAttendanceEvents.CheckOutEventType);
+                    message.Target == Models.Integration.IntegrationOutboxTarget.BackOffice &&
+                    (message.EventType == StaffAttendanceEvents.CheckInEventType ||
+                    message.EventType == StaffAttendanceEvents.CheckOutEventType));
 
             if (minUtc.HasValue)
             {
@@ -714,7 +739,6 @@ namespace EJCFitnessGym.Pages.Staff
             public int CheckedInNow { get; init; }
             public int CheckedOutToday { get; init; }
             public int PlanExpiringToday { get; init; }
-            public int PendingPayments { get; init; }
         }
 
         public sealed class ActivityRow
@@ -722,7 +746,7 @@ namespace EJCFitnessGym.Pages.Staff
             public DateTime TimeLocal { get; init; }
             public string MemberDisplayName { get; init; } = string.Empty;
             public string Action { get; init; } = string.Empty;
-            public string HandledByUserId { get; init; } = string.Empty;
+            public string HandledBy { get; init; } = string.Empty;
             public string StatusLabel { get; init; } = string.Empty;
             public string StatusBadgeClass { get; init; } = string.Empty;
         }

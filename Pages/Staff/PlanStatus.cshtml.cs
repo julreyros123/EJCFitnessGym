@@ -2,6 +2,7 @@ using EJCFitnessGym.Data;
 using EJCFitnessGym.Models;
 using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Security;
+using EJCFitnessGym.Services.Payments;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -12,11 +13,19 @@ namespace EJCFitnessGym.Pages.Staff
     {
         private readonly ApplicationDbContext _db;
         private readonly UserManager<IdentityUser> _userManager;
+        private readonly IPayMongoMembershipReconciliationService? _payMongoMembershipReconciliationService;
+        private readonly ILogger<PlanStatusModel>? _logger;
 
-        public PlanStatusModel(ApplicationDbContext db, UserManager<IdentityUser> userManager)
+        public PlanStatusModel(
+            ApplicationDbContext db,
+            UserManager<IdentityUser> userManager,
+            IPayMongoMembershipReconciliationService? payMongoMembershipReconciliationService = null,
+            ILogger<PlanStatusModel>? logger = null)
         {
             _db = db;
             _userManager = userManager;
+            _payMongoMembershipReconciliationService = payMongoMembershipReconciliationService;
+            _logger = logger;
         }
 
         public IReadOnlyList<PlanStatusRow> Members { get; private set; } = Array.Empty<PlanStatusRow>();
@@ -89,6 +98,38 @@ namespace EJCFitnessGym.Pages.Staff
             {
                 Members = Array.Empty<PlanStatusRow>();
                 return;
+            }
+
+            if (_payMongoMembershipReconciliationService is not null)
+            {
+                var membersWithPendingPayMongo = await _db.Payments
+                    .AsNoTracking()
+                    .Where(payment =>
+                        payment.Status == PaymentStatus.Pending &&
+                        payment.Method == PaymentMethod.OnlineGateway &&
+                        payment.GatewayProvider == "PayMongo" &&
+                        payment.Invoice != null &&
+                        scopedMemberIds.Contains(payment.Invoice.MemberUserId))
+                    .Select(payment => payment.Invoice!.MemberUserId)
+                    .Where(memberUserId => !string.IsNullOrWhiteSpace(memberUserId))
+                    .Distinct()
+                    .ToListAsync(cancellationToken);
+
+                foreach (var memberUserId in membersWithPendingPayMongo)
+                {
+                    try
+                    {
+                        await _payMongoMembershipReconciliationService
+                            .ReconcilePendingMemberPaymentsAsync(memberUserId, cancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogWarning(
+                            ex,
+                            "PayMongo payment reconciliation failed while building staff plan status for member {MemberUserId}.",
+                            memberUserId);
+                    }
+                }
             }
 
             var usersById = await _userManager.Users

@@ -19,6 +19,7 @@ namespace EJCFitnessGym.Pages.Admin
         }
 
         public IReadOnlyList<PaymentTransactionRow> Transactions { get; private set; } = Array.Empty<PaymentTransactionRow>();
+        public PaymentTransactionRow? RecentSuccessfulPayment { get; private set; }
 
         public async Task OnGetAsync(CancellationToken cancellationToken)
         {
@@ -27,6 +28,7 @@ namespace EJCFitnessGym.Pages.Admin
             if (!isSuperAdmin && string.IsNullOrWhiteSpace(branchId))
             {
                 Transactions = Array.Empty<PaymentTransactionRow>();
+                RecentSuccessfulPayment = null;
                 return;
             }
 
@@ -51,6 +53,8 @@ namespace EJCFitnessGym.Pages.Admin
                 .Take(200)
                 .Select(payment => new PaymentSnapshot
                 {
+                    PaymentId = payment.Id,
+                    InvoiceId = payment.InvoiceId,
                     InvoiceNumber = payment.Invoice!.InvoiceNumber,
                     MemberUserId = payment.Invoice.MemberUserId,
                     Amount = payment.Amount,
@@ -65,6 +69,7 @@ namespace EJCFitnessGym.Pages.Admin
             if (recentPayments.Count == 0)
             {
                 Transactions = Array.Empty<PaymentTransactionRow>();
+                RecentSuccessfulPayment = null;
                 return;
             }
 
@@ -106,6 +111,8 @@ namespace EJCFitnessGym.Pages.Admin
 
                     return new PaymentTransactionRow
                     {
+                        PaymentId = payment.PaymentId,
+                        InvoiceId = payment.InvoiceId,
                         InvoiceNumber = payment.InvoiceNumber,
                         MemberDisplayName = BuildMemberDisplayName(profile, memberEmail),
                         MemberEmail = memberEmail,
@@ -118,6 +125,11 @@ namespace EJCFitnessGym.Pages.Admin
                     };
                 })
                 .ToList();
+
+            var notificationCutoffUtc = DateTime.UtcNow.AddHours(-24);
+            RecentSuccessfulPayment = Transactions.FirstOrDefault(payment =>
+                payment.Status == PaymentStatus.Succeeded &&
+                payment.PaidAtUtc >= notificationCutoffUtc);
         }
 
         private static string BuildMemberDisplayName(MemberProfile? profile, string fallback)
@@ -128,6 +140,8 @@ namespace EJCFitnessGym.Pages.Admin
 
         public sealed class PaymentTransactionRow
         {
+            public int PaymentId { get; init; }
+            public int InvoiceId { get; init; }
             public string InvoiceNumber { get; init; } = string.Empty;
             public string MemberDisplayName { get; init; } = string.Empty;
             public string MemberEmail { get; init; } = string.Empty;
@@ -141,6 +155,8 @@ namespace EJCFitnessGym.Pages.Admin
 
         private sealed class PaymentSnapshot
         {
+            public int PaymentId { get; init; }
+            public int InvoiceId { get; init; }
             public string InvoiceNumber { get; init; } = string.Empty;
             public string MemberUserId { get; init; } = string.Empty;
             public decimal Amount { get; init; }

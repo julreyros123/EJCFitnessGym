@@ -106,7 +106,7 @@ public class BackOfficeLoginModel : PageModel
 
         if (result.IsLockedOut)
         {
-            return RedirectToPage("./Lockout");
+            return RedirectToPage("./Lockout", new { email = Input.Email });
         }
 
         ModelState.AddModelError(string.Empty, "Invalid login attempt.");

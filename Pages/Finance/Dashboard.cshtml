@@ -7,11 +7,8 @@
 <div class="py-4" data-finance-dashboard>
     <div class="ejc-page-header">
         <div class="ejc-finance-header-intro">
-            <span class="ejc-eyebrow">Finance Core</span>
-            <h1 class="h2 mb-1">Audit, Requests, and Forecast</h1>
-            <p class="ejc-muted mb-0 ejc-finance-header-copy">
-                Finance focuses on weekly sales audit from staff, fund requests from admin, and revenue/profit forecasting.
-            </p>
+            <h1 class="h2 mb-1">Finance KPIs</h1>
+            <p class="ejc-muted mb-0 ejc-finance-header-copy">Track the core revenue and profit metrics in one view.</p>
             <div class="ejc-finance-header-state" data-fin-header-state>
                 <i class="bi bi-calendar-range"></i>
                 <span>Last 30 days • Month to month</span>
@@ -28,7 +25,7 @@
             </button>
             <div class="ejc-finance-link-actions">
                 <a class="btn btn-primary" asp-page="/Finance/WeeklySalesAudit">Weekly Sales Audit</a>
-                <a class="btn btn-outline-primary" asp-page="/Finance/FundRequests">Fund Requests</a>
+                <a class="btn btn-outline-primary" asp-page="/Finance/FundRequests">Fund Queue</a>
                 <a class="btn btn-outline-primary" asp-page="/Finance/OperatingExpenses" asp-route-view="records">Expense Records</a>
             </div>
         </div>
@@ -162,7 +159,7 @@
                         </div>
                     </div>
                     <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mt-3">
-                        <p class="ejc-muted mb-0 small" data-fin-pipeline-note>Detailed request entries are available in the Fund Requests module.</p>
+                        <p class="ejc-muted mb-0 small" data-fin-pipeline-note>Detailed request entries are available in the Fund Queue module.</p>
                         <a class="btn btn-sm btn-outline-primary" asp-page="/Finance/FundRequests">View Queue</a>
                     </div>
                 </div>
@@ -186,7 +183,7 @@
                         </a>
                         <a class="ejc-finance-module-link" asp-page="/Finance/FundRequests">
                             <span class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="fw-semibold">Fund Requests</span>
+                                <span class="fw-semibold">Fund Queue</span>
                                 <i class="bi bi-cash-stack"></i>
                             </span>
                             <span class="ejc-muted small">Review and process requests forwarded by admin.</span>
@@ -211,6 +208,13 @@
                                 <i class="bi bi-calculator-fill"></i>
                             </span>
                             <span class="ejc-muted small">Predict next-cycle net results using current trend.</span>
+                        </a>
+                        <a class="ejc-finance-module-link" asp-page="/Finance/GeneralLedger">
+                            <span class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold">General Ledger</span>
+                                <i class="bi bi-journal-bookmark-fill"></i>
+                            </span>
+                            <span class="ejc-muted small">Post journals and review branch trial balance.</span>
                         </a>
                     </div>
                 </div>

@@ -7,24 +7,16 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace EJCFitnessGym.Areas.Identity.Pages.Account;
 
-public class LoginModel : PageModel
+public class LoginModel(
+    SignInManager<IdentityUser> signInManager,
+    UserManager<IdentityUser> userManager,
+    ILogger<LoginModel> logger,
+    IWebHostEnvironment environment) : PageModel
 {
-    private readonly SignInManager<IdentityUser> _signInManager;
-    private readonly UserManager<IdentityUser> _userManager;
-    private readonly ILogger<LoginModel> _logger;
-    private readonly IWebHostEnvironment _environment;
-
-    public LoginModel(
-        SignInManager<IdentityUser> signInManager,
-        UserManager<IdentityUser> userManager,
-        ILogger<LoginModel> logger,
-        IWebHostEnvironment environment)
-    {
-        _signInManager = signInManager;
-        _userManager = userManager;
-        _logger = logger;
-        _environment = environment;
-    }
+    private readonly SignInManager<IdentityUser> _signInManager = signInManager;
+    private readonly UserManager<IdentityUser> _userManager = userManager;
+    private readonly ILogger<LoginModel> _logger = logger;
+    private readonly IWebHostEnvironment _environment = environment;
 
     [BindProperty]
     public InputModel Input { get; set; } = new();
@@ -50,8 +42,25 @@ public class LoginModel : PageModel
         public bool RememberMe { get; set; }
     }
 
-    public async Task OnGetAsync(string? returnUrl = null)
+    public async Task<IActionResult> OnGetAsync(string? returnUrl = null)
     {
+        if (User?.Identity?.IsAuthenticated == true)
+        {
+            var signedInUser = await _userManager.GetUserAsync(User);
+            if (signedInUser is not null)
+            {
+                var roles = await _userManager.GetRolesAsync(signedInUser);
+                if (roles.Any(AccountFlowHelper.IsBackOfficeRole))
+                {
+                    var backOfficeReturnUrl = AccountFlowHelper.NormalizeBackOfficeReturnUrl(Url, returnUrl, roles);
+                    return RedirectToPage("./BackOfficeLogin", new { returnUrl = backOfficeReturnUrl });
+                }
+            }
+
+            var normalizedAuthenticatedReturnUrl = AccountFlowHelper.NormalizeMemberReturnUrl(Url, returnUrl);
+            return LocalRedirect(normalizedAuthenticatedReturnUrl);
+        }
+
         if (!string.IsNullOrEmpty(ErrorMessage))
         {
             ModelState.AddModelError(string.Empty, ErrorMessage);
@@ -64,6 +73,7 @@ public class LoginModel : PageModel
         ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
 
         ReturnUrl = returnUrl;
+        return Page();
     }
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
@@ -157,7 +167,7 @@ public class LoginModel : PageModel
             if (result.IsLockedOut)
             {
                 _logger.LogWarning("User account locked out.");
-                return RedirectToPage("./Lockout");
+                return RedirectToPage("./Lockout", new { email = Input.Email });
             }
 
             if (result.IsNotAllowed)

@@ -1,0 +1,62 @@
+@page
+@model LockoutModel
+@{
+    ViewData["Title"] = "Account Locked";
+}
+
+<section class="ejc-auth ejc-auth-login">
+    <div class="ejc-auth-card">
+        <div class="ejc-auth-form">
+            <div class="ejc-auth-brand">
+                <div>
+                    <span class="ejc-eyebrow text-danger">Account security</span>
+                    <h1 class="h2 mb-1">Account locked</h1>
+                    @if (Model.IsPermanentLockout)
+                    {
+                        <p class="ejc-muted mb-0">
+                            This account is currently disabled by an administrator.
+                            Contact gym support or a SuperAdmin to restore access.
+                        </p>
+                    }
+                    else if (Model.LockoutEndUtc.HasValue)
+                    {
+                        <p class="ejc-muted mb-0">
+                            Too many sign-in attempts were detected.
+                            Try again in about @Model.RetryAfterText
+                            (@Model.LockoutEndUtc.Value.ToString("yyyy-MM-dd HH:mm 'UTC'")).
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="ejc-muted mb-0">
+                            This account is temporarily locked.
+                            Please try again shortly or reset your password.
+                        </p>
+                    }
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <a asp-page="./Login" class="btn btn-primary ejc-auth-submit">Back to member login</a>
+                <a asp-page="./BackOfficeLogin" class="btn btn-outline-light">Back-office login</a>
+                @if (!Model.IsPermanentLockout)
+                {
+                    <a asp-page="./ForgotPassword" class="ejc-auth-link">Forgot your password?</a>
+                }
+            </div>
+        </div>
+        <div class="ejc-auth-aside">
+            <span class="ejc-eyebrow">Need help?</span>
+            <h2 class="h3 mt-2">Protecting your account</h2>
+            <p class="ejc-muted">
+                Lockout protects your account after repeated failed sign-in attempts.
+                If this was not you, reset your password now.
+            </p>
+            <ul class="ejc-auth-list">
+                <li><i class="bi bi-check2"></i><span>Use the exact email tied to your account</span></li>
+                <li><i class="bi bi-check2"></i><span>Reset your password if you are unsure</span></li>
+                <li><i class="bi bi-check2"></i><span>Ask staff/admin to restore archived accounts</span></li>
+            </ul>
+        </div>
+    </div>
+</section>

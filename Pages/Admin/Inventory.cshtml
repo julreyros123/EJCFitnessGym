@@ -78,34 +78,24 @@
                 <div class="col-xl-5">
                     <div class="card h-100">
                         <div class="card-header d-flex align-items-center justify-content-between">
-                            <h5 class="mb-0">Role Ownership Matrix</h5>
-                            <span class="text-muted small">Request to audit</span>
+                            <h5 class="mb-0">Role Ownership (Quick Guide)</h5>
+                            <span class="text-muted small">Reference only</span>
                         </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover align-middle mb-0"
-                                       data-ejc-page-size="8"
-                                       data-ejc-search-placeholder="Search stage, role, or action">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Stage</th>
-                                            <th>Primary Role</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var step in Model.WorkflowOwners)
-                                        {
-                                            <tr>
-                                                <td class="text-nowrap">@(step.Sequence.ToString("00"))</td>
-                                                <td><span class="@InventoryModel.WorkflowStageBadge(step.Stage)">@step.Stage</span></td>
-                                                <td><span class="@InventoryModel.RoleBadge(step.PrimaryRole)">@step.PrimaryRole</span></td>
-                                                <td>@step.Description</td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
+                        <div class="card-body">
+                            <p class="small text-muted mb-3">
+                                This is a quick ownership reference. Main work should happen in <strong>Current Stock</strong> and <strong>Open Supply Workflow Tracker</strong>.
+                            </p>
+                            <div class="vstack gap-2">
+                                @foreach (var step in Model.WorkflowOwners)
+                                {
+                                    <div class="border rounded px-3 py-2">
+                                        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                                            <div class="fw-semibold">@(step.Sequence.ToString("00")). @step.Stage</div>
+                                            <span class="@InventoryModel.RoleBadge(step.PrimaryRole)">@step.PrimaryRole</span>
+                                        </div>
+                                        <div class="small text-muted mt-1">@step.Description</div>
+                                    </div>
+                                }
                             </div>
                         </div>
                     </div>

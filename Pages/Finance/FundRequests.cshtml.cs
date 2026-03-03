@@ -18,6 +18,10 @@ namespace EJCFitnessGym.Pages.Finance
         }
 
         public IReadOnlyList<FundRequestQueueRow> QueueRows { get; private set; } = Array.Empty<FundRequestQueueRow>();
+        public int AwaitingClearanceCount { get; private set; }
+        public int ReadyToReleaseCount { get; private set; }
+        public int ReleasedCount { get; private set; }
+        public int ReturnedCount { get; private set; }
 
         public async Task OnGetAsync(CancellationToken cancellationToken)
         {
@@ -48,6 +52,16 @@ namespace EJCFitnessGym.Pages.Finance
                     invoice.IssueDateUtc,
                     invoice.DueDateUtc))
                 .ToList();
+
+            AwaitingClearanceCount = QueueRows.Count(row =>
+                string.Equals(row.ClearanceState, "Waiting Clearance", StringComparison.OrdinalIgnoreCase));
+            ReadyToReleaseCount = QueueRows.Count(row =>
+                string.Equals(row.FinanceAction, "Ready to Release", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(row.FinanceAction, "Priority Release", StringComparison.OrdinalIgnoreCase));
+            ReleasedCount = QueueRows.Count(row =>
+                string.Equals(row.FinanceAction, "Released", StringComparison.OrdinalIgnoreCase));
+            ReturnedCount = QueueRows.Count(row =>
+                string.Equals(row.QueueStatus, "Returned", StringComparison.OrdinalIgnoreCase));
         }
 
         private IQueryable<Invoice> BuildBranchScopedInvoicesQuery(string? branchId)
@@ -74,81 +88,78 @@ namespace EJCFitnessGym.Pages.Finance
             DateTime issueDateUtc,
             DateTime dueDateUtc)
         {
-            var stage = status switch
+            var clearanceState = status switch
             {
-                InvoiceStatus.Draft => "For Budget Review",
-                InvoiceStatus.Unpaid => "Invoiced",
-                InvoiceStatus.Overdue => "Invoiced",
-                InvoiceStatus.Paid => "Paid",
-                InvoiceStatus.Voided => "Voided",
-                _ => "Invoiced"
+                InvoiceStatus.Draft => "Waiting Clearance",
+                InvoiceStatus.Voided => "Cancelled",
+                _ => "Cleared"
             };
 
-            var match = status switch
+            var financeAction = status switch
             {
-                InvoiceStatus.Overdue => "Variance",
-                InvoiceStatus.Paid => "Matched",
-                InvoiceStatus.Voided => "Not Applicable",
-                _ => "Pending"
+                InvoiceStatus.Draft => "On Hold",
+                InvoiceStatus.Unpaid => "Ready to Release",
+                InvoiceStatus.Overdue => "Priority Release",
+                InvoiceStatus.Paid => "Released",
+                InvoiceStatus.Voided => "No Release",
+                _ => "On Hold"
             };
 
-            var statusLabel = status switch
+            var queueStatus = status switch
             {
-                InvoiceStatus.Draft => "For Validation",
-                InvoiceStatus.Unpaid => "For Payment",
-                InvoiceStatus.Overdue => "Needs Review",
-                InvoiceStatus.Paid => "Closed",
-                InvoiceStatus.Voided => "Voided",
-                _ => "For Validation"
+                InvoiceStatus.Draft => "Pending Clearance",
+                InvoiceStatus.Unpaid => "Pending Release",
+                InvoiceStatus.Overdue => "Urgent",
+                InvoiceStatus.Paid => "Completed",
+                InvoiceStatus.Voided => "Returned",
+                _ => "Pending Clearance"
             };
 
             return new FundRequestQueueRow(
                 RequestNumber: invoiceNumber,
                 Branch: string.IsNullOrWhiteSpace(branchId) ? "Unassigned" : branchId,
-                DocumentReference: $"{invoiceNumber} • Due {dueDateUtc:MMM dd, yyyy}",
-                CurrentStage: stage,
-                ThreeWayMatch: match,
+                RequestedAtUtc: issueDateUtc,
                 Amount: amount,
-                Owner: "Finance",
-                Status: statusLabel,
-                IssuedAtUtc: issueDateUtc);
+                ClearanceState: clearanceState,
+                FinanceAction: financeAction,
+                QueueStatus: queueStatus,
+                DueDateUtc: dueDateUtc);
         }
 
-        public static string StageBadgeClass(string stage) => stage switch
+        public static string ClearanceBadgeClass(string clearanceState) => clearanceState switch
         {
-            "For Budget Review" => "badge ejc-badge",
-            "Invoiced" => "badge bg-warning text-dark",
-            "Paid" => "badge bg-success",
-            "Voided" => "badge bg-dark",
+            "Cleared" => "badge bg-success",
+            "Waiting Clearance" => "badge bg-secondary",
+            "Cancelled" => "badge bg-danger",
             _ => "badge bg-secondary"
         };
 
-        public static string MatchBadgeClass(string match) => match switch
+        public static string FinanceActionBadgeClass(string financeAction) => financeAction switch
         {
-            "Matched" => "badge bg-success",
-            "Variance" => "badge bg-warning text-dark",
-            "Not Applicable" => "badge bg-secondary",
+            "Ready to Release" => "badge bg-info text-dark",
+            "Priority Release" => "badge bg-warning text-dark",
+            "Released" => "badge bg-success",
+            "No Release" => "badge bg-danger",
             _ => "badge bg-secondary"
         };
 
-        public static string StatusBadgeClass(string status) => status switch
+        public static string QueueStatusBadgeClass(string queueStatus) => queueStatus switch
         {
-            "For Payment" => "badge bg-info text-dark",
-            "Needs Review" => "badge bg-danger",
-            "Closed" => "badge bg-success",
-            "Voided" => "badge bg-dark",
+            "Pending Release" => "badge bg-info text-dark",
+            "Urgent" => "badge bg-warning text-dark",
+            "Completed" => "badge bg-success",
+            "Returned" => "badge bg-danger",
             _ => "badge bg-secondary"
         };
 
         public sealed record FundRequestQueueRow(
             string RequestNumber,
             string Branch,
-            string DocumentReference,
-            string CurrentStage,
-            string ThreeWayMatch,
+            DateTime RequestedAtUtc,
             decimal Amount,
-            string Owner,
-            string Status,
-            DateTime IssuedAtUtc);
+            string ClearanceState,
+            string FinanceAction,
+            string QueueStatus,
+            DateTime DueDateUtc);
     }
 }

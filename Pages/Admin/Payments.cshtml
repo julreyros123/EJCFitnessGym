@@ -4,6 +4,7 @@
 @{
     ViewData["Title"] = "Payments";
     var transactions = Model.Transactions;
+    var recentSuccess = Model.RecentSuccessfulPayment;
 
     string StatusBadgeClass(PaymentStatus status)
     {
@@ -32,6 +33,29 @@
                     <a class="btn btn-primary" asp-controller="Invoices" asp-action="Create">Create Invoice</a>
                 </div>
             </div>
+
+            @if (recentSuccess is not null)
+            {
+                var recentSuccessPaidLocal = recentSuccess.PaidAtUtc.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt");
+                <article class="ejc-payment-success-banner mb-4" role="status" aria-live="polite">
+                    <div class="ejc-payment-success-icon" aria-hidden="true">
+                        <i class="bi bi-check2-circle"></i>
+                    </div>
+                    <div class="ejc-payment-success-copy">
+                        <p class="ejc-payment-success-label mb-1">Payment Successful</p>
+                        <h2 class="ejc-payment-success-title h5 mb-1">Invoice @recentSuccess.InvoiceNumber was paid successfully.</h2>
+                        <p class="mb-0">
+                            @recentSuccess.MemberDisplayName paid PHP @recentSuccess.Amount.ToString("N2") via @recentSuccess.Method on @recentSuccessPaidLocal.
+                        </p>
+                    </div>
+                    <a class="btn btn-sm btn-outline-light ejc-payment-success-action"
+                       asp-controller="Invoices"
+                       asp-action="Details"
+                       asp-route-id="@recentSuccess.InvoiceId">
+                        View invoice
+                    </a>
+                </article>
+            }
 
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between">
@@ -62,7 +86,8 @@
                                 {
                                     @foreach (var payment in transactions)
                                     {
-                                        <tr>
+                                        var isRecentSuccess = recentSuccess is not null && payment.PaymentId == recentSuccess.PaymentId;
+                                        <tr class="@(isRecentSuccess ? "ejc-payment-row-success" : null)">
                                             <td class="text-nowrap">@payment.InvoiceNumber</td>
                                             <td>
                                                 <div class="fw-semibold">@payment.MemberDisplayName</div>
@@ -77,7 +102,13 @@
                                                 }
                                             </td>
                                             <td class="text-nowrap">@payment.PaidAtUtc.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</td>
-                                            <td><span class="badge @StatusBadgeClass(payment.Status)">@payment.Status</span></td>
+                                            <td>
+                                                <span class="badge @StatusBadgeClass(payment.Status)">@payment.Status</span>
+                                                @if (isRecentSuccess)
+                                                {
+                                                    <div class="small mt-1">Latest success</div>
+                                                }
+                                            </td>
                                         </tr>
                                     }
                                 }

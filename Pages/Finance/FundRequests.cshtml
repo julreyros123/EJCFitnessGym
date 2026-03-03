@@ -1,129 +1,89 @@
 @page
 @model EJCFitnessGym.Pages.Finance.FundRequestsModel
 @{
-    ViewData["Title"] = "Fund Requests";
+    ViewData["Title"] = "Fund Queue";
 }
 
 <div class="py-4">
     <div class="ejc-page-header">
         <div>
-            <span class="ejc-eyebrow">Finance Core</span>
-            <h1 class="h2 mb-1">Fund Request Review</h1>
-            <p class="ejc-muted mb-0">Finance validates incoming requests, checks supporting documents, and controls release.</p>
+            <span class="ejc-eyebrow">Finance Queue</span>
+            <h1 class="h2 mb-1">Fund Queue</h1>
+            <p class="ejc-muted mb-0">Finance reviews incoming requests and releases funds once each request is cleared.</p>
         </div>
         <div class="ejc-actions">
-            <a class="btn btn-outline-primary" asp-page="/Finance/WeeklySalesAudit">Weekly Sales Audit</a>
             <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Back to Overview</a>
         </div>
     </div>
 
     <div class="alert alert-info py-2 px-3 mb-4">
         <span class="small">
-            Workflow: <strong>Staff submits weekly sales</strong> -> <strong>Finance audits totals</strong> -> <strong>Admin submits fund request</strong> -> <strong>Finance validates and releases payment</strong>.
-            Finance does not create requests; it performs review, document checks, and release control.
+            Workflow: <strong>Request received</strong> -> <strong>Clearance check</strong> -> <strong>Finance release action</strong> -> <strong>Queue closes as completed</strong>.
+            This page only shows fund-request queue items relevant to finance release.
         </span>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-header d-flex align-items-center justify-content-between">
-            <h5 class="mb-0">Fund Request Lifecycle Reference</h5>
-            <span class="text-muted small">Role handoff visibility</span>
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <article class="ejc-admin-metric h-100">
+                <div class="ejc-admin-metric-link">
+                    <span class="ejc-admin-metric-label">Waiting Clearance</span>
+                    <strong>@Model.AwaitingClearanceCount</strong>
+                </div>
+            </article>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0 ejc-finance-table ejc-table-sticky"
-                       data-ejc-page-size="7"
-                       data-ejc-search-placeholder="Search stage, role, or notes">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Stage</th>
-                            <th>Primary Role</th>
-                            <th>System Control</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>01</td>
-                            <td><span class="badge bg-secondary">Requested</span></td>
-                            <td><span class="badge bg-info text-dark">Staff</span></td>
-                            <td>Staff submits item, qty, and reason</td>
-                        </tr>
-                        <tr>
-                            <td>02</td>
-                            <td><span class="badge ejc-badge">For Budget Review</span></td>
-                            <td><span class="badge ejc-badge">Requester</span></td>
-                            <td>Request is checked against budget and priority</td>
-                        </tr>
-                        <tr>
-                            <td>03</td>
-                            <td><span class="badge bg-primary">Purchase Scheduled</span></td>
-                            <td><span class="badge ejc-badge">Requester</span></td>
-                            <td>PO and supplier schedule are prepared</td>
-                        </tr>
-                        <tr>
-                            <td>04</td>
-                            <td><span class="badge bg-info text-dark">Received Draft</span></td>
-                            <td><span class="badge bg-info text-dark">Staff</span></td>
-                            <td>Staff records actual received quantity and condition</td>
-                        </tr>
-                        <tr>
-                            <td>05</td>
-                            <td><span class="badge bg-success">Received Confirmed</span></td>
-                            <td><span class="badge ejc-badge">Requester</span></td>
-                            <td>Receipt is confirmed and stock posting is finalized</td>
-                        </tr>
-                        <tr>
-                            <td>06</td>
-                            <td><span class="badge bg-warning text-dark">Invoiced</span></td>
-                            <td><span class="badge bg-warning text-dark">Finance</span></td>
-                            <td>Finance logs supplier invoice against request</td>
-                        </tr>
-                        <tr>
-                            <td>07</td>
-                            <td><span class="badge bg-success">Paid</span></td>
-                            <td><span class="badge bg-warning text-dark">Finance</span></td>
-                            <td>Finance releases and records payment</td>
-                        </tr>
-                        <tr>
-                            <td>08</td>
-                            <td><span class="badge bg-dark">Audited</span></td>
-                            <td><span class="badge bg-dark">Finance Audit</span></td>
-                            <td>Audit verifies full document trail and variances</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <div class="col-sm-6 col-xl-3">
+            <article class="ejc-admin-metric h-100">
+                <div class="ejc-admin-metric-link">
+                    <span class="ejc-admin-metric-label">Ready To Release</span>
+                    <strong>@Model.ReadyToReleaseCount</strong>
+                </div>
+            </article>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <article class="ejc-admin-metric h-100">
+                <div class="ejc-admin-metric-link">
+                    <span class="ejc-admin-metric-label">Released</span>
+                    <strong>@Model.ReleasedCount</strong>
+                </div>
+            </article>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <article class="ejc-admin-metric h-100">
+                <div class="ejc-admin-metric-link">
+                    <span class="ejc-admin-metric-label">Returned / Cancelled</span>
+                    <strong>@Model.ReturnedCount</strong>
+                </div>
+            </article>
         </div>
     </div>
 
     <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
-            <h5 class="mb-0">Finance Validation, Payment, and Audit Queue</h5>
+            <h5 class="mb-0">Fund Request Queue (Finance Action Only)</h5>
             <span class="text-muted small">@Model.QueueRows.Count item(s) • Branch scoped</span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-sm table-hover align-middle mb-0 ejc-finance-table ejc-table-sticky"
                        data-ejc-page-size="7"
-                       data-ejc-search-placeholder="Search request, stage, match, amount, or owner">
+                       data-ejc-search-placeholder="Search request, branch, approval, action, or status">
                     <thead>
                         <tr>
                             <th>Request #</th>
                             <th>Branch</th>
-                            <th>Document Reference</th>
-                            <th>Current Stage</th>
-                            <th>3-Way Match</th>
+                            <th>Requested On</th>
                             <th class="text-end">Amount</th>
-                            <th>Owner</th>
-                            <th>Status</th>
+                            <th>Clearance</th>
+                            <th>Finance Action</th>
+                            <th>Queue Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         @if (Model.QueueRows.Count == 0)
                         {
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-3">No branch-scoped queue items yet.</td>
+                                <td colspan="7" class="text-center text-muted py-3">No branch-scoped fund requests yet.</td>
                             </tr>
                         }
                         @foreach (var row in Model.QueueRows)
@@ -131,12 +91,11 @@
                             <tr>
                                 <td>@row.RequestNumber</td>
                                 <td>@row.Branch</td>
-                                <td>@row.DocumentReference</td>
-                                <td><span class="@FundRequestsModel.StageBadgeClass(row.CurrentStage)">@row.CurrentStage</span></td>
-                                <td><span class="@FundRequestsModel.MatchBadgeClass(row.ThreeWayMatch)">@row.ThreeWayMatch</span></td>
+                                <td class="text-nowrap">@row.RequestedAtUtc.ToLocalTime().ToString("MMM dd, yyyy")</td>
                                 <td class="text-end text-nowrap">PHP @row.Amount.ToString("N2")</td>
-                                <td><span class="badge bg-warning text-dark">@row.Owner</span></td>
-                                <td><span class="@FundRequestsModel.StatusBadgeClass(row.Status)">@row.Status</span></td>
+                                <td><span class="@FundRequestsModel.ClearanceBadgeClass(row.ClearanceState)">@row.ClearanceState</span></td>
+                                <td><span class="@FundRequestsModel.FinanceActionBadgeClass(row.FinanceAction)">@row.FinanceAction</span></td>
+                                <td><span class="@FundRequestsModel.QueueStatusBadgeClass(row.QueueStatus)">@row.QueueStatus</span></td>
                             </tr>
                         }
                     </tbody>

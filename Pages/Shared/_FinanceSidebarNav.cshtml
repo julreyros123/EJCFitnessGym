@@ -34,9 +34,9 @@
             <i class="bi bi-clipboard2-check"></i>
             <span class="ejc-admin-nav-text">Weekly Sales Audit</span>
         </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/FundRequests")" asp-page="/Finance/FundRequests" title="Fund Requests">
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/FundRequests")" asp-page="/Finance/FundRequests" title="Fund Queue">
             <i class="bi bi-cash-stack"></i>
-            <span class="ejc-admin-nav-text">Fund Requests</span>
+            <span class="ejc-admin-nav-text">Fund Queue</span>
         </a>
         <details class="ejc-admin-nav-module" @(isOperatingExpensesPath ? "open" : null)>
             <summary class="ejc-admin-nav-module-trigger" title="Operating Expenses">
@@ -68,6 +68,10 @@
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/NetForecast")" asp-page="/Finance/NetForecast" title="Net Forecast">
             <i class="bi bi-calculator-fill"></i>
             <span class="ejc-admin-nav-text">Net Forecast</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/GeneralLedger")" asp-page="/Finance/GeneralLedger" title="General Ledger">
+            <i class="bi bi-journal-bookmark-fill"></i>
+            <span class="ejc-admin-nav-text">General Ledger</span>
         </a>
     </div>
 

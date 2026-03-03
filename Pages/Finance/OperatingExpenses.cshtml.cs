@@ -48,15 +48,21 @@ namespace EJCFitnessGym.Pages.Finance
         private readonly ApplicationDbContext _db;
         private readonly IFinanceMetricsService _financeMetricsService;
         private readonly IFinanceAlertService _financeAlertService;
+        private readonly IGeneralLedgerService _generalLedgerService;
+        private readonly ILogger<OperatingExpensesModel> _logger;
 
         public OperatingExpensesModel(
             ApplicationDbContext db,
             IFinanceMetricsService financeMetricsService,
-            IFinanceAlertService financeAlertService)
+            IFinanceAlertService financeAlertService,
+            IGeneralLedgerService generalLedgerService,
+            ILogger<OperatingExpensesModel> logger)
         {
             _db = db;
             _financeMetricsService = financeMetricsService;
             _financeAlertService = financeAlertService;
+            _generalLedgerService = generalLedgerService;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -196,6 +202,21 @@ namespace EJCFitnessGym.Pages.Finance
 
             _db.FinanceExpenseRecords.Add(entity);
             await _db.SaveChangesAsync(cancellationToken);
+
+            try
+            {
+                await _generalLedgerService.PostOperatingExpenseAsync(
+                    entity.Id,
+                    actorUserId: User.Identity?.Name,
+                    cancellationToken: cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "General ledger posting failed for finance expense {ExpenseId}.",
+                    entity.Id);
+            }
 
             _ = await _financeAlertService.EvaluateAndNotifyAsync("finance.expense.created.page", cancellationToken);
 

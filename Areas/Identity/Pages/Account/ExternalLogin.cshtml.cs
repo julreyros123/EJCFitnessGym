@@ -117,7 +117,8 @@ public class ExternalLoginModel : PageModel
 
         if (loginResult.IsLockedOut)
         {
-            return RedirectToPage("./Lockout");
+            var lockedUser = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
+            return RedirectToPage("./Lockout", new { email = lockedUser?.Email });
         }
 
         ReturnUrl = returnUrl;

@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Finance;
 using EJCFitnessGym.Security;

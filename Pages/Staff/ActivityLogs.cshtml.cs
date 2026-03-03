@@ -26,11 +26,14 @@ namespace EJCFitnessGym.Pages.Staff
             var scopedBranchId = User.IsInRole("SuperAdmin") ? null : User.GetBranchId();
             await _staffAttendanceService.AutoCloseStaleSessionsAsync(scopedBranchId, cancellationToken);
 
+            // Staff attendance events create two outbox messages (one BackOffice, one User).
+            // Filter attendance events to BackOffice only to prevent duplicates.
             var candidateMessages = await _db.IntegrationOutboxMessages
                 .AsNoTracking()
                 .Where(message =>
-                    message.EventType == StaffAttendanceEvents.CheckInEventType ||
-                    message.EventType == StaffAttendanceEvents.CheckOutEventType ||
+                    ((message.EventType == StaffAttendanceEvents.CheckInEventType ||
+                      message.EventType == StaffAttendanceEvents.CheckOutEventType) &&
+                     message.Target == IntegrationOutboxTarget.BackOffice) ||
                     message.EventType == "payment.checkout.created" ||
                     message.EventType == "payment.failed" ||
                     message.EventType == "payment.succeeded" ||
