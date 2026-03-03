@@ -1,0 +1,258 @@
+@page "/Member/PaymentMethods"
+@model EJCFitnessGym.Pages.Member.PaymentMethodsModel
+@{
+    ViewData["Title"] = "Payment Methods";
+    Layout = "_Layout";
+}
+
+<section class="ejc-member-portal">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">EJC Fitness Member Portal</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#memberNavbar">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="memberNavbar">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" asp-page="/Member/Dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-page="/Member/Profile">Profile</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-page="/Member/Subscriptions">Subscriptions</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" asp-page="/Member/PaymentMethods">Payment Methods</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-lg-8">
+                <h1 class="h3 mb-4">
+                    <i class="bi bi-credit-card me-2"></i>Payment Methods
+                </h1>
+
+                @if (!string.IsNullOrEmpty(Model.StatusMessage))
+                {
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        @Model.StatusMessage
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+
+                <!-- Auto-Pay Info Card -->
+                <div class="card mb-4 border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <i class="bi bi-lightning-charge me-2"></i>Auto-Pay Settings
+                    </div>
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h5 class="card-title">Automatic Subscription Renewal</h5>
+                                <p class="card-text text-muted mb-0">
+                                    When enabled, your subscription will automatically renew using your default payment method.
+                                    You'll receive a notification before each charge.
+                                </p>
+                            </div>
+                            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                                @if (Model.SavedMethods.Any(m => m.AutoBillingEnabled))
+                                {
+                                    <span class="badge bg-success fs-6">
+                                        <i class="bi bi-check-circle me-1"></i>Active
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary fs-6">
+                                        <i class="bi bi-x-circle me-1"></i>Inactive
+                                    </span>
+                                }
+                            </div>
+                        </div>
+
+                        @if (Model.NextBillingDate is not null)
+                        {
+                            <hr />
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted">Next Billing Date</small>
+                                    <div class="fw-bold">@Model.NextBillingDate</div>
+                                </div>
+                                @if (Model.NextBillingAmount.HasValue)
+                                {
+                                    <div class="text-end">
+                                        <small class="text-muted">Amount</small>
+                                        <div class="fw-bold text-primary fs-5">₱@Model.NextBillingAmount.Value.ToString("N2")</div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Saved Payment Methods -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-wallet2 me-2"></i>Saved Payment Methods</span>
+                        <a asp-page="/Public/Pricing" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-plus-lg me-1"></i>Add New
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.SavedMethods.Count == 0)
+                        {
+                            <div class="text-center py-5">
+                                <i class="bi bi-credit-card-2-back fs-1 text-muted"></i>
+                                <h5 class="mt-3">No Payment Methods Saved</h5>
+                                <p class="text-muted">
+                                    Save a payment method during checkout to enable auto-pay for your subscription.
+                                </p>
+                                <a asp-page="/Public/Pricing" class="btn btn-primary">
+                                    <i class="bi bi-plus-lg me-1"></i>Add Payment Method
+                                </a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var method in Model.SavedMethods)
+                                {
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="d-flex align-items-center">
+                                                <div class="me-3">
+                                                    @if (method.PaymentMethodType.Equals("card", StringComparison.OrdinalIgnoreCase))
+                                                    {
+                                                        <i class="bi bi-credit-card fs-3 text-primary"></i>
+                                                    }
+                                                    else if (method.PaymentMethodType.Equals("gcash", StringComparison.OrdinalIgnoreCase))
+                                                    {
+                                                        <i class="bi bi-phone fs-3 text-success"></i>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="bi bi-wallet fs-3 text-secondary"></i>
+                                                    }
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold">
+                                                        @method.DisplayLabel
+                                                        @if (method.IsDefault)
+                                                        {
+                                                            <span class="badge bg-primary ms-2">Default</span>
+                                                        }
+                                                    </div>
+                                                    <small class="text-muted">
+                                                        Added @method.CreatedUtc.ToLocalTime().ToString("MMM dd, yyyy")
+                                                        @if (method.LastUsedUtc.HasValue)
+                                                        {
+                                                            <text> • Last used @method.LastUsedUtc.Value.ToLocalTime().ToString("MMM dd, yyyy")</text>
+                                                        }
+                                                    </small>
+                                                    @if (method.FailedAttempts > 0)
+                                                    {
+                                                        <div>
+                                                            <span class="badge bg-warning text-dark">
+                                                                <i class="bi bi-exclamation-triangle me-1"></i>@method.FailedAttempts failed attempt(s)
+                                                            </span>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div class="text-end">
+                                                <!-- Auto-Pay Toggle -->
+                                                <div class="form-check form-switch mb-2">
+                                                    <form method="post" asp-page-handler="ToggleAutoBilling" class="d-inline">
+                                                        <input type="hidden" name="methodId" value="@method.Id" />
+                                                        <input class="form-check-input"
+                                                               type="checkbox"
+                                                               role="switch"
+                                                               id="autoPay-@method.Id"
+                                                               @(method.AutoBillingEnabled ? "checked" : "")
+                                                               onchange="this.form.submit()" />
+                                                        <label class="form-check-label small" for="autoPay-@method.Id">
+                                                            Auto-Pay
+                                                        </label>
+                                                    </form>
+                                                </div>
+
+                                                <div class="btn-group btn-group-sm">
+                                                    @if (!method.IsDefault)
+                                                    {
+                                                        <form method="post" asp-page-handler="SetDefault" class="d-inline">
+                                                            <input type="hidden" name="methodId" value="@method.Id" />
+                                                            <button type="submit" class="btn btn-outline-primary btn-sm">
+                                                                Set Default
+                                                            </button>
+                                                        </form>
+                                                    }
+                                                    <form method="post" asp-page-handler="Remove" class="d-inline"
+                                                          onsubmit="return confirm('Remove this payment method?');">
+                                                        <input type="hidden" name="methodId" value="@method.Id" />
+                                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Info -->
+            <div class="col-lg-4 mt-4 mt-lg-0">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="bi bi-info-circle me-2"></i>How Auto-Pay Works
+                        </h6>
+                        <ul class="small mb-0 ps-3">
+                            <li class="mb-2">Your subscription automatically renews on the billing date</li>
+                            <li class="mb-2">We'll charge your default payment method</li>
+                            <li class="mb-2">You'll receive a confirmation email after each payment</li>
+                            <li class="mb-2">If payment fails, we'll notify you to update your method</li>
+                            <li>You can disable auto-pay anytime</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="bi bi-shield-check me-2"></i>Secure Payments
+                        </h6>
+                        <p class="small text-muted mb-0">
+                            Your payment information is securely stored with PayMongo. 
+                            We never store your full card details on our servers.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="bi bi-question-circle me-2"></i>Need Help?
+                        </h6>
+                        <p class="small text-muted mb-2">
+                            Having issues with payments or auto-pay?
+                        </p>
+                        <a href="mailto:support@ejcfitness.com" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-envelope me-1"></i>Contact Support
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

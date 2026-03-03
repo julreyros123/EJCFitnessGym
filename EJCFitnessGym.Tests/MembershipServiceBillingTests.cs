@@ -105,6 +105,45 @@ public class MembershipServiceBillingTests
         Assert.Equal(outboxCountAfterFirst, await db.IntegrationOutboxMessages.CountAsync());
     }
 
+    [Fact]
+    public async Task RunLifecycleMaintenance_VoidsFailedSubscriptionCheckoutInvoice_WhenNoSuccessfulPaymentExists()
+    {
+        await using var dbHandle = await CreateDbContextAsync(nameof(RunLifecycleMaintenance_VoidsFailedSubscriptionCheckoutInvoice_WhenNoSuccessfulPaymentExists));
+        var db = dbHandle.Db;
+
+        var nowUtc = DateTime.UtcNow;
+        var invoice = new Invoice
+        {
+            InvoiceNumber = $"INV-FAILED-{Guid.NewGuid():N}",
+            MemberUserId = "member-3",
+            IssueDateUtc = nowUtc.AddHours(-2),
+            DueDateUtc = nowUtc.AddHours(-1),
+            Amount = 1299m,
+            Status = InvoiceStatus.Unpaid,
+            Notes = "Subscription purchase: Starter [plan:1]"
+        };
+        db.Invoices.Add(invoice);
+        await db.SaveChangesAsync();
+
+        db.Payments.Add(new Payment
+        {
+            InvoiceId = invoice.Id,
+            Amount = invoice.Amount,
+            Method = PaymentMethod.OnlineGateway,
+            Status = PaymentStatus.Failed,
+            PaidAtUtc = nowUtc.AddMinutes(-30),
+            GatewayProvider = "PayMongo",
+            ReferenceNumber = "cs_failed_checkout_001"
+        });
+        await db.SaveChangesAsync();
+
+        var service = new MembershipService(db, new IntegrationOutboxService(db));
+        await service.RunLifecycleMaintenanceAsync(nowUtc);
+
+        var refreshedInvoice = await db.Invoices.SingleAsync(i => i.Id == invoice.Id);
+        Assert.Equal(InvoiceStatus.Voided, refreshedInvoice.Status);
+    }
+
     private static async Task<SqliteDbHandle> CreateDbContextAsync(string databaseName)
     {
         var connection = new SqliteConnection($"Data Source={databaseName};Mode=Memory;Cache=Shared");

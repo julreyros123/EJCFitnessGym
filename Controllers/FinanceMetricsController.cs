@@ -18,19 +18,25 @@ namespace EJCFitnessGym.Controllers
         private readonly IFinanceAlertService _financeAlertService;
         private readonly IFinanceAlertLifecycleService _financeAlertLifecycleService;
         private readonly IFinanceAiAssistantService _financeAiAssistantService;
+        private readonly IGeneralLedgerService _generalLedgerService;
         private readonly ApplicationDbContext _db;
+        private readonly ILogger<FinanceMetricsController> _logger;
 
         public FinanceMetricsController(
             IFinanceMetricsService financeMetricsService,
             IFinanceAlertService financeAlertService,
             IFinanceAlertLifecycleService financeAlertLifecycleService,
             IFinanceAiAssistantService financeAiAssistantService,
+            IGeneralLedgerService generalLedgerService,
+            ILogger<FinanceMetricsController> logger,
             ApplicationDbContext db)
         {
             _financeMetricsService = financeMetricsService;
             _financeAlertService = financeAlertService;
             _financeAlertLifecycleService = financeAlertLifecycleService;
             _financeAiAssistantService = financeAiAssistantService;
+            _generalLedgerService = generalLedgerService;
+            _logger = logger;
             _db = db;
         }
 
@@ -347,6 +353,21 @@ namespace EJCFitnessGym.Controllers
 
             _db.FinanceExpenseRecords.Add(expense);
             await _db.SaveChangesAsync(cancellationToken);
+
+            try
+            {
+                await _generalLedgerService.PostOperatingExpenseAsync(
+                    expense.Id,
+                    actorUserId: User?.Identity?.Name,
+                    cancellationToken: cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "General ledger posting failed for API expense {ExpenseId}.",
+                    expense.Id);
+            }
 
             _ = await _financeAlertService.EvaluateAndNotifyAsync("finance.expense.created", cancellationToken);
 

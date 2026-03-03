@@ -1,6 +1,7 @@
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Security;
+using EJCFitnessGym.Services.Finance;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -14,11 +15,19 @@ namespace EJCFitnessGym.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly UserManager<IdentityUser> _userManager;
+        private readonly IGeneralLedgerService _generalLedgerService;
+        private readonly ILogger<InvoicesController> _logger;
 
-        public InvoicesController(ApplicationDbContext db, UserManager<IdentityUser> userManager)
+        public InvoicesController(
+            ApplicationDbContext db,
+            UserManager<IdentityUser> userManager,
+            IGeneralLedgerService generalLedgerService,
+            ILogger<InvoicesController> logger)
         {
             _db = db;
             _userManager = userManager;
+            _generalLedgerService = generalLedgerService;
+            _logger = logger;
         }
 
         public async Task<IActionResult> Index(InvoiceStatus? status)
@@ -111,11 +120,16 @@ namespace EJCFitnessGym.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddPayment(int id, decimal amount, PaymentMethod method, string? referenceNumber)
+        public async Task<IActionResult> AddPayment(
+            int id,
+            decimal amount,
+            PaymentMethod method,
+            string? referenceNumber,
+            CancellationToken cancellationToken)
         {
             var invoice = await ApplyBranchScope(_db.Invoices)
                 .Include(i => i.Payments)
-                .FirstOrDefaultAsync(i => i.Id == id);
+                .FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
 
             if (invoice is null)
             {
@@ -153,7 +167,23 @@ namespace EJCFitnessGym.Controllers
                 invoice.Status = InvoiceStatus.Paid;
             }
 
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(cancellationToken);
+
+            try
+            {
+                await _generalLedgerService.PostPaymentReceiptAsync(
+                    payment.Id,
+                    _userManager.GetUserId(User),
+                    cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "General ledger posting failed for manual payment {PaymentId} (invoice {InvoiceId}).",
+                    payment.Id,
+                    invoice.Id);
+            }
 
             return RedirectToAction(nameof(Details), new { id });
         }

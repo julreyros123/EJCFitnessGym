@@ -204,9 +204,24 @@ namespace EJCFitnessGym.Services.Payments
                 hasUpdates = true;
             }
 
-            if (payment.Invoice.Status != InvoiceStatus.Paid)
+            var historicalSucceededAmounts = await _db.Payments
+                .AsNoTracking()
+                .Where(existing =>
+                    existing.InvoiceId == payment.InvoiceId &&
+                    existing.Id != payment.Id &&
+                    existing.Status == PaymentStatus.Succeeded)
+                .Select(existing => existing.Amount)
+                .ToListAsync(cancellationToken);
+            var historicalSucceededTotal = historicalSucceededAmounts.Sum();
+            var successfulPaidTotal = historicalSucceededTotal + payment.Amount;
+            var targetInvoiceStatus = InvoiceStatusPolicy.ResolveAfterSuccessfulPayment(
+                payment.Invoice,
+                successfulPaidTotal,
+                paidAtUtc);
+
+            if (payment.Invoice.Status != targetInvoiceStatus)
             {
-                payment.Invoice.Status = InvoiceStatus.Paid;
+                payment.Invoice.Status = targetInvoiceStatus;
                 hasUpdates = true;
             }
 
@@ -226,7 +241,9 @@ namespace EJCFitnessGym.Services.Payments
 
             resolvedPlanId ??= ExtractPlanIdFromInvoiceNotes(payment.Invoice.Notes);
 
-            if (!string.IsNullOrWhiteSpace(resolvedMemberUserId) && resolvedPlanId.HasValue)
+            if (targetInvoiceStatus == InvoiceStatus.Paid &&
+                !string.IsNullOrWhiteSpace(resolvedMemberUserId) &&
+                resolvedPlanId.HasValue)
             {
                 var subscription = await _membershipService.ActivateSubscriptionAsync(
                     resolvedMemberUserId,
@@ -245,11 +262,22 @@ namespace EJCFitnessGym.Services.Payments
             }
             else
             {
-                _logger.LogWarning(
-                    "PayMongo paid reconciliation for payment {PaymentId} could not resolve member or plan (member: {MemberUserId}, plan: {PlanId}).",
-                    payment.Id,
-                    resolvedMemberUserId,
-                    resolvedPlanId);
+                if (targetInvoiceStatus != InvoiceStatus.Paid)
+                {
+                    _logger.LogWarning(
+                        "PayMongo paid reconciliation for payment {PaymentId} left invoice {InvoiceId} as {InvoiceStatus} due to insufficient paid total.",
+                        payment.Id,
+                        payment.InvoiceId,
+                        targetInvoiceStatus);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "PayMongo paid reconciliation for payment {PaymentId} could not resolve member or plan (member: {MemberUserId}, plan: {PlanId}).",
+                        payment.Id,
+                        resolvedMemberUserId,
+                        resolvedPlanId);
+                }
             }
 
             if (!hasUpdates)
@@ -326,9 +354,19 @@ namespace EJCFitnessGym.Services.Payments
                 changed = true;
             }
 
-            var targetInvoiceStatus = payment.Invoice.DueDateUtc < nowUtc
-                ? InvoiceStatus.Overdue
-                : InvoiceStatus.Unpaid;
+            var succeededAmounts = await _db.Payments
+                .AsNoTracking()
+                .Where(existing =>
+                    existing.InvoiceId == payment.InvoiceId &&
+                    existing.Status == PaymentStatus.Succeeded)
+                .Select(existing => existing.Amount)
+                .ToListAsync(cancellationToken);
+            var successfulPaidTotal = succeededAmounts.Sum();
+
+            var targetInvoiceStatus = InvoiceStatusPolicy.ResolveAfterFailedCheckoutAttempt(
+                payment.Invoice,
+                successfulPaidTotal,
+                nowUtc);
 
             if (payment.Invoice.Status != targetInvoiceStatus)
             {

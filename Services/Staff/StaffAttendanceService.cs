@@ -55,6 +55,7 @@ namespace EJCFitnessGym.Services.Staff
             var candidateMessages = await _db.IntegrationOutboxMessages
                 .AsNoTracking()
                 .Where(message =>
+                    message.Target == Models.Integration.IntegrationOutboxTarget.BackOffice &&
                     (message.EventType == StaffAttendanceEvents.CheckInEventType ||
                      message.EventType == StaffAttendanceEvents.CheckOutEventType) &&
                     message.CreatedUtc >= windowStartUtc)

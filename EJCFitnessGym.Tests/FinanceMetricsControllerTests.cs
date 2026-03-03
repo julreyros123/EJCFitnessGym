@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace EJCFitnessGym.Tests;
 
@@ -288,6 +289,8 @@ public class FinanceMetricsControllerTests
             new StubFinanceAlertService(),
             lifecycle,
             new StubFinanceAiAssistantService(),
+            new StubGeneralLedgerService(),
+            NullLogger<FinanceMetricsController>.Instance,
             db);
     }
 
@@ -429,6 +432,43 @@ public class FinanceMetricsControllerTests
                 AlertsSent = 0,
                 EvaluatedAtUtc = DateTime.UtcNow
             });
+        }
+    }
+
+    private sealed class StubGeneralLedgerService : IGeneralLedgerService
+    {
+        public Task EnsureDefaultAccountsAsync(string? branchId, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<GeneralLedgerAccount>> GetActiveAccountsAsync(string branchId, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<GeneralLedgerAccount>>(Array.Empty<GeneralLedgerAccount>());
+        }
+
+        public Task PostPaymentReceiptAsync(int paymentId, string? actorUserId = null, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task PostOperatingExpenseAsync(int expenseId, string? actorUserId = null, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<GeneralLedgerEntry> CreateManualEntryAsync(
+            string branchId,
+            DateTime entryDateUtc,
+            string description,
+            int debitAccountId,
+            int creditAccountId,
+            decimal amount,
+            string? memo = null,
+            string? actorUserId = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new GeneralLedgerEntry());
         }
     }
 }

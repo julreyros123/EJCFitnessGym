@@ -253,6 +253,7 @@ namespace EJCFitnessGym.Services.Memberships
             var effectiveUtc = ToUtc(asOfUtc ?? DateTime.UtcNow);
             var generatedRenewalInvoices = 0;
             var threeDayRemindersQueued = 0;
+            var voidedFailedCheckoutInvoices = 0;
 
             var subscriptionsToExpire = await _db.MemberSubscriptions
                 .Where(s =>
@@ -275,6 +276,33 @@ namespace EJCFitnessGym.Services.Memberships
             foreach (var invoice in invoicesToMarkOverdue)
             {
                 invoice.Status = InvoiceStatus.Overdue;
+            }
+
+            var failedCheckoutInvoicesToVoid = await _db.Invoices
+                .Where(invoice =>
+                    (invoice.Status == InvoiceStatus.Unpaid || invoice.Status == InvoiceStatus.Overdue) &&
+                    invoice.MemberSubscriptionId == null &&
+                    invoice.Notes != null &&
+                    invoice.Notes.Contains("Subscription purchase:"))
+                .Where(invoice =>
+                    _db.Payments.Any(payment =>
+                        payment.InvoiceId == invoice.Id &&
+                        payment.Method == PaymentMethod.OnlineGateway &&
+                        payment.GatewayProvider == "PayMongo"))
+                .Where(invoice =>
+                    !_db.Payments.Any(payment =>
+                        payment.InvoiceId == invoice.Id &&
+                        payment.Status == PaymentStatus.Pending))
+                .Where(invoice =>
+                    !_db.Payments.Any(payment =>
+                        payment.InvoiceId == invoice.Id &&
+                        payment.Status == PaymentStatus.Succeeded))
+                .ToListAsync(cancellationToken);
+
+            foreach (var invoice in failedCheckoutInvoicesToVoid)
+            {
+                invoice.Status = InvoiceStatus.Voided;
+                voidedFailedCheckoutInvoices++;
             }
 
             var activeSubscriptions = await _db.MemberSubscriptions
@@ -431,6 +459,7 @@ namespace EJCFitnessGym.Services.Memberships
 
             if (subscriptionsToExpire.Count > 0 ||
                 invoicesToMarkOverdue.Count > 0 ||
+                voidedFailedCheckoutInvoices > 0 ||
                 generatedRenewalInvoices > 0 ||
                 threeDayRemindersQueued > 0)
             {

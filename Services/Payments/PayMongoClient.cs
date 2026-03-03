@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Globalization;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 #nullable enable
 
@@ -13,11 +14,270 @@ namespace EJCFitnessGym.Services.Payments
     {
         private readonly HttpClient _http;
         private readonly PayMongoOptions _options;
+        private readonly ILogger<PayMongoClient>? _logger;
 
-        public PayMongoClient(HttpClient http, IOptions<PayMongoOptions> options)
+        public PayMongoClient(HttpClient http, IOptions<PayMongoOptions> options, ILogger<PayMongoClient>? logger = null)
         {
             _http = http;
             _options = options.Value;
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// Creates a PayMongo customer for saving payment methods.
+        /// </summary>
+        public async Task<CreateCustomerResult> CreateCustomerAsync(
+            string email,
+            string? firstName = null,
+            string? lastName = null,
+            string? phone = null,
+            CancellationToken ct = default)
+        {
+            EnsureSecretKeyConfigured();
+
+            var requestPayload = new
+            {
+                data = new
+                {
+                    attributes = new
+                    {
+                        email = email,
+                        first_name = firstName,
+                        last_name = lastName,
+                        phone = phone,
+                        default_device = "email"
+                    }
+                }
+            };
+
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.paymongo.com/v1/customers");
+            httpRequest.Headers.Authorization = CreateAuthHeader();
+            httpRequest.Content = new StringContent(
+                JsonSerializer.Serialize(requestPayload, PayMongoJson.SerializerOptions),
+                Encoding.UTF8,
+                "application/json");
+
+            using var response = await _http.SendAsync(httpRequest, ct);
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException($"PayMongo CreateCustomer failed: {(int)response.StatusCode}. Body: {responseBody}");
+            }
+
+            using var doc = JsonDocument.Parse(responseBody);
+            var customerId = doc.RootElement.GetProperty("data").GetProperty("id").GetString();
+
+            return new CreateCustomerResult(customerId ?? throw new InvalidOperationException("Customer ID not returned."));
+        }
+
+        /// <summary>
+        /// Attaches a payment method to a customer for future recurring charges.
+        /// </summary>
+        public async Task<AttachPaymentMethodResult> AttachPaymentMethodToCustomerAsync(
+            string paymentMethodId,
+            string customerId,
+            CancellationToken ct = default)
+        {
+            EnsureSecretKeyConfigured();
+
+            var requestPayload = new
+            {
+                data = new
+                {
+                    attributes = new
+                    {
+                        payment_method = paymentMethodId
+                    }
+                }
+            };
+
+            using var httpRequest = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"https://api.paymongo.com/v1/customers/{Uri.EscapeDataString(customerId)}/payment_methods");
+            httpRequest.Headers.Authorization = CreateAuthHeader();
+            httpRequest.Content = new StringContent(
+                JsonSerializer.Serialize(requestPayload, PayMongoJson.SerializerOptions),
+                Encoding.UTF8,
+                "application/json");
+
+            using var response = await _http.SendAsync(httpRequest, ct);
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException($"PayMongo AttachPaymentMethod failed: {(int)response.StatusCode}. Body: {responseBody}");
+            }
+
+            using var doc = JsonDocument.Parse(responseBody);
+            var data = doc.RootElement.GetProperty("data");
+            var id = data.GetProperty("id").GetString() ?? paymentMethodId;
+            var type = TryGetString(data.GetProperty("attributes"), "type") ?? "card";
+
+            string? displayLabel = null;
+            if (data.TryGetProperty("attributes", out var attrs) && attrs.TryGetProperty("details", out var details))
+            {
+                var last4 = TryGetString(details, "last4");
+                var brand = TryGetString(details, "brand");
+                if (!string.IsNullOrWhiteSpace(last4))
+                {
+                    displayLabel = !string.IsNullOrWhiteSpace(brand)
+                        ? $"{brand} ****{last4}"
+                        : $"****{last4}";
+                }
+            }
+
+            return new AttachPaymentMethodResult(id, type, displayLabel);
+        }
+
+        /// <summary>
+        /// Creates a payment intent and immediately attaches a payment method for automatic charge.
+        /// Used for recurring billing with saved payment methods.
+        /// </summary>
+        public async Task<CreatePaymentIntentResult> CreatePaymentIntentAsync(
+            decimal amount,
+            string currency,
+            string paymentMethodId,
+            string? description = null,
+            Dictionary<string, string>? metadata = null,
+            CancellationToken ct = default)
+        {
+            EnsureSecretKeyConfigured();
+
+            var amountInCentavos = (int)Math.Round(amount * 100);
+
+            // Step 1: Create Payment Intent
+            var createIntentPayload = new
+            {
+                data = new
+                {
+                    attributes = new
+                    {
+                        amount = amountInCentavos,
+                        currency = currency.ToUpperInvariant(),
+                        payment_method_allowed = new[] { "card", "gcash" },
+                        payment_method_options = new
+                        {
+                            card = new { request_three_d_secure = "automatic" }
+                        },
+                        description = description,
+                        metadata = metadata,
+                        capture_type = "automatic"
+                    }
+                }
+            };
+
+            using var createRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.paymongo.com/v1/payment_intents");
+            createRequest.Headers.Authorization = CreateAuthHeader();
+            createRequest.Content = new StringContent(
+                JsonSerializer.Serialize(createIntentPayload, PayMongoJson.SerializerOptions),
+                Encoding.UTF8,
+                "application/json");
+
+            using var createResponse = await _http.SendAsync(createRequest, ct);
+            var createBody = await createResponse.Content.ReadAsStringAsync(ct);
+
+            if (!createResponse.IsSuccessStatusCode)
+            {
+                _logger?.LogWarning("PayMongo CreatePaymentIntent failed: {StatusCode}. Body: {Body}",
+                    (int)createResponse.StatusCode, createBody);
+                return new CreatePaymentIntentResult(null, "failed", $"Create failed: {createResponse.StatusCode}");
+            }
+
+            using var createDoc = JsonDocument.Parse(createBody);
+            var intentId = createDoc.RootElement.GetProperty("data").GetProperty("id").GetString();
+            var clientKey = TryGetString(createDoc.RootElement.GetProperty("data").GetProperty("attributes"), "client_key");
+
+            if (string.IsNullOrWhiteSpace(intentId))
+            {
+                return new CreatePaymentIntentResult(null, "failed", "Payment intent ID not returned.");
+            }
+
+            // Step 2: Attach Payment Method to trigger the charge
+            var attachPayload = new
+            {
+                data = new
+                {
+                    attributes = new
+                    {
+                        payment_method = paymentMethodId,
+                        client_key = clientKey
+                    }
+                }
+            };
+
+            using var attachRequest = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"https://api.paymongo.com/v1/payment_intents/{Uri.EscapeDataString(intentId)}/attach");
+            attachRequest.Headers.Authorization = CreateAuthHeader();
+            attachRequest.Content = new StringContent(
+                JsonSerializer.Serialize(attachPayload, PayMongoJson.SerializerOptions),
+                Encoding.UTF8,
+                "application/json");
+
+            using var attachResponse = await _http.SendAsync(attachRequest, ct);
+            var attachBody = await attachResponse.Content.ReadAsStringAsync(ct);
+
+            if (!attachResponse.IsSuccessStatusCode)
+            {
+                _logger?.LogWarning("PayMongo AttachPaymentMethod to Intent failed: {StatusCode}. Body: {Body}",
+                    (int)attachResponse.StatusCode, attachBody);
+                return new CreatePaymentIntentResult(intentId, "failed", $"Attach failed: {attachResponse.StatusCode}");
+            }
+
+            using var attachDoc = JsonDocument.Parse(attachBody);
+            var status = TryGetString(attachDoc.RootElement.GetProperty("data").GetProperty("attributes"), "status");
+
+            // Status can be: awaiting_payment_method, awaiting_next_action, processing, succeeded, failed
+            var isSuccessful = string.Equals(status, "succeeded", StringComparison.OrdinalIgnoreCase);
+            var needsAction = string.Equals(status, "awaiting_next_action", StringComparison.OrdinalIgnoreCase);
+
+            if (needsAction)
+            {
+                // 3DS authentication required - cannot auto-charge without user interaction
+                return new CreatePaymentIntentResult(intentId, "requires_action", "Payment requires 3D Secure authentication.");
+            }
+
+            return new CreatePaymentIntentResult(
+                intentId,
+                status ?? "unknown",
+                isSuccessful ? null : $"Payment status: {status}");
+        }
+
+        /// <summary>
+        /// Gets the status of a payment intent.
+        /// </summary>
+        public async Task<PaymentIntentStatusResult> GetPaymentIntentStatusAsync(
+            string paymentIntentId,
+            CancellationToken ct = default)
+        {
+            EnsureSecretKeyConfigured();
+
+            using var httpRequest = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"https://api.paymongo.com/v1/payment_intents/{Uri.EscapeDataString(paymentIntentId)}");
+            httpRequest.Headers.Authorization = CreateAuthHeader();
+
+            using var response = await _http.SendAsync(httpRequest, ct);
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException($"PayMongo GetPaymentIntent failed: {(int)response.StatusCode}. Body: {responseBody}");
+            }
+
+            using var doc = JsonDocument.Parse(responseBody);
+            var attrs = doc.RootElement.GetProperty("data").GetProperty("attributes");
+            var status = TryGetString(attrs, "status") ?? "unknown";
+            TryGetMinorUnitAmount(attrs, "amount", out var amount);
+
+            string? paymentId = null;
+            if (attrs.TryGetProperty("payments", out var payments) && payments.GetArrayLength() > 0)
+            {
+                paymentId = TryGetString(payments[0], "id");
+            }
+
+            return new PaymentIntentStatusResult(paymentIntentId, status, amount, paymentId);
         }
 
         public async Task<CreateCheckoutSessionResult> CreateCheckoutSessionAsync(CreateCheckoutSessionRequest request, CancellationToken ct = default)
@@ -319,9 +579,43 @@ namespace EJCFitnessGym.Services.Payments
 
             return status is "failed" or "expired" or "cancelled" or "canceled";
         }
+
+        private void EnsureSecretKeyConfigured()
+        {
+            if (string.IsNullOrWhiteSpace(_options.SecretKey))
+            {
+                throw new InvalidOperationException("PayMongo SecretKey is not configured. Set PayMongo:SecretKey in appsettings or user secrets.");
+            }
+        }
+
+        private AuthenticationHeaderValue CreateAuthHeader()
+        {
+            var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes(_options.SecretKey + ":"));
+            return new AuthenticationHeaderValue("Basic", auth);
+        }
     }
 
+    // Result types for PayMongo API operations
     public record CreateCheckoutSessionResult(string CheckoutSessionId, string CheckoutUrl);
+
+    public record CreateCustomerResult(string CustomerId);
+
+    public record AttachPaymentMethodResult(string PaymentMethodId, string Type, string? DisplayLabel);
+
+    public record CreatePaymentIntentResult(string? PaymentIntentId, string Status, string? ErrorMessage)
+    {
+        public bool IsSuccessful => string.Equals(Status, "succeeded", StringComparison.OrdinalIgnoreCase);
+        public bool RequiresAction => string.Equals(Status, "requires_action", StringComparison.OrdinalIgnoreCase) ||
+                                      string.Equals(Status, "awaiting_next_action", StringComparison.OrdinalIgnoreCase);
+        public bool IsFailed => string.Equals(Status, "failed", StringComparison.OrdinalIgnoreCase) ||
+                                !string.IsNullOrWhiteSpace(ErrorMessage);
+    }
+
+    public record PaymentIntentStatusResult(string PaymentIntentId, string Status, decimal Amount, string? PaymentId)
+    {
+        public bool IsSuccessful => string.Equals(Status, "succeeded", StringComparison.OrdinalIgnoreCase);
+    }
+
     public record PayMongoCheckoutSessionLookupResult(
         string CheckoutSessionId,
         string? SessionStatus,

@@ -25,6 +25,7 @@ namespace EJCFitnessGym.Services.AI
             [ColumnName("PredictedLabel")]
             public uint ClusterId { get; set; }
 
+            [ColumnName("Score")]
             public float[] Distances { get; set; } = Array.Empty<float>();
         }
 
@@ -67,25 +68,54 @@ namespace EJCFitnessGym.Services.AI
                 return BuildUniformResult(observations);
             }
 
-            var requestedClusters = Math.Clamp(preferredClusterCount, 2, observations.Count);
-            var trainingData = MlContext.Data.LoadFromEnumerable(observations);
+            var distinctFeatureCount = observations
+                .Select(observation => new
+                {
+                    observation.TotalSpending,
+                    observation.BillingActivityCount,
+                    observation.MembershipMonths
+                })
+                .Distinct()
+                .Count();
 
-            var pipeline = MlContext.Transforms
-                .Concatenate(
-                    "Features",
-                    nameof(MemberObservation.TotalSpending),
-                    nameof(MemberObservation.BillingActivityCount),
-                    nameof(MemberObservation.MembershipMonths))
-                .Append(MlContext.Transforms.NormalizeMinMax("Features"))
-                .Append(MlContext.Clustering.Trainers.KMeans(
-                    featureColumnName: "Features",
-                    numberOfClusters: requestedClusters));
+            var maxClustersBySamples = Math.Max(2, observations.Count - 1);
+            var requestedClusters = Math.Clamp(
+                preferredClusterCount,
+                2,
+                Math.Min(distinctFeatureCount, maxClustersBySamples));
 
-            var model = pipeline.Fit(trainingData);
-            var transformed = model.Transform(trainingData);
-            var predictions = MlContext.Data
-                .CreateEnumerable<MemberPrediction>(transformed, reuseRowObject: false)
-                .ToList();
+            if (requestedClusters < 2)
+            {
+                return BuildUniformResult(observations);
+            }
+
+            List<MemberPrediction> predictions;
+            try
+            {
+                var trainingData = MlContext.Data.LoadFromEnumerable(observations);
+
+                var pipeline = MlContext.Transforms
+                    .Concatenate(
+                        "Features",
+                        nameof(MemberObservation.TotalSpending),
+                        nameof(MemberObservation.BillingActivityCount),
+                        nameof(MemberObservation.MembershipMonths))
+                    .Append(MlContext.Transforms.NormalizeMinMax("Features"))
+                    .Append(MlContext.Clustering.Trainers.KMeans(
+                        featureColumnName: "Features",
+                        numberOfClusters: requestedClusters));
+
+                var model = pipeline.Fit(trainingData);
+                var transformed = model.Transform(trainingData);
+                predictions = MlContext.Data
+                    .CreateEnumerable<MemberPrediction>(transformed, reuseRowObject: false)
+                    .ToList();
+            }
+            catch (InvalidOperationException)
+            {
+                // KMeans can fail on low-sample or low-variance datasets.
+                return BuildUniformResult(observations);
+            }
 
             var scoredMembers = observations
                 .Select((observation, index) =>

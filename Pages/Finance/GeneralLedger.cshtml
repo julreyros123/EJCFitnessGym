@@ -1,0 +1,223 @@
+@page
+@model EJCFitnessGym.Pages.Finance.GeneralLedgerModel
+@{
+    ViewData["Title"] = "General Ledger";
+    var isBalanced = Model.TotalDebit == Model.TotalCredit;
+    var balanceClass = isBalanced ? "text-success" : "text-danger";
+}
+
+<div class="py-4">
+    <div class="ejc-page-header">
+        <div>
+            <span class="ejc-eyebrow">Finance Module</span>
+            <h1 class="h2 mb-1">General Ledger</h1>
+            <p class="ejc-muted mb-0">Post journal entries, monitor account movements, and review trial balance.</p>
+        </div>
+        <div class="ejc-actions d-flex gap-2">
+            <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Back to Overview</a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        var alertClass = string.Equals(Model.StatusType, "success", StringComparison.OrdinalIgnoreCase)
+            ? "alert-success"
+            : "alert-warning";
+        <div class="alert @alertClass py-2 px-3">@Model.StatusMessage</div>
+    }
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-5">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Post Manual Entry</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" asp-page-handler="CreateManual" class="row g-3">
+                        <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.EntryDateUtc" class="form-label"></label>
+                            <input asp-for="Input.EntryDateUtc" type="date" class="form-control" />
+                            <span asp-validation-for="Input.EntryDateUtc" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.Amount" class="form-label"></label>
+                            <input asp-for="Input.Amount" type="number" step="0.01" min="0.01" class="form-control" />
+                            <span asp-validation-for="Input.Amount" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.Description" class="form-label"></label>
+                            <input asp-for="Input.Description" class="form-control" placeholder="Example: Branch owner cash top-up" />
+                            <span asp-validation-for="Input.Description" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.DebitAccountId" class="form-label"></label>
+                            <select asp-for="Input.DebitAccountId" class="form-select">
+                                <option value="0">Select debit account</option>
+                                @foreach (var account in Model.Accounts)
+                                {
+                                    <option value="@account.Id">@account.Code - @account.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.CreditAccountId" class="form-label"></label>
+                            <select asp-for="Input.CreditAccountId" class="form-select">
+                                <option value="0">Select credit account</option>
+                                @foreach (var account in Model.Accounts)
+                                {
+                                    <option value="@account.Id">@account.Code - @account.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.Memo" class="form-label"></label>
+                            <input asp-for="Input.Memo" class="form-control" placeholder="Optional note for both lines" />
+                            <span asp-validation-for="Input.Memo" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">Post Journal Entry</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-7">
+            <div class="card h-100">
+                <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <h5 class="mb-0">Trial Balance</h5>
+                    <form method="get" class="d-flex flex-wrap align-items-center gap-2">
+                        <label class="small text-muted" for="fromUtc">From</label>
+                        <input id="fromUtc" name="fromUtc" type="date" class="form-control form-control-sm" value="@Model.FromUtc?.ToString("yyyy-MM-dd")" />
+                        <label class="small text-muted" for="toUtc">To</label>
+                        <input id="toUtc" name="toUtc" type="date" class="form-control form-control-sm" value="@Model.ToUtc?.ToString("yyyy-MM-dd")" />
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+                        <a asp-page="/Finance/GeneralLedger" class="btn btn-sm btn-outline-secondary">Reset</a>
+                    </form>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0 ejc-finance-table"
+                               data-ejc-page-size="8"
+                               data-ejc-search-placeholder="Search account code, name, or type">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Account</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Debit</th>
+                                    <th class="text-end">Credit</th>
+                                    <th class="text-end">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.TrialBalanceRows.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-3">No ledger rows found for the selected range.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var row in Model.TrialBalanceRows)
+                                    {
+                                        <tr>
+                                            <td class="text-nowrap">@row.AccountCode</td>
+                                            <td>@row.AccountName</td>
+                                            <td>@row.AccountType</td>
+                                            <td class="text-end text-nowrap">PHP @row.TotalDebit.ToString("N2")</td>
+                                            <td class="text-end text-nowrap">PHP @row.TotalCredit.ToString("N2")</td>
+                                            <td class="text-end text-nowrap @(row.Balance >= 0m ? "text-success" : "text-danger")">PHP @Math.Abs(row.Balance).ToString("N2")</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="fw-semibold">
+                                    <td colspan="3" class="text-end">Totals</td>
+                                    <td class="text-end text-nowrap">PHP @Model.TotalDebit.ToString("N2")</td>
+                                    <td class="text-end text-nowrap">PHP @Model.TotalCredit.ToString("N2")</td>
+                                    <td class="text-end text-nowrap @balanceClass">@(isBalanced ? "Balanced" : "Out of Balance")</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Recent Journal Entries</h5>
+            <span class="text-muted small">@Model.RecentEntries.Count row(s)</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Entry #</th>
+                            <th>Date (UTC)</th>
+                            <th>Description</th>
+                            <th>Source</th>
+                            <th class="text-end">Debit</th>
+                            <th class="text-end">Credit</th>
+                            <th>Lines</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.RecentEntries.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-3">No journal entries yet.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var entry in Model.RecentEntries)
+                            {
+                                var sourceLabel = string.IsNullOrWhiteSpace(entry.SourceType)
+                                    ? "Manual"
+                                    : string.IsNullOrWhiteSpace(entry.SourceId)
+                                        ? entry.SourceType
+                                        : $"{entry.SourceType}:{entry.SourceId}";
+
+                                <tr>
+                                    <td class="text-nowrap fw-semibold">@entry.EntryNumber</td>
+                                    <td class="text-nowrap">@entry.EntryDateUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td>
+                                        <div>@entry.Description</div>
+                                        @if (!string.IsNullOrWhiteSpace(entry.CreatedByUserId))
+                                        {
+                                            <div class="small text-muted">By: @entry.CreatedByUserId</div>
+                                        }
+                                    </td>
+                                    <td class="text-nowrap">@sourceLabel</td>
+                                    <td class="text-end text-nowrap">PHP @entry.TotalDebit.ToString("N2")</td>
+                                    <td class="text-end text-nowrap">PHP @entry.TotalCredit.ToString("N2")</td>
+                                    <td>
+                                        <ul class="small mb-0 ps-3">
+                                            @foreach (var line in entry.Lines)
+                                            {
+                                                <li>
+                                                    @line.AccountCode - @line.AccountName
+                                                    (D: @line.Debit.ToString("N2"), C: @line.Credit.ToString("N2"))
+                                                </li>
+                                            }
+                                        </ul>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

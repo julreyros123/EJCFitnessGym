@@ -25,3 +25,14 @@ appsettings.*.json
 
 # Logs
 *.log
+
+# Deployment artifacts and temporary publish outputs
+artifacts/
+clean_deploy/
+tmp_remote/
+deploy.zip
+*.deploy.zip
+
+# Prevent accidental FTP publish profile commits
+Properties/PublishProfiles/*FTP*.pubxml
+Properties/PublishProfiles/*FTP*.pubxml.user

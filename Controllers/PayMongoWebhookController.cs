@@ -30,6 +30,7 @@ namespace EJCFitnessGym.Controllers
         private readonly ILogger<PayMongoWebhookController> _logger;
         private readonly IIntegrationOutbox _outbox;
         private readonly IFinanceAlertService _financeAlertService;
+        private readonly IGeneralLedgerService _generalLedgerService;
         private readonly IEmailSender _emailSender;
 
         private static readonly Regex PlanTokenRegex = new(@"\[plan:(\d+)\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -48,6 +49,7 @@ namespace EJCFitnessGym.Controllers
             ApplicationDbContext db,
             IMembershipService membershipService,
             IFinanceAlertService financeAlertService,
+            IGeneralLedgerService generalLedgerService,
             IIntegrationOutbox outbox,
             IEmailSender emailSender,
             IOptions<PayMongoOptions> payMongoOptions,
@@ -56,6 +58,7 @@ namespace EJCFitnessGym.Controllers
             _db = db;
             _membershipService = membershipService;
             _financeAlertService = financeAlertService;
+            _generalLedgerService = generalLedgerService;
             _outbox = outbox;
             _emailSender = emailSender;
             _payMongoOptions = payMongoOptions.Value;
@@ -390,13 +393,12 @@ namespace EJCFitnessGym.Controllers
             var historicalSucceededTotal = historicalSucceededAmounts.Sum();
 
             var successfulPaidTotal = historicalSucceededTotal + payment.Amount;
-            var isInvoiceFullyPaid = successfulPaidTotal + 0.50m >= expectedInvoiceAmount;
+            payment.Invoice.Status = InvoiceStatusPolicy.ResolveAfterSuccessfulPayment(
+                payment.Invoice,
+                successfulPaidTotal,
+                payment.PaidAtUtc);
 
-            payment.Invoice.Status = isInvoiceFullyPaid
-                ? InvoiceStatus.Paid
-                : payment.Invoice.DueDateUtc < payment.PaidAtUtc
-                    ? InvoiceStatus.Overdue
-                    : InvoiceStatus.Unpaid;
+            var isInvoiceFullyPaid = payment.Invoice.Status == InvoiceStatus.Paid;
 
             var warnings = new List<string>();
             if (amountMismatch)
@@ -509,6 +511,22 @@ namespace EJCFitnessGym.Controllers
 
             await _db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+
+            try
+            {
+                await _generalLedgerService.PostPaymentReceiptAsync(
+                    payment.Id,
+                    actorUserId: "paymongo.webhook",
+                    cancellationToken: cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "General ledger posting failed for PayMongo payment {PaymentId}.",
+                    payment.Id);
+            }
+
             await TrySendPaymentSuccessEmailAsync(payment, cancellationToken);
 
             // Ensure renewal invoices and reminders are evaluated immediately after a successful payment.
@@ -550,9 +568,19 @@ namespace EJCFitnessGym.Controllers
             payment.ReferenceNumber = string.IsNullOrWhiteSpace(payment.ReferenceNumber)
                 ? checkoutSessionId
                 : payment.ReferenceNumber;
-            payment.Invoice.Status = payment.Invoice.DueDateUtc < nowUtc
-                ? InvoiceStatus.Overdue
-                : InvoiceStatus.Unpaid;
+            var succeededAmounts = await _db.Payments
+                .AsNoTracking()
+                .Where(existing =>
+                    existing.InvoiceId == payment.InvoiceId &&
+                    existing.Status == PaymentStatus.Succeeded)
+                .Select(existing => existing.Amount)
+                .ToListAsync(cancellationToken);
+            var successfulPaidTotal = succeededAmounts.Sum();
+
+            payment.Invoice.Status = InvoiceStatusPolicy.ResolveAfterFailedCheckoutAttempt(
+                payment.Invoice,
+                successfulPaidTotal,
+                nowUtc);
 
             var realtimePayload = new
             {

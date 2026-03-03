@@ -3,6 +3,7 @@ using System.Text.Json;
 using EJCFitnessGym.Controllers;
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Billing;
+using EJCFitnessGym.Models.Finance;
 using EJCFitnessGym.Services.Finance;
 using EJCFitnessGym.Services.Integration;
 using EJCFitnessGym.Services.Memberships;
@@ -10,6 +11,7 @@ using EJCFitnessGym.Services.Payments;
 using Microsoft.Data.Sqlite;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -134,6 +136,72 @@ public class PayMongoWebhookIntegrationTests
         Assert.False(await db.IntegrationOutboxMessages.AnyAsync(m => m.EventType == "membership.activated"));
     }
 
+    [Fact]
+    public async Task Receive_FailedWebhookForOlderCheckout_DoesNotReopenAlreadyPaidInvoice()
+    {
+        await using var dbHandle = await CreateDbContextAsync(nameof(Receive_FailedWebhookForOlderCheckout_DoesNotReopenAlreadyPaidInvoice));
+        var db = dbHandle.Db;
+        await SeedCheckoutPaymentAsync(db, checkoutSessionId: "cs_old_failed", amount: 2000m, planId: 350);
+
+        var invoiceId = await db.Payments
+            .Where(payment => payment.ReferenceNumber == "cs_old_failed")
+            .Select(payment => payment.InvoiceId)
+            .SingleAsync();
+
+        db.Payments.Add(new Payment
+        {
+            InvoiceId = invoiceId,
+            Amount = 2000m,
+            Method = PaymentMethod.OnlineGateway,
+            Status = PaymentStatus.Pending,
+            PaidAtUtc = DateTime.UtcNow.AddMinutes(1),
+            GatewayProvider = "PayMongo",
+            ReferenceNumber = "cs_new_paid"
+        });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(
+            db,
+            new IntegrationOutboxService(db));
+
+        var paidPayload = BuildPaidWebhookPayload(
+            eventId: "evt_paid_new_001",
+            checkoutSessionId: "cs_new_paid",
+            paymentId: "pay_new_001",
+            planId: 350,
+            amountMinorUnit: 200000);
+
+        SetJsonRequest(controller, paidPayload);
+        var paidResult = await controller.Receive(CancellationToken.None);
+        Assert.IsType<OkResult>(paidResult);
+        db.ChangeTracker.Clear();
+
+        var failedPayload = BuildFailedWebhookPayload(
+            eventId: "evt_failed_old_001",
+            checkoutSessionId: "cs_old_failed",
+            paymentId: "pay_old_001");
+
+        SetJsonRequest(controller, failedPayload);
+        var failedResult = await controller.Receive(CancellationToken.None);
+        if (failedResult is not OkResult)
+        {
+            var failedReceipt = await db.InboundWebhookReceipts
+                .AsNoTracking()
+                .SingleAsync(receipt => receipt.Provider == "PayMongo" && receipt.EventKey == "evt_failed_old_001");
+
+            throw new Xunit.Sdk.XunitException(
+                $"Expected OkResult for failed webhook replay. Actual: {failedResult.GetType().Name}. Receipt status: {failedReceipt.Status}. Notes: {failedReceipt.Notes}");
+        }
+
+        var oldPayment = await db.Payments
+            .Include(payment => payment.Invoice)
+            .SingleAsync(payment => payment.ReferenceNumber == "cs_old_failed");
+
+        Assert.Equal(PaymentStatus.Failed, oldPayment.Status);
+        Assert.NotNull(oldPayment.Invoice);
+        Assert.Equal(InvoiceStatus.Paid, oldPayment.Invoice!.Status);
+    }
+
     private static PayMongoWebhookController CreateController(ApplicationDbContext db, IIntegrationOutbox outbox)
     {
         var membershipService = new MembershipService(db);
@@ -148,7 +216,9 @@ public class PayMongoWebhookIntegrationTests
             db,
             membershipService,
             financeAlertService,
+            new NoOpGeneralLedgerService(),
             outbox,
+            new NoOpEmailSender(),
             options,
             NullLogger<PayMongoWebhookController>.Instance);
     }
@@ -202,6 +272,40 @@ public class PayMongoWebhookIntegrationTests
                                     {
                                         amount = amountMinorUnit
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        return JsonSerializer.Serialize(payload);
+    }
+
+    private static string BuildFailedWebhookPayload(
+        string eventId,
+        string checkoutSessionId,
+        string paymentId)
+    {
+        var payload = new
+        {
+            data = new
+            {
+                id = eventId,
+                attributes = new
+                {
+                    type = "checkout_session.expired",
+                    data = new
+                    {
+                        id = checkoutSessionId,
+                        attributes = new
+                        {
+                            payments = new[]
+                            {
+                                new
+                                {
+                                    id = paymentId
                                 }
                             }
                         }
@@ -281,6 +385,51 @@ public class PayMongoWebhookIntegrationTests
                 Trigger = trigger,
                 EvaluatedAtUtc = DateTime.UtcNow
             });
+        }
+    }
+
+    private sealed class NoOpEmailSender : IEmailSender
+    {
+        public Task SendEmailAsync(string email, string subject, string htmlMessage)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NoOpGeneralLedgerService : IGeneralLedgerService
+    {
+        public Task EnsureDefaultAccountsAsync(string? branchId, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<GeneralLedgerAccount>> GetActiveAccountsAsync(string branchId, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<GeneralLedgerAccount>>(Array.Empty<GeneralLedgerAccount>());
+        }
+
+        public Task PostPaymentReceiptAsync(int paymentId, string? actorUserId = null, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task PostOperatingExpenseAsync(int expenseId, string? actorUserId = null, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<GeneralLedgerEntry> CreateManualEntryAsync(
+            string branchId,
+            DateTime entryDateUtc,
+            string description,
+            int debitAccountId,
+            int creditAccountId,
+            decimal amount,
+            string? memo = null,
+            string? actorUserId = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new GeneralLedgerEntry());
         }
     }
 

@@ -5,6 +5,7 @@ using EJCFitnessGym.Models;
 using EJCFitnessGym.Models.Finance;
 using EJCFitnessGym.Models.Integration;
 using EJCFitnessGym.Models.Admin;
+using EJCFitnessGym.Models.Inventory;
 
 namespace EJCFitnessGym.Data
 {
@@ -23,12 +24,21 @@ namespace EJCFitnessGym.Data
         public DbSet<GymEquipmentAsset> GymEquipmentAssets => Set<GymEquipmentAsset>();
         public DbSet<FinanceExpenseRecord> FinanceExpenseRecords => Set<FinanceExpenseRecord>();
         public DbSet<FinanceAlertLog> FinanceAlertLogs => Set<FinanceAlertLog>();
+        public DbSet<GeneralLedgerAccount> GeneralLedgerAccounts => Set<GeneralLedgerAccount>();
+        public DbSet<GeneralLedgerEntry> GeneralLedgerEntries => Set<GeneralLedgerEntry>();
+        public DbSet<GeneralLedgerLine> GeneralLedgerLines => Set<GeneralLedgerLine>();
         public DbSet<IntegrationOutboxMessage> IntegrationOutboxMessages => Set<IntegrationOutboxMessage>();
         public DbSet<InboundWebhookReceipt> InboundWebhookReceipts => Set<InboundWebhookReceipt>();
         public DbSet<BranchRecord> BranchRecords => Set<BranchRecord>();
         public DbSet<ReplacementRequest> ReplacementRequests => Set<ReplacementRequest>();
         public DbSet<MemberSegmentSnapshot> MemberSegmentSnapshots => Set<MemberSegmentSnapshot>();
         public DbSet<MemberRetentionAction> MemberRetentionActions => Set<MemberRetentionAction>();
+        public DbSet<RetailProduct> RetailProducts => Set<RetailProduct>();
+        public DbSet<ProductSale> ProductSales => Set<ProductSale>();
+        public DbSet<ProductSaleLine> ProductSaleLines => Set<ProductSaleLine>();
+        public DbSet<SupplyRequest> SupplyRequests => Set<SupplyRequest>();
+        public DbSet<SavedPaymentMethod> SavedPaymentMethods => Set<SavedPaymentMethod>();
+        public DbSet<AutoBillingAttempt> AutoBillingAttempts => Set<AutoBillingAttempt>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -142,6 +152,56 @@ namespace EJCFitnessGym.Data
             builder.Entity<FinanceAlertLog>()
                 .HasIndex(l => new { l.State, l.CreatedUtc });
 
+            builder.Entity<GeneralLedgerAccount>()
+                .Property(a => a.BranchId)
+                .HasMaxLength(32);
+
+            builder.Entity<GeneralLedgerAccount>()
+                .HasIndex(a => new { a.BranchId, a.Code })
+                .IsUnique();
+
+            builder.Entity<GeneralLedgerAccount>()
+                .HasIndex(a => new { a.BranchId, a.AccountType, a.IsActive });
+
+            builder.Entity<GeneralLedgerEntry>()
+                .Property(e => e.BranchId)
+                .HasMaxLength(32);
+
+            builder.Entity<GeneralLedgerEntry>()
+                .HasIndex(e => e.EntryNumber)
+                .IsUnique();
+
+            builder.Entity<GeneralLedgerEntry>()
+                .HasIndex(e => new { e.BranchId, e.EntryDateUtc });
+
+            builder.Entity<GeneralLedgerEntry>()
+                .HasIndex(e => new { e.BranchId, e.SourceType, e.SourceId })
+                .IsUnique()
+                .HasFilter("[SourceType] IS NOT NULL AND [SourceId] IS NOT NULL");
+
+            builder.Entity<GeneralLedgerLine>()
+                .Property(l => l.Debit)
+                .HasPrecision(18, 2);
+
+            builder.Entity<GeneralLedgerLine>()
+                .Property(l => l.Credit)
+                .HasPrecision(18, 2);
+
+            builder.Entity<GeneralLedgerLine>()
+                .HasIndex(l => new { l.EntryId, l.AccountId });
+
+            builder.Entity<GeneralLedgerLine>()
+                .HasOne(l => l.Entry)
+                .WithMany(e => e.Lines)
+                .HasForeignKey(l => l.EntryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<GeneralLedgerLine>()
+                .HasOne(l => l.Account)
+                .WithMany(a => a.Lines)
+                .HasForeignKey(l => l.AccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             builder.Entity<IntegrationOutboxMessage>()
                 .HasIndex(m => new { m.Status, m.NextAttemptUtc });
 
@@ -219,6 +279,128 @@ namespace EJCFitnessGym.Data
 
             builder.Entity<MemberRetentionAction>()
                 .HasIndex(a => new { a.Status, a.DueDateUtc });
+
+            // Retail Product configurations
+            builder.Entity<RetailProduct>()
+                .Property(p => p.UnitPrice)
+                .HasPrecision(18, 2);
+
+            builder.Entity<RetailProduct>()
+                .Property(p => p.CostPrice)
+                .HasPrecision(18, 2);
+
+            builder.Entity<RetailProduct>()
+                .Property(p => p.BranchId)
+                .HasMaxLength(32);
+
+            builder.Entity<RetailProduct>()
+                .HasIndex(p => new { p.BranchId, p.Category, p.IsActive });
+
+            builder.Entity<RetailProduct>()
+                .HasIndex(p => p.Sku)
+                .IsUnique()
+                .HasFilter("[Sku] IS NOT NULL");
+
+            // Product Sale configurations
+            builder.Entity<ProductSale>()
+                .Property(s => s.Subtotal)
+                .HasPrecision(18, 2);
+
+            builder.Entity<ProductSale>()
+                .Property(s => s.VatAmount)
+                .HasPrecision(18, 2);
+
+            builder.Entity<ProductSale>()
+                .Property(s => s.TotalAmount)
+                .HasPrecision(18, 2);
+
+            builder.Entity<ProductSale>()
+                .Property(s => s.BranchId)
+                .HasMaxLength(32);
+
+            builder.Entity<ProductSale>()
+                .HasIndex(s => s.ReceiptNumber)
+                .IsUnique();
+
+            builder.Entity<ProductSale>()
+                .HasIndex(s => new { s.BranchId, s.SaleDateUtc, s.Status });
+
+            builder.Entity<ProductSaleLine>()
+                .Property(l => l.UnitPrice)
+                .HasPrecision(18, 2);
+
+            builder.Entity<ProductSaleLine>()
+                .Property(l => l.LineTotal)
+                .HasPrecision(18, 2);
+
+            builder.Entity<ProductSaleLine>()
+                .HasOne(l => l.ProductSale)
+                .WithMany(s => s.Lines)
+                .HasForeignKey(l => l.ProductSaleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ProductSaleLine>()
+                .HasOne(l => l.RetailProduct)
+                .WithMany()
+                .HasForeignKey(l => l.RetailProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Supply Request configurations
+            builder.Entity<SupplyRequest>()
+                .Property(r => r.BranchId)
+                .HasMaxLength(32);
+
+            builder.Entity<SupplyRequest>()
+                .Property(r => r.EstimatedUnitCost)
+                .HasPrecision(18, 2);
+
+            builder.Entity<SupplyRequest>()
+                .Property(r => r.ActualUnitCost)
+                .HasPrecision(18, 2);
+
+            builder.Entity<SupplyRequest>()
+                .HasIndex(r => r.RequestNumber)
+                .IsUnique();
+
+            builder.Entity<SupplyRequest>()
+                .HasIndex(r => new { r.BranchId, r.Stage, r.CreatedAtUtc });
+
+            // Saved Payment Method configurations
+            builder.Entity<SavedPaymentMethod>()
+                .HasIndex(m => new { m.MemberUserId, m.IsDefault, m.IsActive });
+
+            builder.Entity<SavedPaymentMethod>()
+                .HasIndex(m => new { m.GatewayProvider, m.GatewayPaymentMethodId })
+                .IsUnique();
+
+            builder.Entity<SavedPaymentMethod>()
+                .HasIndex(m => new { m.MemberUserId, m.GatewayProvider, m.IsActive });
+
+            // Auto Billing Attempt configurations
+            builder.Entity<AutoBillingAttempt>()
+                .Property(a => a.Amount)
+                .HasPrecision(18, 2);
+
+            builder.Entity<AutoBillingAttempt>()
+                .HasIndex(a => new { a.InvoiceId, a.AttemptedAtUtc });
+
+            builder.Entity<AutoBillingAttempt>()
+                .HasOne(a => a.Invoice)
+                .WithMany()
+                .HasForeignKey(a => a.InvoiceId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<AutoBillingAttempt>()
+                .HasOne(a => a.SavedPaymentMethod)
+                .WithMany()
+                .HasForeignKey(a => a.SavedPaymentMethodId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<AutoBillingAttempt>()
+                .HasOne(a => a.Payment)
+                .WithMany()
+                .HasForeignKey(a => a.PaymentId)
+                .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }
