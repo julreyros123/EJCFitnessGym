@@ -56,9 +56,16 @@ public class ExternalLoginModel : PageModel
         return RedirectToPage("./Login");
     }
 
-    public IActionResult OnPost(string provider, string? returnUrl = null)
+    public async Task<IActionResult> OnPostAsync(string provider, string? returnUrl = null)
     {
         var normalizedReturnUrl = AccountFlowHelper.NormalizeMemberReturnUrl(Url, returnUrl);
+        var externalProviders = await _signInManager.GetExternalAuthenticationSchemesAsync();
+        if (!externalProviders.Any(scheme => string.Equals(scheme.Name, provider, StringComparison.OrdinalIgnoreCase)))
+        {
+            ErrorMessage = $"{provider} sign-in is not available in this environment.";
+            return RedirectToPage("./Login", new { returnUrl = normalizedReturnUrl });
+        }
+
         var redirectUrl = Url.Page("./ExternalLogin", pageHandler: "Callback", values: new { returnUrl = normalizedReturnUrl });
         var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
         return Challenge(properties, provider);

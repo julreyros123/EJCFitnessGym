@@ -1,0 +1,230 @@
+@page
+@model EJCFitnessGym.Pages.Member.ProfileModel
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<section class="ejc-member-page">
+    <div class="container">
+        <partial name="/Pages/Shared/_MemberPortalNav.cshtml" />
+
+        <div class="row g-4">
+            <!-- Main column -->
+            <div class="col-lg-8">
+                <!-- Profile header with avatar -->
+                <div class="mp-profile-header mb-4">
+                    <div class="mp-avatar">
+                        <span>@Model.MemberInitials</span>
+                    </div>
+                    <div class="mp-profile-header-info">
+                        <h1 class="h3 mb-1">
+                            @if (!string.IsNullOrWhiteSpace(Model.Input.FirstName) || !string.IsNullOrWhiteSpace(Model.Input.LastName))
+                            {
+                                <text>@Model.Input.FirstName @Model.Input.LastName</text>
+                            }
+                            else
+                            {
+                                <text>My Profile</text>
+                            }
+                        </h1>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-envelope me-1"></i>@Model.MemberEmail
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Profile completion bar -->
+                <div class="mp-completion-bar mb-4">
+                    <div class="mp-completion-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-shield-check"></i>
+                            <span class="fw-semibold">Profile Completion</span>
+                        </div>
+                        <span class="fw-bold @(Model.ProfileCompletionPercent >= 100 ? "text-success" : "")">@Model.ProfileCompletionPercent%</span>
+                    </div>
+                    <div class="progress mp-progress">
+                        <div class="progress-bar @(Model.ProfileCompletionPercent >= 100 ? "bg-success" : Model.ProfileCompletionPercent >= 50 ? "mp-progress-bar" : "bg-warning")"
+                             role="progressbar"
+                             style="width: @Model.ProfileCompletionPercent%"
+                             aria-valuenow="@Model.ProfileCompletionPercent"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                    @if (Model.MissingItems.Any())
+                    {
+                        <div class="mp-missing-items">
+                            <small class="text-muted">Missing: </small>
+                            @foreach (var item in Model.MissingItems)
+                            {
+                                <span class="badge bg-secondary bg-opacity-25 text-muted me-1">@item</span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mp-missing-items">
+                            <small class="text-success"><i class="bi bi-check-circle-fill me-1"></i>All fields complete!</small>
+                        </div>
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(Model.StatusMessage))
+                {
+                    <div class="alert @(Model.IsSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show" role="alert">
+                        @Model.StatusMessage
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+
+                <!-- Profile form -->
+                <div class="card mp-form-card">
+                    <div class="card-body">
+                        <form method="post">
+                            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                            <h5 class="mp-section-label"><i class="bi bi-person me-2"></i>Personal Information</h5>
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <label asp-for="Input.FirstName" class="form-label"></label>
+                                    <input asp-for="Input.FirstName" class="form-control" placeholder="Enter first name" />
+                                    <span asp-validation-for="Input.FirstName" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="Input.LastName" class="form-label"></label>
+                                    <input asp-for="Input.LastName" class="form-control" placeholder="Enter last name" />
+                                    <span asp-validation-for="Input.LastName" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="Input.PhoneNumber" class="form-label"></label>
+                                    <input asp-for="Input.PhoneNumber" class="form-control" placeholder="09XX-XXX-XXXX" />
+                                    <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="Input.Age" class="form-label"></label>
+                                    <input asp-for="Input.Age" class="form-control" type="number" placeholder="Your age" />
+                                    <span asp-validation-for="Input.Age" class="text-danger"></span>
+                                </div>
+                            </div>
+
+                            <h5 class="mp-section-label"><i class="bi bi-heart-pulse me-2"></i>Health & Fitness</h5>
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <label asp-for="Input.HeightCm" class="form-label"></label>
+                                    <div class="input-group">
+                                        <input asp-for="Input.HeightCm" class="form-control" type="number" step="0.01" placeholder="170" />
+                                        <span class="input-group-text">cm</span>
+                                    </div>
+                                    <span asp-validation-for="Input.HeightCm" class="text-danger"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="Input.WeightKg" class="form-label"></label>
+                                    <div class="input-group">
+                                        <input asp-for="Input.WeightKg" class="form-control" type="number" step="0.01" placeholder="70" />
+                                        <span class="input-group-text">kg</span>
+                                    </div>
+                                    <span asp-validation-for="Input.WeightKg" class="text-danger"></span>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-save me-1"></i> Save Profile
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- BMI Card -->
+                <div class="card mp-bmi-card mb-3">
+                    <div class="card-body">
+                        <h6 class="mp-sidebar-title"><i class="bi bi-activity me-2"></i>Body Mass Index</h6>
+                        @if (Model.Bmi.HasValue)
+                        {
+                            <div class="mp-bmi-display">
+                                <div class="mp-bmi-value @Model.BmiCategoryClass">@Model.Bmi.Value.ToString("N1")</div>
+                                <div class="mp-bmi-category @Model.BmiCategoryClass">@Model.BmiCategory</div>
+                            </div>
+                            <div class="mp-bmi-scale">
+                                <div class="mp-bmi-scale-bar">
+                                    @{
+                                        var bmiPos = Math.Clamp((double)(Model.Bmi.Value - 15m) / 25d * 100d, 0, 100);
+                                    }
+                                    <div class="mp-bmi-marker" style="left: @bmiPos.ToString("F0")%"></div>
+                                </div>
+                                <div class="mp-bmi-scale-labels">
+                                    <span>15</span>
+                                    <span>18.5</span>
+                                    <span>25</span>
+                                    <span>30</span>
+                                    <span>40</span>
+                                </div>
+                            </div>
+                            <p class="small text-muted mt-2 mb-0">
+                                Based on your height and weight measurements.
+                            </p>
+                        }
+                        else
+                        {
+                            <div class="text-center py-3">
+                                <i class="bi bi-calculator fs-2 text-muted"></i>
+                                <p class="text-muted small mt-2 mb-0">
+                                    Enter your height and weight to calculate BMI.
+                                </p>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Membership Summary -->
+                <div class="card mp-membership-card mb-3">
+                    <div class="card-body">
+                        <h6 class="mp-sidebar-title"><i class="bi bi-card-checklist me-2"></i>Membership</h6>
+                        <div class="mp-membership-info">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted small">Plan</span>
+                                <strong>@Model.CurrentPlanName</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted small">Status</span>
+                                <span class="badge @Model.SubscriptionStatusClass">@Model.SubscriptionStatusLabel</span>
+                            </div>
+                            @if (Model.DaysRemaining.HasValue)
+                            {
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted small">Remaining</span>
+                                    <strong class="@(Model.DaysRemaining.Value <= 7 ? "text-danger" : Model.DaysRemaining.Value <= 30 ? "text-warning" : "")">
+                                        @Model.DaysRemaining.Value day(s)
+                                    </strong>
+                                </div>
+                            }
+                        </div>
+                        <a asp-page="/Member/Subscriptions" class="btn btn-outline-primary btn-sm w-100 mt-3">
+                            <i class="bi bi-arrow-right me-1"></i>Manage Subscription
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Tips card -->
+                <div class="card mp-tips-card">
+                    <div class="card-body">
+                        <h6 class="mp-sidebar-title"><i class="bi bi-lightbulb me-2"></i>Quick Tips</h6>
+                        <ul class="mp-tips-list mb-0">
+                            <li>Complete your profile to help coaches personalize your training</li>
+                            <li>Keep your phone number updated for billing notifications</li>
+                            <li>Track your weight regularly to see progress over time</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

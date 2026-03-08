@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using EJCFitnessGym.Areas.Identity.Pages.Account;
 
 namespace EJCFitnessGym.Controllers
 {
@@ -21,6 +22,7 @@ namespace EJCFitnessGym.Controllers
         private const string StaffArchiveReasonClaimType = "staff_archive_reason";
         private const string StaffArchivedAtUtcClaimType = "staff_archived_at_utc";
         private const string StaffArchivedByUserIdClaimType = "staff_archived_by";
+        private const string StaffLastLoginUtcClaimType = "staff_last_login_utc";
         private const string StaffArchiveStatusActiveValue = "active";
         private const string StaffArchiveStatusArchivedValue = "archived";
         private const string StaffEmailDomain = "gmail.com";
@@ -484,6 +486,117 @@ namespace EJCFitnessGym.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        [HttpGet]
+        public async Task<IActionResult> Details(string? id)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return NotFound();
+            }
+
+            var user = await _userManager.FindByIdAsync(id);
+            if (user is null)
+            {
+                return NotFound();
+            }
+
+            var roles = await _userManager.GetRolesAsync(user);
+            if (!roles.Any(AccountFlowHelper.IsBackOfficeRole))
+            {
+                return NotFound();
+            }
+
+            var branchId = await _db.UserClaims
+                .AsNoTracking()
+                .Where(c => c.UserId == user.Id && c.ClaimType == BranchAccess.BranchIdClaimType)
+                .OrderByDescending(c => c.Id)
+                .Select(c => c.ClaimValue)
+                .FirstOrDefaultAsync();
+
+            var branchName = !string.IsNullOrWhiteSpace(branchId)
+                ? await _db.BranchRecords
+                    .AsNoTracking()
+                    .Where(b => b.BranchId == branchId)
+                    .Select(b => b.Name)
+                    .FirstOrDefaultAsync()
+                : null;
+
+            var position = await _db.UserClaims
+                .AsNoTracking()
+                .Where(c => c.UserId == user.Id && c.ClaimType == StaffPositionClaimType)
+                .OrderByDescending(c => c.Id)
+                .Select(c => c.ClaimValue)
+                .FirstOrDefaultAsync();
+
+            var archiveStatus = await _db.UserClaims
+                .AsNoTracking()
+                .Where(c => c.UserId == user.Id && c.ClaimType == StaffArchiveStatusClaimType)
+                .OrderByDescending(c => c.Id)
+                .Select(c => c.ClaimValue)
+                .FirstOrDefaultAsync();
+
+            var archiveReason = await _db.UserClaims
+                .AsNoTracking()
+                .Where(c => c.UserId == user.Id && c.ClaimType == StaffArchiveReasonClaimType)
+                .OrderByDescending(c => c.Id)
+                .Select(c => c.ClaimValue)
+                .FirstOrDefaultAsync();
+
+            var archivedAtStr = await _db.UserClaims
+                .AsNoTracking()
+                .Where(c => c.UserId == user.Id && c.ClaimType == StaffArchivedAtUtcClaimType)
+                .OrderByDescending(c => c.Id)
+                .Select(c => c.ClaimValue)
+                .FirstOrDefaultAsync();
+
+            var lastLoginStr = await _db.UserClaims
+                .AsNoTracking()
+                .Where(c => c.UserId == user.Id && c.ClaimType == StaffLastLoginUtcClaimType)
+                .OrderByDescending(c => c.Id)
+                .Select(c => c.ClaimValue)
+                .FirstOrDefaultAsync();
+
+            // Fetch recent attendance handled by this staff
+            var recentActivities = await _db.IntegrationOutboxMessages
+                .AsNoTracking()
+                .Where(m => m.Target == Models.Integration.IntegrationOutboxTarget.BackOffice &&
+                            (m.EventType == EJCFitnessGym.Pages.Staff.StaffAttendanceEvents.CheckInEventType ||
+                             m.EventType == EJCFitnessGym.Pages.Staff.StaffAttendanceEvents.CheckOutEventType))
+                .OrderByDescending(m => m.CreatedUtc)
+                .ThenByDescending(m => m.Id)
+                .Take(200)
+                .ToListAsync();
+
+            var attendanceItems = recentActivities
+                .Select(EJCFitnessGym.Pages.Staff.StaffAttendanceEvents.TryParse)
+                .Where(evt => evt != null && evt.HandledByUserId == user.Id)
+                .Take(10)
+                .Select(evt => new StaffAttendanceSnapItemViewModel
+                {
+                    TimeLocal = evt!.EventUtc.ToLocalTime(),
+                    Action = EJCFitnessGym.Pages.Staff.StaffAttendanceEvents.ActionLabel(evt.EventType, evt.IsAutoCheckout),
+                    StatusLabel = evt.MemberDisplayName
+                })
+                .ToList();
+
+            var viewModel = new StaffAccountDetailsViewModel
+            {
+                UserId = user.Id,
+                Email = user.Email ?? user.UserName ?? user.Id,
+                PhoneNumber = user.PhoneNumber,
+                Position = position,
+                BranchId = branchId,
+                BranchName = branchName,
+                IsArchived = IsArchivedStatus(archiveStatus),
+                ArchiveReason = archiveReason,
+                ArchivedAtUtc = ParseUtcDateTime(archivedAtStr),
+                LastLoginUtc = ParseUtcDateTime(lastLoginStr),
+                RecentAttendance = attendanceItems
+            };
+
+            return View(viewModel);
+        }
+
         private async Task<StaffAccountIndexViewModel> BuildIndexModelAsync(StaffAccountCreateInputViewModel? input = null)
         {
             var isSuperAdmin = User.IsInRole("SuperAdmin");
@@ -497,7 +610,7 @@ namespace EJCFitnessGym.Controllers
 
             var branchNameById = branchRecords.ToDictionary(
                 branch => branch.BranchId,
-                branch => branch.Name,
+                branch => BranchNaming.BuildDisplayName(branch.Name),
                 StringComparer.OrdinalIgnoreCase);
 
             var branchOptions = branchRecords
@@ -506,7 +619,7 @@ namespace EJCFitnessGym.Controllers
                 .Select(branch => new StaffBranchOptionViewModel
                 {
                     BranchId = branch.BranchId,
-                    BranchName = branch.Name
+                    BranchName = BranchNaming.BuildDisplayName(branch.Name)
                 })
                 .ToList();
 
@@ -610,6 +723,22 @@ namespace EJCFitnessGym.Controllers
                 })
                 .ToDictionaryAsync(entry => entry.UserId, entry => ParseUtcDateTime(entry.ArchivedAt), StringComparer.Ordinal);
 
+            var lastLoginByUserId = await _db.UserClaims
+                .AsNoTracking()
+                .Where(claim =>
+                    claim.ClaimType == StaffLastLoginUtcClaimType &&
+                    staffUserIds.Contains(claim.UserId))
+                .GroupBy(claim => claim.UserId)
+                .Select(group => new
+                {
+                    UserId = group.Key,
+                    LastLogin = group
+                        .OrderByDescending(claim => claim.Id)
+                        .Select(claim => claim.ClaimValue)
+                        .FirstOrDefault()
+                })
+                .ToDictionaryAsync(entry => entry.UserId, entry => ParseUtcDateTime(entry.LastLogin), StringComparer.Ordinal);
+
             var formInput = input ?? new StaffAccountCreateInputViewModel();
             formInput.Position = NormalizePosition(formInput.Position) ?? string.Empty;
             if (string.IsNullOrWhiteSpace(formInput.Position))
@@ -634,6 +763,7 @@ namespace EJCFitnessGym.Controllers
                     archiveStatusByUserId.TryGetValue(user.Id, out var archiveStatus);
                     archiveReasonByUserId.TryGetValue(user.Id, out var archiveReason);
                     archivedAtByUserId.TryGetValue(user.Id, out var archivedAtUtc);
+                    lastLoginByUserId.TryGetValue(user.Id, out var lastLoginUtc);
                     string? resolvedBranchName = null;
                     var hasBranchName = !string.IsNullOrWhiteSpace(branchId) &&
                         branchNameById.TryGetValue(branchId, out resolvedBranchName);
@@ -648,7 +778,8 @@ namespace EJCFitnessGym.Controllers
                         Position = position,
                         IsArchived = IsArchivedStatus(archiveStatus),
                         ArchiveReason = string.IsNullOrWhiteSpace(archiveReason) ? null : archiveReason.Trim(),
-                        ArchivedAtUtc = archivedAtUtc
+                        ArchivedAtUtc = archivedAtUtc,
+                        LastLoginUtc = lastLoginUtc
                     };
                 })
                 .OrderBy(item => item.Email, StringComparer.OrdinalIgnoreCase)
@@ -854,7 +985,7 @@ namespace EJCFitnessGym.Controllers
                 var encodedBranch = System.Net.WebUtility.HtmlEncode(branchId ?? "-");
                 var encodedLoginUrl = System.Net.WebUtility.HtmlEncode(backOfficeLoginUrl);
 
-                var subject = "EJC Fitness Gym - Staff Account Credentials";
+                var subject = "Fitness Gym - Staff Account Credentials";
                 var htmlMessage =
                     "<p>Your staff account has been created.</p>" +
                     $"<p><strong>Email:</strong> {encodedEmail}<br/>" +

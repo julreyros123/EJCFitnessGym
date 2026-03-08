@@ -4,11 +4,7 @@
     ViewData["Title"] = "Admin Dashboard";
 }
 
-<section class="ejc-admin-page" data-admin-dashboard>
-    <div class="ejc-admin-layout" data-admin-layout>
-        <partial name="/Pages/Shared/_AdminSidebar.cshtml" />
-
-        <div class="ejc-admin-content">
+<div data-admin-dashboard>
             <div class="ejc-page-header">
                 <div>
                     <span class="ejc-eyebrow">Operations</span>
@@ -122,8 +118,40 @@
                             <h5 class="mb-0">Check-In Activity</h5>
                             <span class="text-muted small" data-checkins-subtitle>Recent days</span>
                         </div>
-                        <div class="card-body">
-                            <ul class="ejc-checkin-list" data-checkins-list></ul>
+                        <div class="card-body d-flex flex-column">
+                            <div class="ejc-revenue-chart-wrap flex-grow-1 h-100 min-h-0">
+                                <canvas id="checkinsTrendChart" aria-label="Check-in activity chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-xl-6">
+                    <div class="card h-100">
+                        <div class="card-header d-flex align-items-center justify-content-between">
+                            <h5 class="mb-0">Revenue by Plan Tier</h5>
+                            <span class="text-muted small">Selected period</span>
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <div class="ejc-revenue-chart-wrap flex-grow-1 h-100 min-h-0" style="position: relative;">
+                                <canvas id="revenueByPlanChart" aria-label="Revenue by Plan Tier chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-6">
+                    <div class="card h-100">
+                        <div class="card-header d-flex align-items-center justify-content-between">
+                            <h5 class="mb-0">Branch Check-In Comparison</h5>
+                            <span class="text-muted small">Selected period</span>
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <div class="ejc-revenue-chart-wrap flex-grow-1 h-100 min-h-0">
+                                <canvas id="branchCheckinsChart" aria-label="Branch Check-In Comparison chart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -134,15 +162,62 @@
                     <div class="card h-100">
                         <div class="card-header d-flex align-items-center justify-content-between">
                             <h5 class="mb-0">Quick Actions</h5>
-                            <span class="text-muted small">Admin tools</span>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="text-muted small">Ctrl+K launcher</span>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-ejc-command-open>
+                                    <i class="bi bi-search me-1"></i>Open
+                                </button>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div class="d-grid gap-2">
-                                <a class="btn btn-outline-primary text-start" asp-controller="MemberAccounts" asp-action="Index">Manage Members</a>
-                                <a class="btn btn-outline-primary text-start" asp-controller="StaffAccounts" asp-action="Index">Manage Staff Accounts</a>
-                                <a class="btn btn-outline-primary text-start" asp-page="/Admin/Payments">Review Payments</a>
-                                <a class="btn btn-outline-primary text-start" asp-page="/Admin/Inventory">Update Inventory</a>
-                                <a class="btn btn-outline-primary text-start" asp-page="/Admin/Reports">Open Reports</a>
+                                <a class="btn btn-outline-primary text-start d-flex justify-content-between align-items-center"
+                                   asp-controller="MemberAccounts"
+                                   asp-action="Index"
+                                   data-ejc-shortcut-item
+                                   data-ejc-shortcut="Alt+1"
+                                   data-ejc-shortcut-label="Manage Members"
+                                   data-ejc-shortcut-description="Open member accounts, subscriptions, and branch defaults.">
+                                    <span>Manage Members</span>
+                                    <span class="badge text-bg-dark border">Alt+1</span>
+                                </a>
+                                <a class="btn btn-outline-primary text-start d-flex justify-content-between align-items-center"
+                                   asp-controller="StaffAccounts"
+                                   asp-action="Index"
+                                   data-ejc-shortcut-item
+                                   data-ejc-shortcut="Alt+2"
+                                   data-ejc-shortcut-label="Manage Staff Accounts"
+                                   data-ejc-shortcut-description="Review staff access and branch assignments.">
+                                    <span>Manage Staff Accounts</span>
+                                    <span class="badge text-bg-dark border">Alt+2</span>
+                                </a>
+                                <a class="btn btn-outline-primary text-start d-flex justify-content-between align-items-center"
+                                   asp-page="/Admin/Payments"
+                                   data-ejc-shortcut-item
+                                   data-ejc-shortcut="Alt+3"
+                                   data-ejc-shortcut-label="Review Payments"
+                                   data-ejc-shortcut-description="Inspect payment results, pending charges, and invoice collection.">
+                                    <span>Review Payments</span>
+                                    <span class="badge text-bg-dark border">Alt+3</span>
+                                </a>
+                                <a class="btn btn-outline-primary text-start d-flex justify-content-between align-items-center"
+                                   asp-page="/Admin/Inventory"
+                                   data-ejc-shortcut-item
+                                   data-ejc-shortcut="Alt+4"
+                                   data-ejc-shortcut-label="Update Inventory"
+                                   data-ejc-shortcut-description="Go to supply, stock, and inventory actions.">
+                                    <span>Update Inventory</span>
+                                    <span class="badge text-bg-dark border">Alt+4</span>
+                                </a>
+                                <a class="btn btn-outline-primary text-start d-flex justify-content-between align-items-center"
+                                   asp-page="/Admin/Reports"
+                                   data-ejc-shortcut-item
+                                   data-ejc-shortcut="Alt+5"
+                                   data-ejc-shortcut-label="Open Reports"
+                                   data-ejc-shortcut-description="Open branch reports and operating summaries.">
+                                    <span>Open Reports</span>
+                                    <span class="badge text-bg-dark border">Alt+5</span>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -177,9 +252,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
     <div class="offcanvas offcanvas-end ejc-filter-offcanvas" tabindex="-1" id="dashboardFilterPanel" aria-labelledby="dashboardFilterPanelLabel">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title" id="dashboardFilterPanelLabel">Date Filter</h5>
@@ -230,7 +302,9 @@
             </div>
         </div>
     </div>
-</section>
+</div>
+
+<partial name="/Pages/Shared/_QuickCommandModal.cshtml" />
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>

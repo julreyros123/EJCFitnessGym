@@ -525,6 +525,9 @@ namespace EJCFitnessGym.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("AllowsAllBranchAccess")
+                        .HasColumnType("bit");
+
                     b.Property<int>("BillingCycle")
                         .HasColumnType("int");
 
@@ -534,6 +537,27 @@ namespace EJCFitnessGym.Data.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IncludesBasicEquipment")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IncludesCardioAccess")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IncludesFitnessPlan")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IncludesFreeTowel")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IncludesFullFacilityAccess")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IncludesGroupClasses")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IncludesPersonalTrainer")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -546,6 +570,9 @@ namespace EJCFitnessGym.Data.Migrations
                     b.Property<decimal>("Price")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Tier")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -1295,6 +1322,10 @@ namespace EJCFitnessGym.Data.Migrations
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
 
+                    b.Property<string>("HomeBranchId")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<string>("LastName")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -1320,6 +1351,8 @@ namespace EJCFitnessGym.Data.Migrations
                         .HasColumnType("decimal(5,2)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("HomeBranchId");
 
                     b.HasIndex("UserId")
                         .IsUnique();

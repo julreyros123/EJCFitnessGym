@@ -1,4 +1,5 @@
 using EJCFitnessGym.Data;
+using Microsoft.AspNetCore.HttpOverrides;
 using EJCFitnessGym.Hubs;
 using EJCFitnessGym.Services.Memberships;
 using EJCFitnessGym.Services.Payments;
@@ -11,6 +12,8 @@ using EJCFitnessGym.Services.AI;
 using EJCFitnessGym.Services.Staff;
 using EJCFitnessGym.Services.Inventory;
 using EJCFitnessGym.Security;
+using EJCFitnessGym.Models;
+using EJCFitnessGym.Models.Admin;
 using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Areas.Identity.Pages.Account;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -83,15 +86,13 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
 var configuredJwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
 var jwtSigningKey = configuredJwtOptions.SigningKey?.Trim();
+var jwtBearerAuthenticationEnabled = !string.IsNullOrWhiteSpace(jwtSigningKey);
 if (string.IsNullOrWhiteSpace(jwtSigningKey))
 {
     if (builder.Environment.IsDevelopment())
     {
         jwtSigningKey = "dev-only-jwt-signing-key-change-this-before-production-32-bytes-min";
-    }
-    else
-    {
-        throw new InvalidOperationException("Jwt:SigningKey is required in non-development environments.");
+        jwtBearerAuthenticationEnabled = true;
     }
 }
 
@@ -102,43 +103,122 @@ var jwtAudience = string.IsNullOrWhiteSpace(configuredJwtOptions.Audience)
     ? "EJCFitnessGymClients"
     : configuredJwtOptions.Audience.Trim();
 
-builder.Services
-    .AddAuthentication(options =>
+var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+var isLocalDbConnection = connectionString.Contains("(localdb)", StringComparison.OrdinalIgnoreCase);
+if (isLocalDbConnection &&
+    (string.IsNullOrWhiteSpace(googleClientId) || string.IsNullOrWhiteSpace(googleClientSecret)))
+{
+    var localDevelopmentConfig = new ConfigurationBuilder()
+        .SetBasePath(builder.Environment.ContentRootPath)
+        .AddJsonFile("appsettings.Development.json", optional: true)
+        .Build();
+
+    googleClientId = string.IsNullOrWhiteSpace(googleClientId)
+        ? localDevelopmentConfig["Authentication:Google:ClientId"]
+        : googleClientId;
+    googleClientSecret = string.IsNullOrWhiteSpace(googleClientSecret)
+        ? localDevelopmentConfig["Authentication:Google:ClientSecret"]
+        : googleClientSecret;
+}
+
+if (!string.IsNullOrWhiteSpace(googleClientId))
+{
+    builder.Configuration["Authentication:Google:ClientId"] = googleClientId;
+}
+
+if (!string.IsNullOrWhiteSpace(googleClientSecret))
+{
+    builder.Configuration["Authentication:Google:ClientSecret"] = googleClientSecret;
+}
+
+var googleIsConfigured = !string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret);
+var configuredPayMongoOptions = builder.Configuration.GetSection("PayMongo").Get<PayMongoOptions>() ?? new PayMongoOptions();
+var payMongoSecretKey = configuredPayMongoOptions.SecretKey?.Trim();
+var payMongoWebhookSecret = configuredPayMongoOptions.WebhookSecret?.Trim();
+var payMongoRequiresWebhookSignature =
+    !builder.Environment.IsDevelopment() ||
+    configuredPayMongoOptions.RequireWebhookSignature;
+var configuredForwardedHeadersOptions = builder.Configuration.GetSection("ForwardedHeaders").Get<ForwardedHeadersSecurityOptions>()
+    ?? new ForwardedHeadersSecurityOptions();
+ForwardedHeadersOptions? trustedForwardedHeadersOptions = null;
+
+if (configuredForwardedHeadersOptions.Enabled)
+{
+    trustedForwardedHeadersOptions = ForwardedHeadersSecurityConfigurator.CreateOptions(
+        configuredForwardedHeadersOptions,
+        builder.Environment.IsDevelopment());
+}
+
+if (!string.IsNullOrWhiteSpace(payMongoSecretKey) &&
+    payMongoRequiresWebhookSignature &&
+    string.IsNullOrWhiteSpace(payMongoWebhookSecret))
+{
+    throw new InvalidOperationException(
+        "PayMongo:WebhookSecret is required whenever PayMongo is enabled outside Development.");
+}
+
+var authBuilder = builder.Services.AddAuthentication(options =>
+{
+    if (jwtBearerAuthenticationEnabled)
     {
         options.DefaultScheme = "IdentityOrJwt";
         options.DefaultAuthenticateScheme = "IdentityOrJwt";
         options.DefaultChallengeScheme = "IdentityOrJwt";
-    })
-    .AddPolicyScheme("IdentityOrJwt", "Identity cookie or JWT bearer", options =>
-    {
-        options.ForwardDefaultSelector = context =>
-        {
-            var authorizationHeader = context.Request.Headers.Authorization.ToString();
-            if (!string.IsNullOrWhiteSpace(authorizationHeader) &&
-                authorizationHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            {
-                return JwtBearerDefaults.AuthenticationScheme;
-            }
+        return;
+    }
 
-            return IdentityConstants.ApplicationScheme;
-        };
-    })
-    .AddJwtBearer(options =>
-    {
-        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
-        options.SaveToken = true;
-        options.TokenValidationParameters = new TokenValidationParameters
+    options.DefaultScheme = IdentityConstants.ApplicationScheme;
+    options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
+    options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
+});
+
+if (jwtBearerAuthenticationEnabled)
+{
+    authBuilder
+        .AddPolicyScheme("IdentityOrJwt", "Identity cookie or JWT bearer", options =>
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateIssuerSigningKey = true,
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromMinutes(1),
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey))
-        };
+            options.ForwardDefaultSelector = context =>
+            {
+                var authorizationHeader = context.Request.Headers.Authorization.ToString();
+                if (!string.IsNullOrWhiteSpace(authorizationHeader) &&
+                    authorizationHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    return JwtBearerDefaults.AuthenticationScheme;
+                }
+
+                return IdentityConstants.ApplicationScheme;
+            };
+        })
+        .AddJwtBearer(options =>
+        {
+            options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+            options.SaveToken = true;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateIssuerSigningKey = true,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.FromMinutes(1),
+                ValidIssuer = jwtIssuer,
+                ValidAudience = jwtAudience,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey!))
+            };
+        });
+}
+
+if (googleIsConfigured)
+{
+    authBuilder.AddGoogle(options =>
+    {
+        options.ClientId = googleClientId!;
+        options.ClientSecret = googleClientSecret!;
+        // Make sure the external identity is stored in the External cookie so
+        // Identity's ExternalLogin callback can read it.
+        options.SignInScheme = IdentityConstants.ExternalScheme;
     });
+}
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -183,22 +263,6 @@ builder.Services.ConfigureApplicationCookie(options =>
         return Task.CompletedTask;
     };
 });
-
-var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
-var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
-if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
-{
-    builder.Services
-        .AddAuthentication()
-        .AddGoogle(options =>
-        {
-            options.ClientId = googleClientId;
-            options.ClientSecret = googleClientSecret;
-            // Make sure the external identity is stored in the External cookie so
-            // Identity's ExternalLogin callback can read it.
-            options.SignInScheme = IdentityConstants.ExternalScheme;
-        });
-}
 
 builder.Services.AddAuthorization(options =>
 {
@@ -249,8 +313,10 @@ builder.Services.Configure<FinanceAlertEvaluatorOptions>(builder.Configuration.G
 builder.Services.Configure<MembershipLifecycleWorkerOptions>(builder.Configuration.GetSection("MembershipLifecycleWorker"));
 builder.Services.Configure<IntegrationOutboxDispatcherOptions>(builder.Configuration.GetSection("IntegrationOutbox"));
 builder.Services.Configure<OperationalHealthOptions>(builder.Configuration.GetSection("OperationalHealth"));
+builder.Services.Configure<ForwardedHeadersSecurityOptions>(builder.Configuration.GetSection("ForwardedHeaders"));
 builder.Services.Configure<StaffAttendanceOptions>(builder.Configuration.GetSection("StaffAttendance"));
 builder.Services.Configure<AutoBillingWorkerOptions>(builder.Configuration.GetSection("AutoBilling"));
+builder.Services.AddSingleton<StartupInitializationState>();
 builder.Services.AddHttpClient<PayMongoClient>();
 builder.Services.AddScoped<IPayMongoMembershipReconciliationService, PayMongoMembershipReconciliationService>();
 builder.Services.AddScoped<IMembershipService, MembershipService>();
@@ -285,7 +351,14 @@ builder.Services.AddHealthChecks()
 builder.Services.AddSignalR();
 
 builder.Services.Configure<EmailSmtpOptions>(builder.Configuration.GetSection("Email:Smtp"));
-builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
+if (smtpIsConfigured || !builder.Environment.IsDevelopment())
+{
+    builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
+}
+else
+{
+    builder.Services.AddTransient<IEmailSender, LoggingEmailSender>();
+}
 builder.Services.AddScoped<IEmailVerificationCodeService, EmailVerificationCodeService>();
 builder.Services.AddControllersWithViews();
 
@@ -299,7 +372,18 @@ builder.Services.AddSession(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
 
+builder.Services.Configure<CookiePolicyOptions>(options =>
+{
+    options.MinimumSameSitePolicy = SameSiteMode.Unspecified;
+});
+
 var app = builder.Build();
+
+if (!jwtBearerAuthenticationEnabled)
+{
+    app.Logger.LogWarning(
+        "JWT bearer authentication is disabled because Jwt:SigningKey is not configured. Cookie-based sign-in remains available.");
+}
 
 if (args.Any(arg => string.Equals(arg, "--bulk-repair-paymongo", StringComparison.OrdinalIgnoreCase)))
 {
@@ -487,6 +571,11 @@ if (args.Any(arg => string.Equals(arg, "--bulk-repair-paymongo", StringCompariso
 }
 
 // Configure the HTTP request pipeline.
+if (trustedForwardedHeadersOptions is not null)
+{
+    app.UseForwardedHeaders(trustedForwardedHeadersOptions);
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
@@ -499,6 +588,20 @@ else
 }
 
 app.UseHttpsRedirection();
+
+app.Use((context, next) =>
+{
+    context.Response.Headers.Append("Content-Security-Policy",
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://*.google.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " +
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " +
+        "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; " +
+        "img-src 'self' data: https: https://*.googleusercontent.com; " +
+        "frame-src 'self' https://accounts.google.com https://*.google.com; " +
+        "connect-src 'self' https://accounts.google.com https://*.google.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net ws: wss:; " +
+        "form-action 'self' https://accounts.google.com https://*.google.com;");
+    return next();
+});
 app.UseStaticFiles();
 
 app.UseRouting();
@@ -512,27 +615,26 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var startupLogger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup.Seed");
+    var startupInitializationState = services.GetRequiredService<StartupInitializationState>();
 
     try
     {
         var db = services.GetRequiredService<ApplicationDbContext>();
-        
-        // Try to apply pending migrations, but don't crash the app if it fails
+
         try
         {
             await db.Database.MigrateAsync();
         }
         catch (Exception migrationEx)
         {
-            startupLogger.LogError(migrationEx, "Database migration failed. The app will continue but some features may not work.");
-            // Continue without migration - app should still work for existing features
+            throw new InvalidOperationException("Database migration failed at startup.", migrationEx);
         }
 
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
         var roles = new[] { "Member", "Staff", "Finance", "Admin", "SuperAdmin" };
-        const string defaultBranchId = "BR-CENTRAL";
-        const string defaultBranchName = "EJC Central Branch";
+        const string defaultBranchId = BranchNaming.DefaultBranchId;
+        const string defaultBranchName = BranchNaming.DefaultLocationName;
         var generalLedgerService = services.GetRequiredService<IGeneralLedgerService>();
 
         foreach (var role in roles)
@@ -642,24 +744,39 @@ using (var scope = app.Services.CreateScope())
         var hasAnyActivePlans = await db.SubscriptionPlans.AnyAsync(plan => plan.IsActive);
         if (!hasAnyActivePlans)
         {
-            var defaultPlans = new (string Name, string Description, decimal Price)[]
-            {
-                ("Starter", "For regular gym sessions and consistency goals.", 999m),
-                ("Pro", "For members targeting measurable weekly progression.", 1499m),
-                ("Elite", "For complete coaching support and faster results.", 1999m)
-            };
+            var defaultPlans = SubscriptionPlanCatalog.DefaultPresets
+                .Select(preset => (preset.Name, preset.Description, preset.Price))
+                .ToArray();
 
             var defaultPlanNames = defaultPlans.Select(plan => plan.Name).ToArray();
             var existingDefaultPlans = await db.SubscriptionPlans
-                .Where(plan => defaultPlanNames.Contains(plan.Name))
+                .Where(plan => defaultPlanNames.Contains(plan.Name) || plan.Name == "Starter")
                 .ToDictionaryAsync(plan => plan.Name, StringComparer.OrdinalIgnoreCase);
 
             var plansChanged = false;
 
-            foreach (var (name, description, price) in defaultPlans)
+            foreach (var preset in SubscriptionPlanCatalog.DefaultPresets)
             {
-                if (existingDefaultPlans.TryGetValue(name, out var existingPlan))
+                var existingPlan = existingDefaultPlans.TryGetValue(preset.Name, out var planByName)
+                    ? planByName
+                    : preset.Tier == PlanTier.Basic && existingDefaultPlans.TryGetValue("Starter", out var starterPlan)
+                        ? starterPlan
+                        : null;
+
+                if (existingPlan is not null)
                 {
+                    if (!string.Equals(existingPlan.Name, preset.Name, StringComparison.Ordinal))
+                    {
+                        existingPlan.Name = preset.Name;
+                        plansChanged = true;
+                    }
+
+                    if (existingPlan.Tier != preset.Tier)
+                    {
+                        existingPlan.Tier = preset.Tier;
+                        plansChanged = true;
+                    }
+
                     if (!existingPlan.IsActive)
                     {
                         existingPlan.IsActive = true;
@@ -672,30 +789,42 @@ using (var scope = app.Services.CreateScope())
                         plansChanged = true;
                     }
 
-                    if (string.IsNullOrWhiteSpace(existingPlan.Description))
+                    if (!string.Equals(existingPlan.Description, preset.Description, StringComparison.Ordinal))
                     {
-                        existingPlan.Description = description;
+                        existingPlan.Description = preset.Description;
                         plansChanged = true;
                     }
 
                     if (existingPlan.Price <= 0)
                     {
-                        existingPlan.Price = price;
+                        existingPlan.Price = preset.Price;
+                        plansChanged = true;
+                    }
+
+                    if (existingPlan.AllowsAllBranchAccess != preset.AllowsAllBranchAccess ||
+                        existingPlan.IncludesBasicEquipment != preset.IncludesBasicEquipment ||
+                        existingPlan.IncludesCardioAccess != preset.IncludesCardioAccess ||
+                        existingPlan.IncludesGroupClasses != preset.IncludesGroupClasses ||
+                        existingPlan.IncludesFreeTowel != preset.IncludesFreeTowel ||
+                        existingPlan.IncludesPersonalTrainer != preset.IncludesPersonalTrainer ||
+                        existingPlan.IncludesFitnessPlan != preset.IncludesFitnessPlan ||
+                        existingPlan.IncludesFullFacilityAccess != preset.IncludesFullFacilityAccess)
+                    {
+                        existingPlan.AllowsAllBranchAccess = preset.AllowsAllBranchAccess;
+                        existingPlan.IncludesBasicEquipment = preset.IncludesBasicEquipment;
+                        existingPlan.IncludesCardioAccess = preset.IncludesCardioAccess;
+                        existingPlan.IncludesGroupClasses = preset.IncludesGroupClasses;
+                        existingPlan.IncludesFreeTowel = preset.IncludesFreeTowel;
+                        existingPlan.IncludesPersonalTrainer = preset.IncludesPersonalTrainer;
+                        existingPlan.IncludesFitnessPlan = preset.IncludesFitnessPlan;
+                        existingPlan.IncludesFullFacilityAccess = preset.IncludesFullFacilityAccess;
                         plansChanged = true;
                     }
 
                     continue;
                 }
 
-                db.SubscriptionPlans.Add(new SubscriptionPlan
-                {
-                    Name = name,
-                    Description = description,
-                    Price = price,
-                    BillingCycle = BillingCycle.Monthly,
-                    IsActive = true,
-                    CreatedAtUtc = DateTime.UtcNow
-                });
+                db.SubscriptionPlans.Add(SubscriptionPlanCatalog.CreateDefaultPlan(preset));
                 plansChanged = true;
             }
 
@@ -724,29 +853,15 @@ using (var scope = app.Services.CreateScope())
                         .Select(name => name.Trim()),
                     StringComparer.OrdinalIgnoreCase);
 
-                var seedPlans = new (string Name, string Description, decimal Price)[]
+                foreach (var preset in SubscriptionPlanCatalog.DefaultPresets)
                 {
-                    ("Starter", "For regular gym sessions and consistency goals.", 999m),
-                    ("Pro", "For members targeting measurable weekly progression.", 1499m),
-                    ("Elite", "For complete coaching support and faster results.", 1999m)
-                };
-
-                foreach (var (name, description, price) in seedPlans)
-                {
-                    if (existingPlanSet.Contains(name))
+                    if (existingPlanSet.Contains(preset.Name) ||
+                        (preset.Tier == PlanTier.Basic && existingPlanSet.Contains("Starter")))
                     {
                         continue;
                     }
 
-                    db.SubscriptionPlans.Add(new SubscriptionPlan
-                    {
-                        Name = name,
-                        Description = description,
-                        Price = price,
-                        BillingCycle = BillingCycle.Monthly,
-                        IsActive = true,
-                        CreatedAtUtc = DateTime.UtcNow
-                    });
+                    db.SubscriptionPlans.Add(SubscriptionPlanCatalog.CreateDefaultPlan(preset));
                 }
 
                 await db.SaveChangesAsync();
@@ -809,14 +924,42 @@ using (var scope = app.Services.CreateScope())
                         }
                     }
                 }
+
+                if (string.Equals(role, "Member", StringComparison.Ordinal))
+                {
+                    var profile = await db.MemberProfiles.FirstOrDefaultAsync(profile => profile.UserId == user.Id);
+                    if (profile is null)
+                    {
+                        db.MemberProfiles.Add(new MemberProfile
+                        {
+                            UserId = user.Id,
+                            HomeBranchId = defaultBranchId,
+                            CreatedUtc = DateTime.UtcNow,
+                            UpdatedUtc = DateTime.UtcNow
+                        });
+                    }
+                    else if (string.IsNullOrWhiteSpace(profile.HomeBranchId))
+                    {
+                        profile.HomeBranchId = defaultBranchId;
+                        profile.UpdatedUtc = DateTime.UtcNow;
+                    }
+
+                    await db.SaveChangesAsync();
+                }
             }
         }
     }
     catch (Exception ex)
     {
+        startupInitializationState.ReportFailure(ex.Message, ex);
         startupLogger.LogError(ex, "Database initialization failed at startup.");
-        // Don't crash the app - continue so existing features can still work
-        startupLogger.LogWarning("Continuing startup without database initialization. Some features may not work.");
+
+        if (!app.Environment.IsDevelopment())
+        {
+            throw;
+        }
+
+        startupLogger.LogWarning("Continuing startup in Development without database initialization. Some features may not work.");
     }
 }
 

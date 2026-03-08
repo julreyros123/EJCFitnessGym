@@ -1,6 +1,7 @@
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Admin;
 using EJCFitnessGym.Models.Billing;
+using EJCFitnessGym.Services.Memberships;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,13 +11,6 @@ namespace EJCFitnessGym.Controllers
     [Authorize(Roles = "Admin,Finance,SuperAdmin")]
     public class SubscriptionPlansController : Controller
     {
-        private static readonly (string Name, string Description, decimal Price)[] DefaultPlans =
-        {
-            ("Starter", "For regular gym sessions and consistency goals.", 999m),
-            ("Pro", "For members targeting measurable weekly progression.", 1499m),
-            ("Elite", "For complete coaching support and faster results.", 1999m)
-        };
-
         private readonly ApplicationDbContext _db;
 
         public SubscriptionPlansController(ApplicationDbContext db)
@@ -56,10 +50,12 @@ namespace EJCFitnessGym.Controllers
                 {
                     Id = plan.Id,
                     Name = plan.Name,
+                    Tier = SubscriptionPlanCatalog.InferTier(plan),
                     Description = plan.Description,
                     Price = plan.Price,
                     BillingCycle = plan.BillingCycle,
                     IsActive = plan.IsActive,
+                    AccessSummary = SubscriptionPlanCatalog.BuildAccessSummary(plan),
                     TotalAssignments = counts?.Total ?? 0,
                     ActiveAssignments = counts?.Active ?? 0
                 };
@@ -70,21 +66,18 @@ namespace EJCFitnessGym.Controllers
 
         public IActionResult Create()
         {
-            return View(new SubscriptionPlan());
+            var defaultPlan = SubscriptionPlanCatalog.CreateDefaultPlan(
+                SubscriptionPlanCatalog.DefaultPresets.First(preset => preset.Tier == PlanTier.Basic));
+            return View(defaultPlan);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(SubscriptionPlan plan)
         {
-            plan.Name = (plan.Name ?? string.Empty).Trim();
-            plan.Description = string.IsNullOrWhiteSpace(plan.Description) ? null : plan.Description.Trim();
+            ApplyPreset(plan);
 
-            if (string.IsNullOrWhiteSpace(plan.Name))
-            {
-                ModelState.AddModelError(nameof(plan.Name), "Plan name is required.");
-            }
-            else if (await PlanNameExistsAsync(plan.Name))
+            if (await PlanNameExistsAsync(plan.Name))
             {
                 ModelState.AddModelError(nameof(plan.Name), "A subscription plan with this name already exists.");
             }
@@ -127,14 +120,9 @@ namespace EJCFitnessGym.Controllers
                 return NotFound();
             }
 
-            plan.Name = (plan.Name ?? string.Empty).Trim();
-            plan.Description = string.IsNullOrWhiteSpace(plan.Description) ? null : plan.Description.Trim();
+            ApplyPreset(plan);
 
-            if (string.IsNullOrWhiteSpace(plan.Name))
-            {
-                ModelState.AddModelError(nameof(plan.Name), "Plan name is required.");
-            }
-            else if (await PlanNameExistsAsync(plan.Name, id))
+            if (await PlanNameExistsAsync(plan.Name, id))
             {
                 ModelState.AddModelError(nameof(plan.Name), "A subscription plan with this name already exists.");
             }
@@ -146,9 +134,18 @@ namespace EJCFitnessGym.Controllers
 
             existingPlan.Name = plan.Name;
             existingPlan.Description = plan.Description;
+            existingPlan.Tier = plan.Tier;
             existingPlan.Price = plan.Price;
             existingPlan.BillingCycle = plan.BillingCycle;
             existingPlan.IsActive = plan.IsActive;
+            existingPlan.AllowsAllBranchAccess = plan.AllowsAllBranchAccess;
+            existingPlan.IncludesBasicEquipment = plan.IncludesBasicEquipment;
+            existingPlan.IncludesCardioAccess = plan.IncludesCardioAccess;
+            existingPlan.IncludesGroupClasses = plan.IncludesGroupClasses;
+            existingPlan.IncludesFreeTowel = plan.IncludesFreeTowel;
+            existingPlan.IncludesPersonalTrainer = plan.IncludesPersonalTrainer;
+            existingPlan.IncludesFitnessPlan = plan.IncludesFitnessPlan;
+            existingPlan.IncludesFullFacilityAccess = plan.IncludesFullFacilityAccess;
 
             await _db.SaveChangesAsync();
 
@@ -163,6 +160,7 @@ namespace EJCFitnessGym.Controllers
                 return NotFound();
             }
 
+            ViewData["Benefits"] = SubscriptionPlanCatalog.BuildBenefits(plan);
             return View(plan);
         }
 
@@ -230,24 +228,17 @@ namespace EJCFitnessGym.Controllers
                 StringComparer.OrdinalIgnoreCase);
 
             var added = 0;
-            foreach (var (name, description, price) in DefaultPlans)
+            foreach (var preset in SubscriptionPlanCatalog.DefaultPresets)
             {
-                if (existingSet.Contains(name))
+                if (existingSet.Contains(preset.Name) ||
+                    (preset.Tier == PlanTier.Basic && existingSet.Contains("Starter")))
                 {
                     continue;
                 }
 
-                _db.SubscriptionPlans.Add(new SubscriptionPlan
-                {
-                    Name = name,
-                    Description = description,
-                    Price = price,
-                    BillingCycle = BillingCycle.Monthly,
-                    IsActive = true,
-                    CreatedAtUtc = DateTime.UtcNow
-                });
+                _db.SubscriptionPlans.Add(SubscriptionPlanCatalog.CreateDefaultPlan(preset));
 
-                existingSet.Add(name);
+                existingSet.Add(preset.Name);
                 added++;
             }
 
@@ -276,6 +267,23 @@ namespace EJCFitnessGym.Controllers
             }
 
             return await query.AnyAsync();
+        }
+
+        private static void ApplyPreset(SubscriptionPlan plan)
+        {
+            var preset = SubscriptionPlanCatalog.DefaultPresets
+                .First(defaultPreset => defaultPreset.Tier == plan.Tier);
+
+            plan.Name = preset.Name;
+            plan.Description = preset.Description;
+            plan.AllowsAllBranchAccess = preset.AllowsAllBranchAccess;
+            plan.IncludesBasicEquipment = preset.IncludesBasicEquipment;
+            plan.IncludesCardioAccess = preset.IncludesCardioAccess;
+            plan.IncludesGroupClasses = preset.IncludesGroupClasses;
+            plan.IncludesFreeTowel = preset.IncludesFreeTowel;
+            plan.IncludesPersonalTrainer = preset.IncludesPersonalTrainer;
+            plan.IncludesFitnessPlan = preset.IncludesFitnessPlan;
+            plan.IncludesFullFacilityAccess = preset.IncludesFullFacilityAccess;
         }
     }
 }

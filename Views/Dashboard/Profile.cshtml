@@ -66,6 +66,14 @@
                             <input value="@Model.Email" class="form-control" readonly />
                         </div>
                         <div class="row g-3">
+                            <div class="col-md-12">
+                                <label asp-for="HomeBranchId" class="form-label"></label>
+                                <select asp-for="HomeBranchId" class="form-select" asp-items="ViewBag.HomeBranchOptions">
+                                    <option value="">Select your home branch</option>
+                                </select>
+                                <span asp-validation-for="HomeBranchId" class="text-danger"></span>
+                                <div class="form-text">You can still visit any active branch. Your home branch is your default location for billing and support.</div>
+                            </div>
                             <div class="col-md-6">
                                 <label asp-for="FirstName" class="form-label"></label>
                                 <input asp-for="FirstName" class="form-control" />

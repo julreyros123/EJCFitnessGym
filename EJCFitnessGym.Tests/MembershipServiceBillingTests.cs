@@ -18,8 +18,9 @@ public class MembershipServiceBillingTests
         var nowUtc = DateTime.UtcNow;
         var plan = new SubscriptionPlan
         {
-            Name = "Starter",
-            Description = "Starter monthly plan",
+            Tier = PlanTier.Basic,
+            Name = "Basic",
+            Description = "Basic monthly plan",
             Price = 999m,
             BillingCycle = BillingCycle.Monthly,
             IsActive = true,
@@ -120,7 +121,7 @@ public class MembershipServiceBillingTests
             DueDateUtc = nowUtc.AddHours(-1),
             Amount = 1299m,
             Status = InvoiceStatus.Unpaid,
-            Notes = "Subscription purchase: Starter [plan:1]"
+            Notes = "Subscription purchase: Basic [plan:1]"
         };
         db.Invoices.Add(invoice);
         await db.SaveChangesAsync();

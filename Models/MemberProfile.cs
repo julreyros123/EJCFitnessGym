@@ -35,6 +35,9 @@ public class MemberProfile
     [MaxLength(300)]
     public string? ProfileImagePath { get; set; }
 
+    [MaxLength(32)]
+    public string? HomeBranchId { get; set; }
+
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedUtc { get; set; } = DateTime.UtcNow;
 }

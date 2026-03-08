@@ -6,6 +6,8 @@ namespace EJCFitnessGym.Models.Admin
     {
         public int Id { get; init; }
 
+        public PlanTier Tier { get; init; }
+
         public string Name { get; init; } = string.Empty;
 
         public string? Description { get; init; }
@@ -15,6 +17,8 @@ namespace EJCFitnessGym.Models.Admin
         public BillingCycle BillingCycle { get; init; }
 
         public bool IsActive { get; init; }
+
+        public string AccessSummary { get; init; } = string.Empty;
 
         public int TotalAssignments { get; init; }
 

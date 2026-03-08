@@ -7,9 +7,8 @@
 <header class="ejc-admin-topbar">
     <div class="ejc-admin-topbar-inner">
         <div class="ejc-admin-topbar-brand">
-            <span class="ejc-brand-badge">EJ</span>
             <div>
-                <div class="ejc-admin-topbar-title">EJC Fitness Gym</div>
+                <div class="ejc-admin-topbar-title">Fitness Gym</div>
             </div>
         </div>
         <div class="ejc-admin-topbar-actions">
@@ -21,7 +20,7 @@
                 <i class="bi bi-sun-fill" data-ejc-theme-icon aria-hidden="true"></i>
             </button>
             <span class="ejc-admin-topbar-user">@displayName</span>
-            <form class="d-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
+            <form method="post" class="d-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
                 <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
             </form>
         </div>

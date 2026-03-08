@@ -1,5 +1,7 @@
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Inventory;
+using EJCFitnessGym.Services.Finance;
+using EJCFitnessGym.Services.Integration;
 using Microsoft.EntityFrameworkCore;
 
 namespace EJCFitnessGym.Services.Inventory
@@ -7,11 +9,21 @@ namespace EJCFitnessGym.Services.Inventory
     public class ProductSalesService : IProductSalesService
     {
         private readonly ApplicationDbContext _db;
+        private readonly IGeneralLedgerService _generalLedgerService;
+        private readonly IIntegrationOutbox _outbox;
+        private readonly ILogger<ProductSalesService> _logger;
         private const decimal VatRate = 0.12m;
 
-        public ProductSalesService(ApplicationDbContext db)
+        public ProductSalesService(
+            ApplicationDbContext db,
+            IGeneralLedgerService generalLedgerService,
+            IIntegrationOutbox outbox,
+            ILogger<ProductSalesService> logger)
         {
             _db = db;
+            _generalLedgerService = generalLedgerService;
+            _outbox = outbox;
+            _logger = logger;
         }
 
         public async Task<IReadOnlyList<RetailProduct>> GetProductsAsync(string? branchId, CancellationToken cancellationToken = default)
@@ -106,6 +118,11 @@ namespace EJCFitnessGym.Services.Inventory
                 throw new ArgumentException("At least one item is required.", nameof(items));
             }
 
+            if (items.Any(i => i.Quantity <= 0))
+            {
+                throw new InvalidOperationException("Each item quantity must be greater than zero.");
+            }
+
             var productIds = items.Select(i => i.ProductId).ToList();
             var products = await _db.RetailProducts
                 .Where(p => productIds.Contains(p.Id) && p.IsActive)
@@ -135,6 +152,11 @@ namespace EJCFitnessGym.Services.Inventory
             foreach (var (productId, quantity) in items)
             {
                 var product = products[productId];
+                if (product.StockQuantity < quantity)
+                {
+                    throw new InvalidOperationException($"Insufficient stock for {product.Name}. Available: {product.StockQuantity}, requested: {quantity}.");
+                }
+
                 var lineTotal = product.UnitPrice * quantity;
                 subtotal += lineTotal;
 
@@ -162,6 +184,35 @@ namespace EJCFitnessGym.Services.Inventory
 
             _db.ProductSales.Add(sale);
             await _db.SaveChangesAsync(cancellationToken);
+
+            if (sale.Status == ProductSaleStatus.Completed)
+            {
+                try
+                {
+                    await _outbox.EnqueueBackOfficeAsync(
+                        "POS_SaleCompleted",
+                        $"New POS sale completed: {sale.ReceiptNumber} for {sale.TotalAmount:C}",
+                        new { saleId = sale.Id, branchId = sale.BranchId, amount = sale.TotalAmount, receipt = sale.ReceiptNumber },
+                        cancellationToken);
+                    await _db.SaveChangesAsync(cancellationToken);
+                }
+                catch { }
+
+                try
+                {
+                    await _generalLedgerService.PostRetailSaleAsync(
+                        sale.Id,
+                        processedByUserId,
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "General ledger retail sale posting failed for sale {ProductSaleId}.",
+                        sale.Id);
+                }
+            }
 
             return sale;
         }
@@ -201,6 +252,8 @@ namespace EJCFitnessGym.Services.Inventory
                 return false;
             }
 
+            var shouldReverseLedger = sale.Status == ProductSaleStatus.Completed;
+
             // Restore stock
             foreach (var line in sale.Lines)
             {
@@ -218,6 +271,25 @@ namespace EJCFitnessGym.Services.Inventory
                 : $"{sale.Notes} | Voided by {voidedByUserId} at {DateTime.UtcNow:u}";
 
             await _db.SaveChangesAsync(cancellationToken);
+
+            if (shouldReverseLedger)
+            {
+                try
+                {
+                    await _generalLedgerService.PostRetailSaleVoidAsync(
+                        sale.Id,
+                        voidedByUserId,
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "General ledger retail sale reversal failed for sale {ProductSaleId}.",
+                        sale.Id);
+                }
+            }
+
             return true;
         }
 

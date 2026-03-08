@@ -31,6 +31,7 @@
                     <thead>
                         <tr>
                             <th>Name</th>
+                            <th>Tier</th>
                             <th>Price</th>
                             <th>Cycle</th>
                             <th>Status</th>
@@ -43,13 +44,17 @@
                     @if (plans.Count == 0)
                     {
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">No subscription plans found.</td>
+                            <td colspan="8" class="text-center text-muted py-4">No subscription plans found.</td>
                         </tr>
                     }
                     @foreach (var item in plans)
                     {
                         <tr>
-                            <td>@item.Name</td>
+                            <td>
+                                <div class="fw-semibold">@item.Name</div>
+                                <div class="small text-muted">@item.AccessSummary</div>
+                            </td>
+                            <td>@item.Tier</td>
                             <td>@item.Price.ToString("0.00")</td>
                             <td>@item.BillingCycle</td>
                             <td>

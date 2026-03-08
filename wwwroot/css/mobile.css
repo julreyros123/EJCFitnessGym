@@ -1,0 +1,722 @@
+/* Mobile-First Responsive Styles for EJC Fitness Gym */
+
+/* PWA Install Prompt */
+.pwa-install-prompt {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+  color: white;
+  padding: 1rem;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+  z-index: 1050;
+  display: none;
+}
+
+.pwa-install-prompt.show {
+  display: block;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Mobile Navigation (legacy Bootstrap nav only) */
+@media (max-width: 768px) {
+  .navbar-brand:not(.ejc-brand) {
+    font-size: 1rem;
+  }
+
+  .navbar:not(.ejc-navbar) .navbar-nav {
+    background: rgba(10, 10, 10, 0.98);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-top: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .navbar:not(.ejc-navbar) .navbar-nav .nav-link {
+    color: #212529 !important;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  .navbar:not(.ejc-navbar) .navbar-nav .nav-link:last-child {
+    border-bottom: none;
+  }
+}
+
+/* Touch-Friendly Buttons */
+@media (max-width: 768px) {
+  .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .btn-sm {
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  .btn-lg {
+    min-height: 52px;
+  }
+}
+
+/* Card Optimization for Mobile */
+@media (max-width: 576px) {
+  .card {
+    margin-bottom: 1rem;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
+
+/* Form Inputs - Touch Friendly */
+@media (max-width: 768px) {
+
+  .form-control,
+  .form-select {
+    min-height: 44px;
+    font-size: 16px;
+    /* Prevents zoom on iOS */
+  }
+
+  .form-control-sm {
+    min-height: 36px;
+    font-size: 14px;
+  }
+}
+
+/* QR Code Display */
+.qr-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background: white;
+  border-radius: 0.5rem;
+}
+
+@media (max-width: 576px) {
+  .qr-container {
+    padding: 0.5rem;
+  }
+
+  #member-dashboard-qr {
+    width: 150px !important;
+    height: 150px !important;
+  }
+}
+
+/* POS Mobile Optimization */
+@media (max-width: 992px) {
+  .pos-products {
+    margin-bottom: 2rem;
+  }
+
+  .pos-cart {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 50vh;
+    overflow-y: auto;
+    z-index: 1040;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  .pos-cart.collapsed {
+    max-height: 60px;
+  }
+
+  .pos-cart-toggle {
+    display: block;
+    width: 100%;
+    padding: 1rem;
+    background: #198754;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+}
+
+/* Member Dashboard Mobile */
+.member-portal {
+  padding-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .member-portal .card {
+    margin-bottom: 1rem;
+  }
+
+  .member-portal .row>div {
+    margin-bottom: 1rem;
+  }
+}
+
+/* Table Responsive */
+@media (max-width: 768px) {
+  .table-responsive {
+    border: 0;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table tbody tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+  }
+
+  .table tbody td {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem;
+    border: none;
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  .table tbody td:last-child {
+    border-bottom: none;
+  }
+
+  .table tbody td::before {
+    content: attr(data-label);
+    font-weight: bold;
+    margin-right: 1rem;
+  }
+}
+
+/* Bottom Navigation for Mobile */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #0a0a0a;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.5rem 0;
+  z-index: 1030;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    display: flex;
+    justify-content: space-around;
+  }
+
+  body.ejc-has-mobile-bottom-nav {
+    padding-bottom: 60px;
+  }
+}
+
+.mobile-bottom-nav a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  color: #6c757d;
+  font-size: 0.75rem;
+  padding: 0.5rem;
+  flex: 1;
+}
+
+.mobile-bottom-nav a.active {
+  color: #0d6efd;
+}
+
+.mobile-bottom-nav a i {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Pull to Refresh Indicator */
+.pull-to-refresh {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(13, 110, 253, 0.9);
+  color: white;
+  transform: translateY(-100%);
+  transition: transform 0.3s ease;
+  z-index: 1060;
+}
+
+.pull-to-refresh.active {
+  transform: translateY(0);
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Offline Indicator */
+.offline-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #dc3545;
+  color: white;
+  padding: 0.5rem;
+  text-align: center;
+  z-index: 1070;
+  display: none;
+}
+
+.offline-indicator.show {
+  display: block;
+}
+
+/* Swipe Actions */
+.swipe-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.swipe-actions {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+}
+
+.swipe-item.swiped .swipe-actions {
+  transform: translateX(0);
+}
+
+.swipe-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.5rem;
+  color: white;
+  cursor: pointer;
+}
+
+.swipe-action.delete {
+  background: #dc3545;
+}
+
+.swipe-action.edit {
+  background: #0d6efd;
+}
+
+/* Safe Area Insets for Notched Devices */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+
+  .mobile-bottom-nav {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .card {
+    background-color: #212529;
+    color: #f8f9fa;
+  }
+
+  .navbar:not(.ejc-navbar) .navbar-nav {
+    background: rgba(33, 37, 41, 0.95);
+  }
+
+  .mobile-bottom-nav {
+    background: #212529;
+    border-top-color: #495057;
+  }
+}
+
+/* Haptic Feedback Class */
+.haptic-feedback:active {
+  transform: scale(0.95);
+  transition: transform 0.1s ease;
+}
+
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-text {
+  height: 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.skeleton-avatar {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+}
+
+
+/* ===== MOBILE CONSISTENCY FIXES ===== */
+
+/* Standardized Responsive Breakpoints */
+/* Mobile: 576px, Tablet: 768px, Desktop: 992px, Large: 1200px */
+
+/* Safe Area Insets - Consistent across all pages */
+@supports (padding: max(0px)) {
+  .navbar.ejc-navbar {
+    padding-left: max(0.85rem, env(safe-area-inset-left));
+    padding-right: max(0.85rem, env(safe-area-inset-right));
+  }
+
+  .app-shell {
+    padding-left: max(0, env(safe-area-inset-left));
+    padding-right: max(0, env(safe-area-inset-right));
+  }
+
+  .enterprise-mobile-cta {
+    padding-left: max(0.78rem, env(safe-area-inset-left));
+    padding-right: max(0.78rem, env(safe-area-inset-right));
+  }
+}
+
+/* Consistent Touch Targets (44px minimum) */
+@media (max-width: 768px) {
+
+  .form-control,
+  .form-select,
+  .btn,
+  a.btn,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  button {
+    min-height: 44px;
+  }
+
+  .form-control-sm,
+  .btn-sm {
+    min-height: 36px;
+  }
+
+  .form-control-lg,
+  .btn-lg {
+    min-height: 52px;
+  }
+
+  /* Ensure clickable elements have adequate spacing */
+  .nav-link,
+  .dropdown-item,
+  .list-group-item {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* Navigation Consistency */
+@media (max-width: 991px) {
+
+  /* Offcanvas width: 75vw max 320px for better UX */
+  .offcanvas {
+    --bs-offcanvas-width: min(75vw, 320px);
+  }
+
+  /* Ensure nav items are full width and properly spaced */
+  .navbar-nav .nav-item {
+    width: 100%;
+  }
+
+  .navbar-nav .nav-link {
+    padding: 0.56rem 0.8rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* Portal vs Landing Page Alignment */
+@media (max-width: 768px) {
+
+  /* Consistent card spacing */
+  .card,
+  .enterprise-value-card,
+  .enterprise-plan-card {
+    margin-bottom: 1rem;
+  }
+
+  /* Consistent section padding */
+  .enterprise-section,
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
+
+/* Mobile CTA Button Consistency */
+@media (max-width: 768px) {
+
+  .enterprise-mobile-cta,
+  .mobile-bottom-nav {
+    display: flex;
+    gap: 0.55rem;
+    padding: 0.66rem 0.78rem calc(0.66rem + env(safe-area-inset-bottom));
+  }
+
+  .enterprise-mobile-cta .btn,
+  .mobile-bottom-nav a {
+    min-height: 40px;
+    flex: 1;
+  }
+
+  /* Ensure content doesn't hide behind fixed CTAs */
+  body.has-mobile-cta {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Form Input Consistency */
+@media (max-width: 768px) {
+
+  .form-control,
+  .form-select,
+  textarea {
+    font-size: 16px;
+    /* Prevents iOS zoom on input focus */
+    min-height: 44px;
+  }
+
+  .form-control-sm {
+    font-size: 14px;
+    min-height: 36px;
+  }
+
+  /* Ensure labels are readable */
+  label {
+    font-size: 14px;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Table Responsiveness */
+@media (max-width: 768px) {
+  .table-responsive {
+    border: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table {
+    font-size: 0.875rem;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table tbody tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+  }
+
+  .table tbody td {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem;
+    border: none;
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  .table tbody td:last-child {
+    border-bottom: none;
+  }
+}
+
+/* Viewport Height Consistency */
+@media (max-width: 768px) {
+
+  /* Use 100dvh (dynamic viewport height) for better mobile experience */
+  .hero-section,
+  .enterprise-hero-shell {
+    min-height: 100dvh;
+  }
+
+  /* Account for navbar height */
+  .hero-section,
+  .enterprise-hero-shell {
+    min-height: calc(100dvh - 58px);
+  }
+}
+
+/* Prevent horizontal scroll on mobile */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .container,
+  .container-fluid {
+    overflow-x: hidden;
+  }
+}
+
+/* Consistent Loading States */
+@media (max-width: 768px) {
+
+  .loading-spinner,
+  .skeleton {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .skeleton-text {
+    height: 1rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* --- Mobile UX Improvements --- */
+
+/* Member Bottom Nav Improvements */
+@media (max-width: 768px) {
+  .ejc-member-bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #111827;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom));
+    z-index: 1040;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+  }
+
+  .ejc-member-bottom-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    color: #9ca3af;
+    text-decoration: none;
+    font-size: 0.75rem;
+    transition: color 0.2s ease;
+    flex: 1;
+    min-height: 48px;
+    /* Apple target size standard */
+    padding: 0.5rem 0;
+  }
+
+  .ejc-member-bottom-link i {
+    font-size: 1.35rem;
+    line-height: 1;
+  }
+
+  .ejc-member-bottom-link.active {
+    color: #84cc16;
+  }
+
+  .ejc-member-bottom-link:active {
+    opacity: 0.7;
+  }
+}
+
+/* Back-Office Mobile Sidebar Offcanvas Improvements */
+@media (max-width: 991.98px) {
+  .ejc-admin-sidebar-offcanvas {
+    background-color: var(--bs-body-bg) !important;
+    border-right: 1px solid var(--bs-border-color);
+    width: 280px !important;
+  }
+
+  .ejc-admin-sidebar-offcanvas .offcanvas-header {
+    border-bottom: 1px solid var(--bs-border-color);
+    padding: 1rem 1.25rem;
+  }
+
+  .ejc-admin-sidebar-offcanvas .offcanvas-title {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .ejc-admin-sidebar-offcanvas .btn-close {
+    background-size: 1em;
+  }
+
+  .ejc-admin-sidebar-offcanvas .offcanvas-body {
+    padding: 0;
+  }
+
+  .ejc-admin-sidebar-offcanvas .ejc-admin-nav {
+    height: 100%;
+    overflow-y: auto;
+  }
+
+  /* Padding bottom for safe area to ensure logout isn't cut off */
+  .ejc-admin-sidebar-offcanvas .ejc-admin-nav-group:last-child {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  }
+}

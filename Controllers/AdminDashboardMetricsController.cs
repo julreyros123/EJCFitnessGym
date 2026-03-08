@@ -90,16 +90,19 @@ namespace EJCFitnessGym.Controllers
             var revenueRows = await (
                 from payment in _db.Payments.AsNoTracking()
                 join invoice in _db.Invoices.AsNoTracking() on payment.InvoiceId equals invoice.Id
+                join subscription in _db.MemberSubscriptions.AsNoTracking() on invoice.MemberSubscriptionId equals subscription.Id into subGroup
+                from sub in subGroup.DefaultIfEmpty()
+                join plan in _db.SubscriptionPlans.AsNoTracking() on sub.SubscriptionPlanId equals plan.Id into planGroup
+                from plan in planGroup.DefaultIfEmpty()
                 where payment.Status == PaymentStatus.Succeeded
                     && payment.PaidAtUtc >= startUtc
                     && payment.PaidAtUtc < endExclusiveUtc
                     && (isSuperAdmin || scopedMemberLookup.Contains(invoice.MemberUserId))
-                group payment by payment.PaidAtUtc.Date
-                into dayGroup
-                select new DailyRevenueSnapshot
+                select new
                 {
-                    DayUtc = dayGroup.Key,
-                    Revenue = dayGroup.Sum(item => item.Amount)
+                    payment.PaidAtUtc,
+                    payment.Amount,
+                    PlanName = plan != null ? plan.Name : "Other/Retail"
                 })
                 .ToListAsync(cancellationToken);
 
@@ -117,10 +120,13 @@ namespace EJCFitnessGym.Controllers
                 .ToListAsync(cancellationToken);
 
             var checkInsByDay = new Dictionary<string, int>(StringComparer.Ordinal);
+            var checkInsByBranchDict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var message in checkInMessages)
             {
-                if (!IsCheckInInScope(
-                        message.PayloadJson,
+                var payload = ParseAttendancePayload(message.PayloadJson);
+                if (!IsCheckInInScopeByPayload(
+                        payload,
                         isSuperAdmin,
                         branchId,
                         scopedMemberLookup))
@@ -131,6 +137,10 @@ namespace EJCFitnessGym.Controllers
                 var dayKey = message.CreatedUtc.Date.ToString("yyyy-MM-dd");
                 checkInsByDay.TryGetValue(dayKey, out var currentCount);
                 checkInsByDay[dayKey] = currentCount + 1;
+
+                var bId = !string.IsNullOrWhiteSpace(payload.BranchId) ? payload.BranchId : "Unknown";
+                checkInsByBranchDict.TryGetValue(bId, out var currentBranchCount);
+                checkInsByBranchDict[bId] = currentBranchCount + 1;
             }
 
             var alertCountsByDay = await _db.FinanceAlertLogs
@@ -142,10 +152,31 @@ namespace EJCFitnessGym.Controllers
 
             var auditAlertsPeak = alertCountsByDay.Count == 0 ? 0 : alertCountsByDay.Max();
 
-            var revenueByDay = revenueRows.ToDictionary(
-                row => row.DayUtc.ToString("yyyy-MM-dd"),
-                row => row.Revenue,
-                StringComparer.Ordinal);
+            var revenueByDay = revenueRows
+                .GroupBy(row => row.PaidAtUtc.Date)
+                .ToDictionary(
+                    group => group.Key.ToString("yyyy-MM-dd"),
+                    group => group.Sum(row => row.Amount),
+                    StringComparer.Ordinal);
+
+            var revenueByPlan = revenueRows
+                .GroupBy(row => row.PlanName)
+                .Select(group => new RevenueByPlanPoint
+                {
+                    PlanName = group.Key,
+                    Revenue = group.Sum(row => row.Amount)
+                })
+                .OrderByDescending(x => x.Revenue)
+                .ToList();
+
+            var checkInsByBranch = checkInsByBranchDict
+                .Select(kv => new CheckInsByBranchPoint
+                {
+                    BranchId = kv.Key,
+                    CheckIns = kv.Value
+                })
+                .OrderByDescending(x => x.CheckIns)
+                .ToList();
 
             var dayCount = (int)(endUtc - startUtc).TotalDays + 1;
             var totalRevenue = 0m;
@@ -191,7 +222,9 @@ namespace EJCFitnessGym.Controllers
                     TotalRevenue = totalRevenue,
                     AverageRevenuePerDay = averageRevenuePerDay
                 },
-                Daily = dailyPoints
+                Daily = dailyPoints,
+                RevenueByPlan = revenueByPlan,
+                CheckInsByBranch = checkInsByBranch
             });
         }
 
@@ -235,12 +268,21 @@ namespace EJCFitnessGym.Controllers
             string? branchId,
             HashSet<string> scopedMemberLookup)
         {
+            var payload = ParseAttendancePayload(payloadJson);
+            return IsCheckInInScopeByPayload(payload, isSuperAdmin, branchId, scopedMemberLookup);
+        }
+
+        private static bool IsCheckInInScopeByPayload(
+            AttendancePayloadScope payload,
+            bool isSuperAdmin,
+            string? branchId,
+            HashSet<string> scopedMemberLookup)
+        {
             if (isSuperAdmin)
             {
                 return true;
             }
 
-            var payload = ParseAttendancePayload(payloadJson);
             var inBranchScope =
                 !string.IsNullOrWhiteSpace(payload.BranchId) &&
                 !string.IsNullOrWhiteSpace(branchId) &&
@@ -362,6 +404,8 @@ namespace EJCFitnessGym.Controllers
             public DashboardKpiResponse Kpis { get; init; } = new();
             public DashboardSummaryResponse Summary { get; init; } = new();
             public IReadOnlyList<DailyOverviewPoint> Daily { get; init; } = Array.Empty<DailyOverviewPoint>();
+            public IReadOnlyList<RevenueByPlanPoint> RevenueByPlan { get; init; } = Array.Empty<RevenueByPlanPoint>();
+            public IReadOnlyList<CheckInsByBranchPoint> CheckInsByBranch { get; init; } = Array.Empty<CheckInsByBranchPoint>();
         }
 
         private sealed class DashboardKpiResponse
@@ -383,6 +427,18 @@ namespace EJCFitnessGym.Controllers
         {
             public string Date { get; init; } = string.Empty;
             public decimal Revenue { get; init; }
+            public int CheckIns { get; init; }
+        }
+
+        private sealed class RevenueByPlanPoint
+        {
+            public string PlanName { get; init; } = string.Empty;
+            public decimal Revenue { get; init; }
+        }
+
+        private sealed class CheckInsByBranchPoint
+        {
+            public string BranchId { get; init; } = string.Empty;
             public int CheckIns { get; init; }
         }
     }

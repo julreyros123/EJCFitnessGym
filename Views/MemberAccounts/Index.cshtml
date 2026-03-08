@@ -2,10 +2,7 @@
 @{
     ViewData["Title"] = "Members";
     var members = Model?.Members?.ToList() ?? new List<EJCFitnessGym.Models.Admin.MemberAccountListItemViewModel>();
-    var canCreateMember = User.IsInRole("SuperAdmin") &&
-        User.Claims.Any(claim =>
-            claim.Type == EJCFitnessGym.Security.BranchAccess.BranchIdClaimType &&
-            !string.IsNullOrWhiteSpace(claim.Value));
+    var canCreateMember = User.IsInRole("SuperAdmin");
 }
 
 <div class="py-4 ejc-member-accounts-page">
@@ -31,13 +28,6 @@
         }
     </div>
 
-    @if (User.IsInRole("SuperAdmin") && !canCreateMember)
-    {
-        <div class="alert alert-warning py-2 px-3 mb-3">
-            Member creation is disabled until a branch ID claim is assigned to your account.
-        </div>
-    }
-
     @if (TempData["StatusMessage"] is string status && !string.IsNullOrWhiteSpace(status))
     {
         <div class="alert alert-info">@status</div>
@@ -59,6 +49,7 @@
                             <th>Name</th>
                             <th>Email</th>
                             <th>Phone</th>
+                            <th>Home Branch</th>
                             <th>Plan</th>
                             <th>Start</th>
                             <th>End</th>
@@ -70,7 +61,7 @@
                     @if (members.Count == 0)
                     {
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">No members found.</td>
+                            <td colspan="9" class="text-center text-muted py-4">No members found.</td>
                         </tr>
                     }
                     @foreach (var member in members)
@@ -91,6 +82,17 @@
                                     var phoneText = string.IsNullOrWhiteSpace(member.PhoneNumber) ? "-" : member.PhoneNumber;
                                 }
                                 <span class="ejc-users-text-truncate ejc-users-phone" title="@phoneText">@phoneText</span>
+                            </td>
+                            <td>
+                                @if (string.IsNullOrWhiteSpace(member.HomeBranchDisplayName))
+                                {
+                                    <span class="badge bg-warning text-dark">No Home Branch</span>
+                                }
+                                else
+                                {
+                                    <div class="ejc-users-text-truncate" title="@member.HomeBranchDisplayName">@member.HomeBranchDisplayName</div>
+                                    <div class="small text-muted">@member.HomeBranchId</div>
+                                }
                             </td>
                             <td class="text-nowrap">
                                 <span class="ejc-users-text-truncate ejc-users-plan" title="@member.PlanName">@member.PlanName</span>

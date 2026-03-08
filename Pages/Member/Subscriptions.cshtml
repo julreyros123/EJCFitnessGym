@@ -1,0 +1,209 @@
+@page
+@model EJCFitnessGym.Pages.Member.SubscriptionsModel
+@{
+    ViewData["Title"] = "My Subscription";
+}
+
+<section class="ejc-member-page">
+    <div class="container">
+        <partial name="/Pages/Shared/_MemberPortalNav.cshtml" />
+        <partial name="/Pages/Shared/_MemberBillingShortcuts.cshtml" />
+
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+            <div>
+                <h1 class="h3 mb-1">My Subscription</h1>
+                <p class="text-muted mb-0">Review plan status, renewal timeline, and available upgrades.</p>
+            </div>
+            <a asp-page="/Member/PaymentMethods" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-wallet2"></i> Payment Methods
+            </a>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.StatusMessage))
+        {
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                @Model.StatusMessage
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        <div class="row g-3 mb-4">
+            <div class="col-sm-6 col-xl-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Current Status</div>
+                        <div class="fs-5 fw-bold">
+                            @(Model.CurrentSubscription?.Status.ToString() ?? "No Active Plan")
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Days Remaining</div>
+                        <div class="fs-5 fw-bold @(Model.DaysRemaining.HasValue && Model.DaysRemaining.Value <= 3 ? "text-danger" : "")">
+                            @(Model.DaysRemaining.HasValue ? $"{Model.DaysRemaining.Value} day(s)" : "N/A")
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Outstanding</div>
+                        <div class="fs-5 fw-bold @(Model.OutstandingAmount > 0 ? "text-danger" : "text-success")">₱@Model.OutstandingAmount.ToString("N2")</div>
+                        @if (Model.NextDueDateUtc.HasValue)
+                        {
+                            <div class="small text-muted">Due @Model.NextDueDateUtc.Value.ToLocalTime().ToString("MMMM d, yyyy")</div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Saved Methods</div>
+                        <div class="fs-5 fw-bold">@Model.ActiveSavedPaymentMethodCount</div>
+                        <div class="small text-muted">
+                            @(Model.AutomaticRenewalAvailable ? "For automatic renewal" : "Manual renewal currently active")
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.CurrentSubscription != null)
+        {
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+                        <div>
+                            <h2 class="h5 mb-1">@Model.CurrentSubscription.SubscriptionPlan?.Name</h2>
+                            <p class="text-muted mb-2">@Model.CurrentSubscription.SubscriptionPlan?.Description</p>
+                            <span class="badge @Model.GetStatusBadgeClass(Model.CurrentSubscription.Status)">@Model.CurrentSubscription.Status</span>
+                            @if (Model.IsExpiringSoon)
+                            {
+                                <span class="badge bg-warning text-dark ms-1">Renew Soon</span>
+                            }
+                        </div>
+                        <div class="text-end">
+                            <div class="fs-4 fw-bold text-primary">₱@Model.CurrentSubscription.SubscriptionPlan?.Price.ToString("N2")</div>
+                            <div class="text-muted">@Model.GetBillingCycleText(Model.CurrentSubscription.SubscriptionPlan?.BillingCycle ?? EJCFitnessGym.Models.Billing.BillingCycle.Monthly)</div>
+                        </div>
+                    </div>
+
+                    <hr />
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <small class="text-muted d-block">Started</small>
+                            <strong>@Model.CurrentSubscription.StartDateUtc.ToLocalTime().ToString("MMMM d, yyyy")</strong>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block">Ends</small>
+                            <strong>@(Model.CurrentSubscription.EndDateUtc?.ToLocalTime().ToString("MMMM d, yyyy") ?? "N/A")</strong>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end justify-content-md-end">
+                            <a asp-page="/Public/Pricing" asp-route-planId="@Model.CurrentSubscription.SubscriptionPlanId" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-arrow-repeat"></i> Renew / Change Plan
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+                <div>
+                    <strong>No active subscription.</strong>
+                    Choose a plan below to start gym access.
+                </div>
+                <a href="/Public/Pricing" class="btn btn-sm btn-primary">Browse Plans</a>
+            </div>
+        }
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0">Available Plans</h2>
+                <small class="text-muted">@Model.AvailablePlans.Count active plan(s)</small>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    @foreach (var plan in Model.AvailablePlans)
+                    {
+                        var isCurrentPlan = Model.CurrentSubscription?.SubscriptionPlanId == plan.Id;
+                        <div class="col-md-6 col-xl-4">
+                            <article class="card h-100 @(isCurrentPlan ? "border-primary" : "")">
+                                @if (isCurrentPlan)
+                                {
+                                    <div class="card-header bg-primary text-white py-2">
+                                        <small><i class="bi bi-check-circle"></i> Current Plan</small>
+                                    </div>
+                                }
+                                <div class="card-body d-flex flex-column">
+                                    <h3 class="h6 mb-1">@plan.Name</h3>
+                                    <div class="fs-4 fw-bold text-primary mb-1">₱@plan.Price.ToString("N2")</div>
+                                    <div class="small text-muted mb-2">@Model.GetBillingCycleText(plan.BillingCycle)</div>
+                                    <p class="text-muted small mb-3">@plan.Description</p>
+                                    <ul class="small text-muted ps-3 mb-3">
+                                        @foreach (var benefit in Model.GetPlanBenefits(plan).Take(3))
+                                        {
+                                            <li>@benefit</li>
+                                        }
+                                    </ul>
+                                    <div class="mt-auto">
+                                        @if (isCurrentPlan)
+                                        {
+                                            <button class="btn btn-secondary w-100" disabled>Current Plan</button>
+                                        }
+                                        else
+                                        {
+                                            <a asp-page="/Public/Pricing" asp-route-planId="@plan.Id" class="btn btn-outline-primary w-100">Select Plan</a>
+                                        }
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @if (Model.SubscriptionHistory.Any())
+        {
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="h6 mb-0">Subscription History</h2>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Plan</th>
+                                    <th>Start</th>
+                                    <th>End</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var sub in Model.SubscriptionHistory)
+                                {
+                                    <tr>
+                                        <td>@sub.SubscriptionPlan?.Name</td>
+                                        <td>@sub.StartDateUtc.ToLocalTime().ToString("MMMM d, yyyy")</td>
+                                        <td>@(sub.EndDateUtc?.ToLocalTime().ToString("MMMM d, yyyy") ?? "N/A")</td>
+                                        <td><span class="badge @Model.GetStatusBadgeClass(sub.Status)">@sub.Status</span></td>
+                                        <td class="text-end">₱@sub.SubscriptionPlan?.Price.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</section>

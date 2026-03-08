@@ -118,6 +118,13 @@ namespace EJCFitnessGym.Data
                 .Property(p => p.Bmi)
                 .HasPrecision(5, 2);
 
+            builder.Entity<MemberProfile>()
+                .Property(p => p.HomeBranchId)
+                .HasMaxLength(32);
+
+            builder.Entity<MemberProfile>()
+                .HasIndex(p => p.HomeBranchId);
+
             builder.Entity<GymEquipmentAsset>()
                 .Property(a => a.UnitCost)
                 .HasPrecision(18, 2);

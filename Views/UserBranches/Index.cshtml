@@ -27,12 +27,12 @@
         <div class="alert alert-info">@status</div>
     }
 
-    @if (Model.IsSuperAdmin)
-    {
-        <div class="alert alert-secondary d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <span class="small mb-0">Enterprise flow: <strong>1)</strong> Create branch record. <strong>2)</strong> Assign user to active branch. <strong>3)</strong> Deactivate branch when no longer operational.</span>
-            <span class="badge text-bg-dark">Super Admin Control</span>
-        </div>
+@if (Model.IsSuperAdmin)
+{
+    <div class="alert alert-secondary d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <span class="small mb-0">Enterprise flow: <strong>1)</strong> Create a branch by location. <strong>2)</strong> Assign users to the active branch. <strong>3)</strong> Deactivate branches that are no longer operational.</span>
+        <span class="badge text-bg-dark">Super Admin Control</span>
+    </div>
 
         <div class="row g-3 mb-4">
             <div class="col-lg-5">
@@ -44,23 +44,14 @@
                         <form asp-action="CreateBranch" method="post" class="row g-2">
                             @Html.AntiForgeryToken()
                             <div class="col-12">
-                                <label for="branchId" class="form-label mb-1">Branch Code</label>
-                                <input id="branchId"
-                                       name="branchId"
-                                       class="form-control"
-                                       maxlength="32"
-                                       placeholder="BR-CENTRAL"
-                                       required />
-                                <div class="form-text">Uppercase code used in branch-scoped access.</div>
-                            </div>
-                            <div class="col-12">
-                                <label for="branchName" class="form-label mb-1">Branch Name</label>
-                                <input id="branchName"
-                                       name="branchName"
+                                <label for="locationName" class="form-label mb-1">Location</label>
+                                <input id="locationName"
+                                       name="locationName"
                                        class="form-control"
                                        maxlength="120"
-                                       placeholder="EJC Central Branch"
+                                       placeholder="San Pedro, Laguna"
                                        required />
+                                <div class="form-text">The system keeps the main brand as <strong>Fitness Gym</strong> and generates the branch code automatically.</div>
                             </div>
                             <div class="col-12">
                                 <button type="submit" class="btn btn-primary">Create Branch</button>
@@ -80,8 +71,8 @@
                             <table class="table table-striped table-hover align-middle mb-0">
                                 <thead>
                                     <tr>
-                                        <th>Branch ID</th>
-                                        <th>Name</th>
+                                        <th>Branch Code</th>
+                                        <th>Location</th>
                                         <th>Status</th>
                                         <th class="text-end">Assigned Users</th>
                                         <th class="text-end">Action</th>
@@ -98,7 +89,10 @@
                                 {
                                     <tr>
                                         <td class="fw-semibold">@branch.BranchId</td>
-                                        <td>@branch.Name</td>
+                                        <td>
+                                            <div class="fw-semibold">@branch.LocationName</div>
+                                            <div class="small text-muted">@branch.DisplayName</div>
+                                        </td>
                                         <td>
                                             @if (branch.IsActive)
                                             {
@@ -175,14 +169,14 @@
                                     {
                                         <span class="badge bg-danger">No Branch</span>
                                     }
-                                    else if (string.IsNullOrWhiteSpace(user.BranchName))
+                                    else if (string.IsNullOrWhiteSpace(user.BranchDisplayName))
                                     {
                                         <span class="badge bg-warning text-dark">Unknown Branch (@user.BranchId)</span>
                                     }
                                     else
                                     {
                                         <span class="text-muted">@user.BranchId</span>
-                                        <div class="small">@user.BranchName</div>
+                                        <div class="small">@user.BranchDisplayName</div>
                                     }
                                 }
                             </td>
@@ -213,7 +207,7 @@
                                             {
                                                 <option value="@branch.BranchId"
                                                         selected="@(string.Equals(branch.BranchId, user.BranchId, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">
-                                                    @branch.BranchId - @branch.Name
+                                                    @branch.DisplayName
                                                 </option>
                                             }
                                         </select>

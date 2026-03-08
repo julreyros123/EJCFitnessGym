@@ -20,7 +20,6 @@
 <aside class="ejc-admin-sidebar" data-admin-sidebar>
     <div class="ejc-admin-sidebar-top">
         <div class="ejc-admin-sidebar-brand">
-            <span class="ejc-admin-sidebar-badge">OPS</span>
         </div>
         <button type="button"
                 class="btn btn-sm btn-outline-light ejc-admin-sidebar-toggle"
@@ -95,7 +94,7 @@
                     <span class="ejc-admin-nav-text">Branch Access</span>
                 </a>
             }
-            <form class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
+            <form method="post" class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
                 <button type="submit" class="ejc-admin-nav-link ejc-admin-nav-link-button" title="Logout">
                     <i class="bi bi-box-arrow-right"></i>
                     <span class="ejc-admin-nav-text">Logout</span>

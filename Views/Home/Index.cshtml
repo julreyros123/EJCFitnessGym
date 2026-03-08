@@ -4,33 +4,33 @@
 }
 
 <section class="enterprise-landing" id="home">
-    <div class="enterprise-hero-shell enterprise-reveal">
-        <div class="enterprise-hero-grid">
-            <div class="enterprise-hero-copy">
-                <span class="enterprise-kicker">EJC Fitness Gym</span>
-                <h1 class="enterprise-hero-title">
-                    <span class="enterprise-hero-title-static">
-                        Build Your
-                    </span>
-                    <span class="enterprise-hero-title-rotator" aria-live="polite">
-                        <span><em>Best Version</em></span>
-                        <span><em>Stronger Self</em></span>
-                        <span><em>Better Body</em></span>
-                        <span><em>Power Within</em></span>
-                        <span><em>Next Level</em></span>
-                    </span>
-                </h1>
-                <p>
-                    Train with expert coaches, quality equipment, and a focused gym community that keeps you consistent every week.
-                </p>
-                <div class="enterprise-hero-actions">
-                    <a asp-area="Identity" asp-page="/Account/Register" class="btn enterprise-btn-primary btn-lg">Start Membership</a>
-                    <a asp-page="/Public/Pricing" class="btn enterprise-btn-secondary btn-lg">View Plans</a>
+    <div class="enterprise-hero-shell enterprise-reveal d-flex align-items-center">
+        <div class="enterprise-hero-grid modern-app-hero position-relative z-index-2" style="margin-top: -5rem;">
+            <div class="row align-items-center justify-content-center">
+                <div class="col-lg-8 mb-4 text-center enterprise-hero-copy">
+                    <div class="brand-logo-accent mb-4 d-flex justify-content-center">
+                        <i class="bi bi-hexagon-fill"></i>
+                    </div>
+                    
+                    <h1 class="enterprise-hero-title mb-4">
+                        Train Your <span class="neon-text">Body</span>,<br />
+                        Elevate Your <span class="neon-text">Spirit</span>
+                    </h1>
+                    
+                    <p class="modern-hero-subtitle mx-auto mb-5" style="max-width: 650px;">
+                        Push past your limits, build unstoppable strength, and achieve the results you've always wanted. Join our community and transform your life with world-class facilities and expert guidance!
+                    </p>
+
+                    <div class="enterprise-hero-actions justify-content-center mt-4 mb-4">
+                        <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-modern-neon rounded-pill px-5 py-3 fw-bold shadow-lg">Get Started</a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </section>
+
+
 
 <section class="enterprise-section">
     <div class="enterprise-section-head">
@@ -58,16 +58,30 @@
             <p>Handle check-ins, billing reminders, and renewals without jumping between separate tools.</p>
         </article>
 
-        <article class="enterprise-story-card enterprise-reveal enterprise-reveal-delay-3">
-            <div class="enterprise-story-image">
-                <img src="~/images/gym-hero.jpg" alt="Coach guiding member workout session" loading="lazy" />
+        <article class="enterprise-value-card enterprise-reveal enterprise-reveal-delay-3 p-0 overflow-hidden d-flex flex-column">
+            <img src="~/images/gym-workout.png" alt="Better Workout Experience" class="w-100" style="height: 200px; object-fit: cover; object-position: center;" />
+            <div class="p-4 flex-grow-1">
+                <span class="enterprise-value-icon mb-3"><i class="bi bi-activity"></i></span>
+                <h3>Better Workout Experience</h3>
+                <p class="mb-0">Our organized environment helps members train more consistently with less friction and distractions.</p>
             </div>
-            <div class="enterprise-story-copy">
-                <span>Gym Experience</span>
-                <h3>Built for better workouts and better retention.</h3>
-                <p>
-                    When schedules, plans, and follow-ups stay synced, members train more consistently and staff work with less friction.
-                </p>
+        </article>
+
+        <article class="enterprise-value-card enterprise-reveal enterprise-reveal-delay-4 p-0 overflow-hidden d-flex flex-column">
+            <img src="~/images/gym-facility.png" alt="Safe & Secure Facility" class="w-100" style="height: 200px; object-fit: cover; object-position: center;" />
+            <div class="p-4 flex-grow-1">
+                <span class="enterprise-value-icon mb-3"><i class="bi bi-shield-check"></i></span>
+                <h3>Safe & Secure Facility</h3>
+                <p class="mb-0">Train with peace of mind in our fully insured, clean, and top-rated gym environment.</p>
+            </div>
+        </article>
+        
+        <article class="enterprise-value-card enterprise-reveal enterprise-reveal-delay-5 p-0 overflow-hidden d-flex flex-column">
+            <img src="~/images/gym-equipment.png" alt="Premium Equipment" class="w-100" style="height: 200px; object-fit: cover; object-position: center;" />
+            <div class="p-4 flex-grow-1">
+                <span class="enterprise-value-icon mb-3"><i class="bi bi-lightning-charge"></i></span>
+                <h3>Premium Equipment</h3>
+                <p class="mb-0">Access high-quality, state-of-the-art machines and free weights to elevate your fitness journey.</p>
             </div>
         </article>
     </div>
@@ -96,7 +110,7 @@
         <div class="enterprise-plan-grid">
             @foreach (var card in Model.PlanCards)
             {
-                <article class="enterprise-plan-card @((card.IsFeatured) ? "is-featured" : null)">
+                <article class="enterprise-plan-card d-flex flex-column @((card.IsFeatured) ? "is-featured" : null)">
                     @if (!string.IsNullOrWhiteSpace(card.Badge))
                     {
                         <span class="enterprise-plan-tag">@card.Badge</span>
@@ -105,12 +119,22 @@
                     <p class="enterprise-plan-sub">@card.Subtitle</p>
                     <div class="enterprise-plan-price">PHP @card.Price.ToString("N0") <small>/ month</small></div>
                     <ul>
-                        @foreach (var benefit in card.Benefits)
+                        @foreach (var benefit in card.Benefits.Take(4))
                         {
                             <li><i class="bi bi-check2-circle"></i>@benefit</li>
                         }
                     </ul>
-                    <a class="btn @(card.IsFeatured ? "enterprise-btn-primary" : "btn-outline-primary") w-100" asp-page="/Public/Pricing" asp-route-planId="@card.PlanId">Choose @card.Name</a>
+                    @if (card.Benefits.Count > 4)
+                    {
+                        <div class="mb-3">
+                            <a asp-page="/Public/PlanDetails" asp-route-id="@card.PlanId" class="text-decoration-none fw-semibold" style="color: var(--ejc-primary); font-size: 0.85rem;">
+                                <i class="bi bi-info-circle me-1"></i>View all @card.Benefits.Count perks
+                            </a>
+                        </div>
+                    }
+                    <div class="mt-auto pt-3">
+                        <a class="btn @(card.IsFeatured ? "enterprise-btn-primary" : "btn-outline-primary") w-100" asp-page="/Public/Pricing" asp-route-planId="@card.PlanId">Choose @card.Name</a>
+                    </div>
                 </article>
             }
         </div>
@@ -121,7 +145,7 @@
     <div class="enterprise-contact-grid">
         <article class="enterprise-contact-card enterprise-reveal">
             <span class="enterprise-eyebrow">Contact</span>
-            <h2>Talk to the EJC team.</h2>
+            <h2>Talk to our team.</h2>
             <p>We can walk you through membership fit, coaching support, and the best plan for your training schedule.</p>
             <div class="enterprise-contact-meta">
                 <div>

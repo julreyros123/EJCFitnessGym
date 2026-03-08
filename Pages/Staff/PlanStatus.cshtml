@@ -79,9 +79,9 @@
                         <tbody>
                             @foreach (var row in Model.Members)
                             {
-                                var renewalLocal = row.RenewalDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "-";
-                                var nextBillingLocal = row.NextBillingDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "-";
-                                var reminderLocal = row.ReminderDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "-";
+                                var renewalLocal = row.RenewalDateUtc?.ToLocalTime().ToString("MMMM d, yyyy h:mm tt") ?? "-";
+                                var nextBillingLocal = row.NextBillingDateUtc?.ToLocalTime().ToString("MMMM d, yyyy h:mm tt") ?? "-";
+                                var reminderLocal = row.ReminderDateUtc?.ToLocalTime().ToString("MMMM d, yyyy h:mm tt") ?? "-";
                                 <tr>
                                     <td>@row.MemberName</td>
                                     <td>@row.PlanName</td>

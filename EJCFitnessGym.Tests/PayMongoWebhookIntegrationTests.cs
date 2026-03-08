@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Security.Cryptography;
 using EJCFitnessGym.Controllers;
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Billing;
@@ -13,6 +14,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -202,14 +204,76 @@ public class PayMongoWebhookIntegrationTests
         Assert.Equal(InvoiceStatus.Paid, oldPayment.Invoice!.Status);
     }
 
-    private static PayMongoWebhookController CreateController(ApplicationDbContext db, IIntegrationOutbox outbox)
+    [Fact]
+    public async Task Receive_ProductionWithoutWebhookSecret_RejectsWebhook()
+    {
+        await using var dbHandle = await CreateDbContextAsync(nameof(Receive_ProductionWithoutWebhookSecret_RejectsWebhook));
+        var db = dbHandle.Db;
+        await SeedCheckoutPaymentAsync(db, checkoutSessionId: "cs_prod_missing_secret", amount: 1500m, planId: 360);
+
+        var controller = CreateController(
+            db,
+            new IntegrationOutboxService(db),
+            environmentName: Environments.Production);
+
+        var payload = BuildPaidWebhookPayload(
+            eventId: "evt_prod_missing_secret",
+            checkoutSessionId: "cs_prod_missing_secret",
+            paymentId: "pay_prod_missing_secret",
+            planId: 360,
+            amountMinorUnit: 150000);
+
+        SetJsonRequest(controller, payload);
+        var result = await controller.Receive(CancellationToken.None);
+
+        Assert.IsType<UnauthorizedResult>(result);
+        Assert.False(await db.InboundWebhookReceipts.AnyAsync());
+    }
+
+    [Fact]
+    public async Task Receive_ProductionWithValidWebhookSignature_ProcessesWebhook()
+    {
+        await using var dbHandle = await CreateDbContextAsync(nameof(Receive_ProductionWithValidWebhookSignature_ProcessesWebhook));
+        var db = dbHandle.Db;
+        await SeedCheckoutPaymentAsync(db, checkoutSessionId: "cs_prod_signed", amount: 1800m, planId: 370);
+
+        const string webhookSecret = "whsec_test_prod_123";
+        var controller = CreateController(
+            db,
+            new IntegrationOutboxService(db),
+            environmentName: Environments.Production,
+            webhookSecret: webhookSecret);
+
+        var payload = BuildPaidWebhookPayload(
+            eventId: "evt_prod_signed",
+            checkoutSessionId: "cs_prod_signed",
+            paymentId: "pay_prod_signed",
+            planId: 370,
+            amountMinorUnit: 180000);
+
+        SetJsonRequest(controller, payload, CreatePayMongoSignatureHeader(webhookSecret, payload));
+        var result = await controller.Receive(CancellationToken.None);
+
+        Assert.IsType<OkResult>(result);
+        var payment = await db.Payments.Include(p => p.Invoice).SingleAsync(p => p.ReferenceNumber == "cs_prod_signed");
+        Assert.Equal(PaymentStatus.Succeeded, payment.Status);
+        Assert.NotNull(payment.Invoice);
+        Assert.Equal(InvoiceStatus.Paid, payment.Invoice!.Status);
+    }
+
+    private static PayMongoWebhookController CreateController(
+        ApplicationDbContext db,
+        IIntegrationOutbox outbox,
+        string environmentName = "Development",
+        bool requireWebhookSignature = false,
+        string? webhookSecret = null)
     {
         var membershipService = new MembershipService(db);
         var financeAlertService = new NoOpFinanceAlertService();
         var options = Options.Create(new PayMongoOptions
         {
-            RequireWebhookSignature = false,
-            WebhookSecret = null
+            RequireWebhookSignature = requireWebhookSignature,
+            WebhookSecret = webhookSecret
         });
 
         return new PayMongoWebhookController(
@@ -220,20 +284,35 @@ public class PayMongoWebhookIntegrationTests
             outbox,
             new NoOpEmailSender(),
             options,
+            new TestHostEnvironment(environmentName),
             NullLogger<PayMongoWebhookController>.Instance);
     }
 
-    private static void SetJsonRequest(ControllerBase controller, string json)
+    private static void SetJsonRequest(ControllerBase controller, string json, string? signatureHeader = null)
     {
         var context = new DefaultHttpContext();
         var bytes = Encoding.UTF8.GetBytes(json);
         context.Request.Body = new MemoryStream(bytes);
         context.Request.ContentType = "application/json";
         context.Request.ContentLength = bytes.Length;
+        if (!string.IsNullOrWhiteSpace(signatureHeader))
+        {
+            context.Request.Headers["PayMongo-Signature"] = signatureHeader;
+        }
+
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = context
         };
+    }
+
+    private static string CreatePayMongoSignatureHeader(string webhookSecret, string rawBody)
+    {
+        var timestampUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var signedPayload = $"{timestampUnix}.{rawBody}";
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(webhookSecret));
+        var signature = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(signedPayload))).ToLowerInvariant();
+        return $"t={timestampUnix},te={signature}";
     }
 
     private static string BuildPaidWebhookPayload(
@@ -260,7 +339,7 @@ public class PayMongoWebhookIntegrationTests
                             {
                                 ["member_user_id"] = "member-user-1",
                                 ["plan_id"] = planId.ToString(),
-                                ["plan_name"] = "Starter",
+                                ["plan_name"] = "Basic",
                                 ["customer_id"] = "cust_test_1"
                             },
                             payments = new[]
@@ -418,6 +497,16 @@ public class PayMongoWebhookIntegrationTests
             return Task.CompletedTask;
         }
 
+        public Task PostRetailSaleAsync(int productSaleId, string? actorUserId = null, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task PostRetailSaleVoidAsync(int productSaleId, string? actorUserId = null, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task<GeneralLedgerEntry> CreateManualEntryAsync(
             string branchId,
             DateTime entryDateUtc,
@@ -477,5 +566,19 @@ public class PayMongoWebhookIntegrationTests
             await Db.DisposeAsync();
             await _connection.DisposeAsync();
         }
+    }
+
+    private sealed class TestHostEnvironment : IHostEnvironment
+    {
+        public TestHostEnvironment(string environmentName)
+        {
+            EnvironmentName = environmentName;
+        }
+
+        public string EnvironmentName { get; set; }
+        public string ApplicationName { get; set; } = "EJCFitnessGym.Tests";
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+        public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } =
+            new Microsoft.Extensions.FileProviders.NullFileProvider();
     }
 }

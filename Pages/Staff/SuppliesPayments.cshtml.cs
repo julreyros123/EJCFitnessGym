@@ -100,7 +100,7 @@ namespace EJCFitnessGym.Pages.Staff
                     r.Stage.ToString(),
                     GetStageOwner(r.Stage),
                     GetNextOwner(r.Stage),
-                    r.UpdatedAtUtc?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? r.CreatedAtUtc.ToLocalTime().ToString("MMM dd, yyyy HH:mm")
+                    r.UpdatedAtUtc?.ToLocalTime().ToString("MMMM d, yyyy h:mm tt") ?? r.CreatedAtUtc.ToLocalTime().ToString("MMMM d, yyyy h:mm tt")
                 )).ToList();
             }
         }
@@ -131,6 +131,47 @@ namespace EJCFitnessGym.Pages.Staff
             return RedirectToPage();
         }
 
+        public async Task<IActionResult> OnPostUpdateQuantityAsync(int productId, int quantity)
+        {
+            var cart = GetCartFromSession();
+            var existingLine = cart.FirstOrDefault(line => line.ProductId == productId);
+            if (existingLine is null)
+            {
+                return RedirectToPage();
+            }
+
+            if (quantity <= 0)
+            {
+                var trimmedCart = cart.Where(line => line.ProductId != productId).ToList();
+                SaveCartToSession(trimmedCart);
+                return RedirectToPage();
+            }
+
+            var product = await _db.RetailProducts.FindAsync(productId);
+            if (product is null || !product.IsActive)
+            {
+                var trimmedCart = cart.Where(line => line.ProductId != productId).ToList();
+                SaveCartToSession(trimmedCart);
+                TempData["Error"] = "Selected product is no longer available.";
+                return RedirectToPage();
+            }
+
+            var clampedQuantity = Math.Min(quantity, Math.Max(product.StockQuantity, 0));
+            if (clampedQuantity <= 0)
+            {
+                var trimmedCart = cart.Where(line => line.ProductId != productId).ToList();
+                SaveCartToSession(trimmedCart);
+                TempData["Error"] = $"No stock left for {product.Name}.";
+                return RedirectToPage();
+            }
+
+            var updatedCart = cart.Select(line =>
+                    line.ProductId == productId ? line with { Quantity = clampedQuantity } : line)
+                .ToList();
+            SaveCartToSession(updatedCart);
+            return RedirectToPage();
+        }
+
         public IActionResult OnPostRemoveFromCart(int productId)
         {
             var cart = GetCartFromSession().Where(l => l.ProductId != productId).ToList();
@@ -141,6 +182,7 @@ namespace EJCFitnessGym.Pages.Staff
         public IActionResult OnPostClearCart()
         {
             SaveCartToSession([]);
+            TempData["Success"] = "Cart cleared.";
             return RedirectToPage();
         }
 
@@ -149,6 +191,7 @@ namespace EJCFitnessGym.Pages.Staff
             var cart = GetCartFromSession();
             if (cart.Count == 0)
             {
+                TempData["Error"] = "Cart is empty. Add at least one item before checkout.";
                 return RedirectToPage();
             }
 

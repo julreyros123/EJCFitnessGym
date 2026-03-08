@@ -2,10 +2,15 @@
 @{
     ViewData["Title"] = "Member";
 
-    var membershipStart = Model.MembershipStartDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "Not started";
-    var membershipEnd = Model.MembershipEndDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "No end date";
-    var nextDue = Model.NextPaymentDueDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "No pending invoices";
-    var reminderAt = Model.NextPaymentDueDateUtc?.AddDays(-3).ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "No pending invoices";
+    string FormatLocalDate(DateTime? utcDate, string fallback) =>
+        utcDate.HasValue
+            ? utcDate.Value.ToLocalTime().ToString("MMMM d, yyyy h:mm tt")
+            : fallback;
+
+    var membershipStart = FormatLocalDate(Model.MembershipStartDateUtc, "Not started");
+    var membershipEnd = FormatLocalDate(Model.MembershipEndDateUtc, "No end date");
+    var nextDue = FormatLocalDate(Model.NextPaymentDueDateUtc, "No pending invoices");
+    var reminderAt = FormatLocalDate(Model.NextPaymentDueDateUtc?.AddDays(-3), "No pending invoices");
     var showExpiredMembershipModal =
         string.Equals(Model.MembershipStatusLabel, "Expired", StringComparison.OrdinalIgnoreCase) ||
         (Model.HasSubscriptionRecord && !Model.HasActiveMembership && Model.MembershipEndDateUtc.HasValue && Model.MembershipEndDateUtc.Value < DateTime.UtcNow);
@@ -166,7 +171,7 @@
                                         <div class="fw-semibold">@item.Title</div>
                                         <div class="small ejc-muted">@item.Message</div>
                                     </div>
-                                    <span class="small text-nowrap">@item.EventUtc.ToLocalTime().ToString("MM-dd HH:mm")</span>
+                                    <span class="small text-nowrap">@item.EventUtc.ToLocalTime().ToString("MMMM d, yyyy h:mm tt")</span>
                                 </li>
                             }
                         </ul>

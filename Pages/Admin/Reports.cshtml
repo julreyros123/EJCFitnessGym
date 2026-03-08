@@ -1,0 +1,117 @@
+@page
+@model EJCFitnessGym.Pages.Admin.ReportsModel
+@{
+    ViewData["Title"] = "Admin Reports";
+}
+
+<div class="py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Admin Reports</h1>
+            <p class="text-muted mb-0">Operational snapshot for the last 30 days.</p>
+            <small class="text-muted">@Model.ScopeLabel</small>
+        </div>
+        <div class="text-end d-flex align-items-center gap-3">
+            <div>
+                <small class="text-muted d-block">Generated</small>
+                <strong>@Model.GeneratedAtLocal.ToString("MMM dd, yyyy hh:mm tt")</strong>
+            </div>
+            <button class="btn btn-primary d-flex align-items-center gap-2" onclick="window.print()">
+                <i class="bi bi-printer"></i> Print to PDF
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Revenue (30 days)</div>
+                    <div class="fs-4 fw-bold">@Model.RevenueLast30Days.ToString("C0")</div>
+                    <div class="small text-muted">@Model.SuccessfulPaymentsLast30Days successful payment(s)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Collection Risk</div>
+                    <div class="fs-4 fw-bold">@Model.OverdueInvoices overdue</div>
+                    <div class="small text-muted">@Model.PendingInvoices unpaid invoice(s)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Inventory Pressure</div>
+                    <div class="fs-4 fw-bold">@Model.LowStockProducts low stock</div>
+                    <div class="small text-muted">@Model.OpenSupplyRequests open supply request(s)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Operations Queue</div>
+                    <div class="fs-4 fw-bold">@Model.OpenReplacementRequests open</div>
+                    <div class="small text-muted">@Model.FailedPaymentsLast30Days failed payment(s)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card d-print-none">
+        <div class="card-header">
+            <h2 class="h6 mb-0">Standard Operational Reports</h2>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Report Name</th>
+                            <th>Description</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><i class="bi bi-currency-dollar text-success me-2"></i><strong>Monthly Revenue Report</strong></td>
+                            <td class="text-muted">Breakdown of gross sales, successful subscription payments, and collected dues.</td>
+                            <td class="text-end"><button class="btn btn-sm btn-outline-primary" onclick="window.print()">Print Report</button></td>
+                        </tr>
+                        <tr>
+                            <td><i class="bi bi-exclamation-octagon text-danger me-2"></i><strong>Overdue Collections</strong></td>
+                            <td class="text-muted">A list of all members with pending or failed payments that require immediate follow-up.</td>
+                            <td class="text-end"><button class="btn btn-sm btn-outline-primary" onclick="window.print()">Print Report</button></td>
+                        </tr>
+                        <tr>
+                            <td><i class="bi bi-box-seam text-warning me-2"></i><strong>Inventory & Low Stock</strong></td>
+                            <td class="text-muted">Current count of all gym supplies with alerts for items below the reorder threshold.</td>
+                            <td class="text-end"><button class="btn btn-sm btn-outline-primary" onclick="window.print()">Print Report</button></td>
+                        </tr>
+                        <tr>
+                            <td><i class="bi bi-people text-info me-2"></i><strong>Active Memberships</strong></td>
+                            <td class="text-muted">List of currently active members, their associated plan tier, and branch assignment.</td>
+                            <td class="text-end"><button class="btn btn-sm btn-outline-primary" onclick="window.print()">Print Report</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style type="text/css">
+@@media print {
+    body { background-color: #fff; color: #000; }
+    .d-print-none { display: none !important; }
+    .card { border: none !important; box-shadow: none !important; }
+    .card-body { padding: 0 !important; }
+    .row { display: flex !important; flex-wrap: nowrap !important; }
+    .col-sm-6 { width: 45% !important; flex: 0 0 45% !important; margin-bottom: 2rem !important; }
+    .btn { display: none !important; }
+    .ejc-sidebar { display: none !important; }
+}
+</style>

@@ -135,7 +135,7 @@
                                             <td>@row.Subject</td>
                                             <td><span class="@ReplacementRequestsModel.PriorityBadge(row.Priority)">@row.Priority</span></td>
                                             <td><span class="@ReplacementRequestsModel.StatusBadge(row.Status)">@row.Status</span></td>
-                                            <td class="text-nowrap">@row.UpdatedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                            <td class="text-nowrap">@row.UpdatedUtc.ToLocalTime().ToString("MMMM d, yyyy h:mm tt")</td>
                                         </tr>
                                     }
                                 </tbody>

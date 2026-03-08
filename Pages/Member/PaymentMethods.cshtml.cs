@@ -14,22 +14,24 @@ namespace EJCFitnessGym.Pages.Member
     {
         private readonly ApplicationDbContext _db;
         private readonly UserManager<IdentityUser> _userManager;
-        private readonly IAutoBillingService _autoBillingService;
 
         public PaymentMethodsModel(
             ApplicationDbContext db,
-            UserManager<IdentityUser> userManager,
-            IAutoBillingService autoBillingService)
+            UserManager<IdentityUser> userManager)
         {
             _db = db;
             _userManager = userManager;
-            _autoBillingService = autoBillingService;
         }
 
         public IReadOnlyList<SavedPaymentMethodViewModel> SavedMethods { get; private set; } = Array.Empty<SavedPaymentMethodViewModel>();
         public bool HasActiveSubscription { get; private set; }
         public string? NextBillingDate { get; private set; }
         public decimal? NextBillingAmount { get; private set; }
+        public bool AutomaticRenewalAvailable => PayMongoBillingCapabilities.SupportsOffSessionAutoBilling;
+        public string RenewalAvailabilityMessage => AutomaticRenewalAvailable
+            ? "When enabled, your subscription will automatically renew using your default payment method."
+            : PayMongoBillingCapabilities.ManualRenewalMessage;
+        public string EmptyStateMessage => PayMongoBillingCapabilities.CheckoutVaultingMessage;
 
         [TempData]
         public string? StatusMessage { get; set; }
@@ -43,6 +45,13 @@ namespace EJCFitnessGym.Pages.Member
             }
 
             await LoadDataAsync(userId, cancellationToken);
+
+            // Navigation notification data
+            var overdueCount = await _db.Invoices
+                .AsNoTracking()
+                .CountAsync(i => i.MemberUserId == userId && i.Status == InvoiceStatus.Overdue, cancellationToken);
+            ViewData["OverdueInvoiceCount"] = overdueCount;
+
             return Page();
         }
 
@@ -60,6 +69,12 @@ namespace EJCFitnessGym.Pages.Member
             if (method is null)
             {
                 StatusMessage = "Payment method not found.";
+                return RedirectToPage();
+            }
+
+            if (!method.AutoBillingEnabled && !AutomaticRenewalAvailable)
+            {
+                StatusMessage = PayMongoBillingCapabilities.ManualRenewalMessage;
                 return RedirectToPage();
             }
 
@@ -160,7 +175,7 @@ namespace EJCFitnessGym.Pages.Member
 
             if (activeSubscription?.EndDateUtc.HasValue == true)
             {
-                NextBillingDate = activeSubscription.EndDateUtc.Value.ToLocalTime().ToString("MMMM dd, yyyy");
+                NextBillingDate = activeSubscription.EndDateUtc.Value.ToLocalTime().ToString("MMMM d, yyyy");
                 NextBillingAmount = activeSubscription.SubscriptionPlan?.Price;
             }
 
@@ -173,7 +188,7 @@ namespace EJCFitnessGym.Pages.Member
 
             if (nextInvoice is not null)
             {
-                NextBillingDate = nextInvoice.DueDateUtc.ToLocalTime().ToString("MMMM dd, yyyy");
+                NextBillingDate = nextInvoice.DueDateUtc.ToLocalTime().ToString("MMMM d, yyyy");
                 NextBillingAmount = nextInvoice.Amount;
             }
         }

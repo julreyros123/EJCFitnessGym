@@ -28,7 +28,7 @@ public class OperationalReadinessHealthCheckTests
             FailedWebhookCriticalThreshold = 20
         });
 
-        var check = new OperationalReadinessHealthCheck(db, options);
+        var check = new OperationalReadinessHealthCheck(db, options, new StartupInitializationState());
         var result = await check.CheckHealthAsync(new HealthCheckContext());
 
         Assert.Equal(HealthStatus.Healthy, result.Status);
@@ -69,10 +69,27 @@ public class OperationalReadinessHealthCheckTests
             FailedWebhookCriticalThreshold = 20
         });
 
-        var check = new OperationalReadinessHealthCheck(db, options);
+        var check = new OperationalReadinessHealthCheck(db, options, new StartupInitializationState());
         var result = await check.CheckHealthAsync(new HealthCheckContext());
 
         Assert.Equal(HealthStatus.Unhealthy, result.Status);
+    }
+
+    [Fact]
+    public async Task CheckHealthAsync_ReturnsUnhealthy_WhenStartupInitializationFailed()
+    {
+        await using var dbHandle = await CreateDbContextAsync(nameof(CheckHealthAsync_ReturnsUnhealthy_WhenStartupInitializationFailed));
+        var db = dbHandle.Db;
+
+        var options = Options.Create(new OperationalHealthOptions());
+        var startupInitializationState = new StartupInitializationState();
+        startupInitializationState.ReportFailure("Database migration failed at startup.");
+
+        var check = new OperationalReadinessHealthCheck(db, options, startupInitializationState);
+        var result = await check.CheckHealthAsync(new HealthCheckContext());
+
+        Assert.Equal(HealthStatus.Unhealthy, result.Status);
+        Assert.Equal("Database migration failed at startup.", result.Data["startup.initialization.message"]);
     }
 
     private static async Task<SqliteDbHandle> CreateDbContextAsync(string databaseName)

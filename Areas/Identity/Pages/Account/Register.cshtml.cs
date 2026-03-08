@@ -4,13 +4,13 @@ using EJCFitnessGym.Models.Admin;
 using EJCFitnessGym.Models;
 using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Services.Identity;
+using EJCFitnessGym.Services.Memberships;
 using EJCFitnessGym.Services.Realtime;
 using EJCFitnessGym.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
@@ -57,8 +57,6 @@ public class RegisterModel : PageModel
 
     public IList<AuthenticationScheme> ExternalLogins { get; set; } = new List<AuthenticationScheme>();
 
-    public IReadOnlyList<SelectListItem> AvailablePlans { get; private set; } = Array.Empty<SelectListItem>();
-
     public class InputModel
     {
         [Required]
@@ -80,9 +78,6 @@ public class RegisterModel : PageModel
         [Display(Name = "Phone number")]
         public string? PhoneNumber { get; set; }
 
-        [Display(Name = "Membership plan")]
-        public int? SubscriptionPlanId { get; set; }
-
         [Required]
         [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
         [DataType(DataType.Password)]
@@ -95,12 +90,21 @@ public class RegisterModel : PageModel
         public string ConfirmPassword { get; set; } = string.Empty;
     }
 
-    public async Task OnGetAsync(string? returnUrl = null, int? planId = null)
+    public async Task OnGetAsync(string? returnUrl = null, int? planId = null, string? googleError = null)
     {
         ReturnUrl = AccountFlowHelper.NormalizeMemberReturnUrl(Url, returnUrl);
-        Input.SubscriptionPlanId = planId > 0 ? planId : null;
+        if (planId > 0 && string.IsNullOrEmpty(returnUrl))
+        {
+            // If they came from a plan link, ensure they go back to pricing to pay after registration.
+            ReturnUrl = Url.Page("/Public/Pricing", new { planId }) ?? ReturnUrl;
+        }
+
+        if (!string.IsNullOrWhiteSpace(googleError))
+        {
+            ModelState.AddModelError(string.Empty, googleError);
+        }
+
         ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
-        await LoadPlanOptionsAsync(Input.SubscriptionPlanId);
     }
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
@@ -112,22 +116,6 @@ public class RegisterModel : PageModel
         Input.FirstName = (Input.FirstName ?? string.Empty).Trim();
         Input.LastName = (Input.LastName ?? string.Empty).Trim();
         Input.PhoneNumber = string.IsNullOrWhiteSpace(Input.PhoneNumber) ? null : Input.PhoneNumber.Trim();
-        Input.SubscriptionPlanId = Input.SubscriptionPlanId > 0 ? Input.SubscriptionPlanId : null;
-
-        SubscriptionPlan? selectedPlan = null;
-        if (Input.SubscriptionPlanId.HasValue)
-        {
-            selectedPlan = await _db.SubscriptionPlans
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Id == Input.SubscriptionPlanId.Value && p.IsActive);
-
-            if (selectedPlan is null)
-            {
-                ModelState.AddModelError(nameof(Input.SubscriptionPlanId), "Selected membership plan is unavailable.");
-            }
-        }
-
-        await LoadPlanOptionsAsync(Input.SubscriptionPlanId);
 
         if (!ModelState.IsValid)
         {
@@ -174,29 +162,33 @@ public class RegisterModel : PageModel
                 return Page();
             }
 
-            var branchClaimResult = await _userManager.AddClaimAsync(
-                user,
-                new Claim(BranchAccess.BranchIdClaimType, registrationBranchId));
-            if (!branchClaimResult.Succeeded)
-            {
-                foreach (var error in branchClaimResult.Errors)
-                {
-                    ModelState.AddModelError(string.Empty, error.Description);
-                }
-
-                await transaction.RollbackAsync();
-                return Page();
-            }
-
-            _db.MemberProfiles.Add(new MemberProfile
+            var profile = new MemberProfile
             {
                 UserId = user.Id,
                 FirstName = Input.FirstName,
                 LastName = Input.LastName,
                 PhoneNumber = Input.PhoneNumber,
+                HomeBranchId = registrationBranchId,
                 CreatedUtc = DateTime.UtcNow,
                 UpdatedUtc = DateTime.UtcNow
-            });
+            };
+            _db.MemberProfiles.Add(profile);
+
+            try
+            {
+                await MemberBranchAssignment.AssignHomeBranchAsync(
+                    _db,
+                    _userManager,
+                    user,
+                    registrationBranchId,
+                    profile);
+            }
+            catch (InvalidOperationException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+                await transaction.RollbackAsync();
+                return Page();
+            }
 
             await _db.SaveChangesAsync();
             await transaction.CommitAsync();
@@ -210,12 +202,10 @@ public class RegisterModel : PageModel
                     email = user.Email,
                     firstName = Input.FirstName,
                     lastName = Input.LastName,
-                    phoneNumber = Input.PhoneNumber,
-                    selectedPlanId = selectedPlan?.Id,
-                    selectedPlanName = selectedPlan?.Name
+                    phoneNumber = Input.PhoneNumber
                 });
 
-            var postRegistrationReturnUrl = BuildPostRegistrationReturnUrl(returnUrl, selectedPlan?.Id);
+            var postRegistrationReturnUrl = returnUrl;
 
             var requiresConfirmedAccount = _userManager.Options.SignIn.RequireConfirmedAccount;
             if (requiresConfirmedAccount)
@@ -251,41 +241,6 @@ public class RegisterModel : PageModel
         return Page();
     }
 
-    private async Task LoadPlanOptionsAsync(int? selectedPlanId)
-    {
-        var planOptions = await _db.SubscriptionPlans
-            .AsNoTracking()
-            .Where(p => p.IsActive)
-            .OrderBy(p => p.Price)
-            .ThenBy(p => p.Name)
-            .Select(p => new SelectListItem
-            {
-                Value = p.Id.ToString(),
-                Text = $"{p.Name} (PHP {p.Price:0.00} • {p.BillingCycle})"
-            })
-            .ToListAsync();
-
-        if (selectedPlanId.HasValue && planOptions.All(p => p.Value != selectedPlanId.Value.ToString()))
-        {
-            Input.SubscriptionPlanId = null;
-        }
-
-        AvailablePlans = planOptions;
-    }
-
-    private string BuildPostRegistrationReturnUrl(string fallbackReturnUrl, int? selectedPlanId)
-    {
-        if (selectedPlanId.HasValue)
-        {
-            var membershipReturnUrl = Url.Page("/Public/Pricing", values: new { planId = selectedPlanId.Value });
-            if (!string.IsNullOrWhiteSpace(membershipReturnUrl))
-            {
-                return membershipReturnUrl;
-            }
-        }
-
-        return AccountFlowHelper.NormalizeMemberReturnUrl(Url, fallbackReturnUrl);
-    }
 
     private async Task<string?> ResolveRegistrationBranchIdAsync(CancellationToken cancellationToken)
     {
@@ -329,8 +284,8 @@ public class RegisterModel : PageModel
             return existingClaimBranchId.Trim();
         }
 
-        const string bootstrapBranchId = "BR-CENTRAL";
-        const string bootstrapBranchName = "EJC Central Branch";
+        const string bootstrapBranchId = BranchNaming.DefaultBranchId;
+        const string bootstrapBranchName = BranchNaming.DefaultLocationName;
 
         try
         {

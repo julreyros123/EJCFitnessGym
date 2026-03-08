@@ -1,0 +1,124 @@
+@{
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+
+    string CardClass(string prefix)
+    {
+        return currentPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? "card h-100 border-primary shadow-sm"
+            : "card h-100";
+    }
+}
+
+<section class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+            <div>
+                <span class="ejc-eyebrow">Shortcuts</span>
+                <h2 class="h5 mb-1">Billing Quick Actions</h2>
+                <p class="text-muted mb-0">Press <kbd>Ctrl</kbd> + <kbd>K</kbd> to search or use <kbd>Alt</kbd> + <kbd>1-5</kbd> to jump fast.</p>
+            </div>
+            <button type="button" class="btn btn-outline-primary btn-sm" data-ejc-command-open>
+                <i class="bi bi-search me-1"></i>Open Launcher
+            </button>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-4">
+                <a class="text-decoration-none" asp-page="/Member/Payments"
+                   data-ejc-shortcut-item
+                   data-ejc-shortcut="Alt+1"
+                   data-ejc-shortcut-label="Payments"
+                   data-ejc-shortcut-description="Review open invoices and pay outstanding balances.">
+                    <article class="@CardClass("/Member/Payments")">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="badge text-bg-dark border">Alt+1</span>
+                                <i class="bi bi-receipt text-primary fs-4"></i>
+                            </div>
+                            <h3 class="h6 mb-1 text-body">Payments</h3>
+                            <p class="text-muted small mb-0">Review invoices and jump straight into payment.</p>
+                        </div>
+                    </article>
+                </a>
+            </div>
+
+            <div class="col-md-6 col-xl-4">
+                <a class="text-decoration-none" asp-page="/Member/Subscriptions"
+                   data-ejc-shortcut-item
+                   data-ejc-shortcut="Alt+2"
+                   data-ejc-shortcut-label="My Plan"
+                   data-ejc-shortcut-description="Check active plan, benefits, and renewal timeline.">
+                    <article class="@CardClass("/Member/Subscriptions")">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="badge text-bg-dark border">Alt+2</span>
+                                <i class="bi bi-card-checklist text-primary fs-4"></i>
+                            </div>
+                            <h3 class="h6 mb-1 text-body">My Plan</h3>
+                            <p class="text-muted small mb-0">See your current subscription and renewal schedule.</p>
+                        </div>
+                    </article>
+                </a>
+            </div>
+
+            <div class="col-md-6 col-xl-4">
+                <a class="text-decoration-none" asp-page="/Public/Pricing"
+                   data-ejc-shortcut-item
+                   data-ejc-shortcut="Alt+3"
+                   data-ejc-shortcut-label="Pricing"
+                   data-ejc-shortcut-description="Open plan selection and checkout.">
+                    <article class="@CardClass("/Public/Pricing")">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="badge text-bg-dark border">Alt+3</span>
+                                <i class="bi bi-lightning-charge text-primary fs-4"></i>
+                            </div>
+                            <h3 class="h6 mb-1 text-body">Pricing</h3>
+                            <p class="text-muted small mb-0">Start a new checkout or switch plans quickly.</p>
+                        </div>
+                    </article>
+                </a>
+            </div>
+
+            <div class="col-md-6 col-xl-4">
+                <a class="text-decoration-none" asp-page="/Member/PaymentMethods"
+                   data-ejc-shortcut-item
+                   data-ejc-shortcut="Alt+4"
+                   data-ejc-shortcut-label="Payment Methods"
+                   data-ejc-shortcut-description="Manage saved payment methods and renewal preferences.">
+                    <article class="@CardClass("/Member/PaymentMethods")">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="badge text-bg-dark border">Alt+4</span>
+                                <i class="bi bi-wallet2 text-primary fs-4"></i>
+                            </div>
+                            <h3 class="h6 mb-1 text-body">Payment Methods</h3>
+                            <p class="text-muted small mb-0">Review billing setup and update your saved methods.</p>
+                        </div>
+                    </article>
+                </a>
+            </div>
+
+            <div class="col-md-6 col-xl-4">
+                <a class="text-decoration-none" asp-page="/Public/Contact"
+                   data-ejc-shortcut-item
+                   data-ejc-shortcut="Alt+5"
+                   data-ejc-shortcut-label="Support"
+                   data-ejc-shortcut-description="Get help for branch, billing, or plan questions.">
+                    <article class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="badge text-bg-dark border">Alt+5</span>
+                                <i class="bi bi-life-preserver text-primary fs-4"></i>
+                            </div>
+                            <h3 class="h6 mb-1 text-body">Support</h3>
+                            <p class="text-muted small mb-0">Contact the team if you need billing or branch help.</p>
+                        </div>
+                    </article>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<partial name="/Pages/Shared/_QuickCommandModal.cshtml" />

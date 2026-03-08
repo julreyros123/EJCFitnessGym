@@ -27,6 +27,7 @@ namespace EJCFitnessGym.Controllers
         private readonly ApplicationDbContext _db;
         private readonly IMembershipService _membershipService;
         private readonly PayMongoOptions _payMongoOptions;
+        private readonly IHostEnvironment _environment;
         private readonly ILogger<PayMongoWebhookController> _logger;
         private readonly IIntegrationOutbox _outbox;
         private readonly IFinanceAlertService _financeAlertService;
@@ -53,6 +54,7 @@ namespace EJCFitnessGym.Controllers
             IIntegrationOutbox outbox,
             IEmailSender emailSender,
             IOptions<PayMongoOptions> payMongoOptions,
+            IHostEnvironment environment,
             ILogger<PayMongoWebhookController> logger)
         {
             _db = db;
@@ -62,6 +64,7 @@ namespace EJCFitnessGym.Controllers
             _outbox = outbox;
             _emailSender = emailSender;
             _payMongoOptions = payMongoOptions.Value;
+            _environment = environment;
             _logger = logger;
         }
 
@@ -618,10 +621,11 @@ namespace EJCFitnessGym.Controllers
 
         private bool VerifyWebhookSignature(string rawBody)
         {
-            var webhookSecret = _payMongoOptions.WebhookSecret;
+            var webhookSecret = _payMongoOptions.WebhookSecret?.Trim();
+            var requireWebhookSignature = !_environment.IsDevelopment() || _payMongoOptions.RequireWebhookSignature;
             if (string.IsNullOrWhiteSpace(webhookSecret))
             {
-                if (_payMongoOptions.RequireWebhookSignature)
+                if (requireWebhookSignature)
                 {
                     _logger.LogError("PayMongo webhook secret is required but not configured.");
                     return false;
@@ -696,11 +700,47 @@ namespace EJCFitnessGym.Controllers
             var paidAtLocal = payment.PaidAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz", CultureInfo.InvariantCulture);
             var amountLabel = payment.Amount.ToString("N2", CultureInfo.InvariantCulture);
             var subject = $"Payment successful - {payment.Invoice.InvoiceNumber}";
-            var htmlMessage =
-                $"Payment received for invoice <strong>{payment.Invoice.InvoiceNumber}</strong>.<br/>" +
-                $"Amount: <strong>PHP {amountLabel}</strong><br/>" +
-                $"Paid at: <strong>{paidAtLocal}</strong><br/>" +
-                "Thank you for your payment.";
+            var htmlMessage = $@"
+<div style=""font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8fafc; padding: 40px 20px; border-radius: 12px;"">
+    <div style=""background-color: #ffffff; padding: 40px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);"">
+        <div style=""text-align: center; margin-bottom: 30px;"">
+            <h1 style=""color: #84cc16; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;"">Fitness Gym</h1>
+            <p style=""color: #64748b; margin-top: 8px; font-size: 15px; font-weight: 500;"">Payment Receipt</p>
+        </div>
+        
+        <div style=""background-color: #f1f5f9; border-radius: 12px; padding: 25px; text-align: center; margin-bottom: 30px;"">
+            <p style=""color: #0f172a; font-size: 14px; margin: 0 0 5px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;"">Amount Paid</p>
+            <h2 style=""color: #84cc16; font-size: 38px; margin: 0; font-weight: 800; letter-spacing: -1px;""><span style=""font-size: 24px; vertical-align: middle; margin-right: 4px;"">PHP</span>{amountLabel}</h2>
+        </div>
+        
+        <table style=""width: 100%; border-collapse: collapse; margin-bottom: 30px;"">
+            <tr>
+                <td style=""padding: 14px 0; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 15px;"">Invoice Number</td>
+                <td style=""padding: 14px 0; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-size: 15px; font-weight: 700; text-align: right;"">{payment.Invoice.InvoiceNumber}</td>
+            </tr>
+            <tr>
+                <td style=""padding: 14px 0; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 15px;"">Date Paid</td>
+                <td style=""padding: 14px 0; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-size: 15px; font-weight: 700; text-align: right;"">{paidAtLocal}</td>
+            </tr>
+            <tr>
+                <td style=""padding: 14px 0; color: #64748b; font-size: 15px;"">Payment Method</td>
+                <td style=""padding: 14px 0; color: #0f172a; font-size: 15px; font-weight: 700; text-align: right;"">PayMongo</td>
+            </tr>
+        </table>
+        
+        <div style=""text-align: center; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px;"">
+            <h3 style=""margin: 0 0 10px 0; color: #166534; font-size: 16px;"">Payment Successful! 🎉</h3>
+            <p style=""color: #15803d; font-size: 14px; line-height: 1.5; margin: 0;"">
+                Thank you for your payment. Your membership has been updated and you can continue crushing your fitness goals!
+            </p>
+        </div>
+    </div>
+    
+    <div style=""text-align: center; margin-top: 30px; color: #94a3b8; font-size: 13px; line-height: 1.5;"">
+        <p style=""margin: 0;"">&copy; {DateTime.UtcNow.Year} Fitness Gym. All rights reserved.</p>
+        <p style=""margin: 5px 0 0 0;"">This is an automated receipt. Please do not reply to this email.</p>
+    </div>
+</div>";
 
             try
             {

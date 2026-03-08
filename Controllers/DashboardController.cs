@@ -6,6 +6,7 @@ using EJCFitnessGym.Models.Finance;
 using EJCFitnessGym.Models.Integration;
 using EJCFitnessGym.Models.Member;
 using EJCFitnessGym.Services.AI;
+using EJCFitnessGym.Services.Memberships;
 using EJCFitnessGym.Services.Payments;
 using EJCFitnessGym.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -646,6 +647,7 @@ namespace EJCFitnessGym.Controllers
             }
 
             var input = await BuildProfileInputAsync(user);
+            await PopulateHomeBranchOptionsAsync(input.HomeBranchId);
             return View(input);
         }
 
@@ -684,6 +686,7 @@ namespace EJCFitnessGym.Controllers
                 input.CompletionPercent = CalculateCompletionPercentFromInput(input, existing?.ProfileImagePath);
                 input.ExistingImagePath = existing?.ProfileImagePath;
                 await PopulateMembershipSettingsAsync(user.Id, input);
+                await PopulateHomeBranchOptionsAsync(input.HomeBranchId);
                 return View(input);
             }
 
@@ -706,6 +709,7 @@ namespace EJCFitnessGym.Controllers
             profile.WeightKg = input.WeightKg;
             profile.Bmi = CalculateBmi(input.HeightCm, input.WeightKg);
             profile.UpdatedUtc = DateTime.UtcNow;
+            profile.HomeBranchId = BranchNaming.NormalizeBranchId(input.HomeBranchId);
 
             if (input.ProfileImage != null)
             {
@@ -732,6 +736,13 @@ namespace EJCFitnessGym.Controllers
 
                 profile.ProfileImagePath = $"/uploads/profiles/{fileName}";
             }
+
+            await MemberBranchAssignment.AssignHomeBranchAsync(
+                _db,
+                _userManager,
+                user,
+                input.HomeBranchId,
+                profile);
 
             await _db.SaveChangesAsync();
             TempData["StatusMessage"] = "Profile updated successfully.";
@@ -824,6 +835,7 @@ namespace EJCFitnessGym.Controllers
                 HeightCm = profile?.HeightCm,
                 WeightKg = profile?.WeightKg,
                 Bmi = profile?.Bmi,
+                HomeBranchId = profile?.HomeBranchId ?? await MemberBranchAssignment.ResolveHomeBranchIdAsync(_db, user.Id),
                 CompletionPercent = CalculateCompletionPercent(profile),
                 ExistingImagePath = profile?.ProfileImagePath,
                 CancellationReason = cancellationReason
@@ -867,6 +879,27 @@ namespace EJCFitnessGym.Controllers
             input.HasOpenCancellationRequest = openCancellationRequest is not null;
             input.OpenCancellationRequestedUtc = openCancellationRequest?.CreatedUtc;
             input.OpenCancellationReason = openCancellationRequest?.Reason;
+        }
+
+        private async Task PopulateHomeBranchOptionsAsync(string? selectedBranchId)
+        {
+            var normalizedSelectedBranchId = NormalizeBranchId(selectedBranchId);
+            var branchOptions = await _db.BranchRecords
+                .AsNoTracking()
+                .Where(branch => branch.IsActive)
+                .OrderBy(branch => branch.BranchId)
+                .Select(branch => new
+                {
+                    branch.BranchId,
+                    Label = BranchNaming.BuildDisplayName(branch.Name)
+                })
+                .ToListAsync();
+
+            ViewBag.HomeBranchOptions = new Microsoft.AspNetCore.Mvc.Rendering.SelectList(
+                branchOptions,
+                "BranchId",
+                "Label",
+                normalizedSelectedBranchId);
         }
 
         private static (string Label, string BadgeClass, bool HasActiveMembership) ResolveMembershipStatus(MemberSubscription? subscription)
@@ -998,12 +1031,13 @@ namespace EJCFitnessGym.Controllers
             }
 
             var completed = 0;
-            const int total = 7;
+            const int total = 8;
 
             if (!string.IsNullOrWhiteSpace(profile.FirstName)) completed++;
             if (!string.IsNullOrWhiteSpace(profile.LastName)) completed++;
             if (profile.Age.HasValue) completed++;
             if (!string.IsNullOrWhiteSpace(profile.PhoneNumber)) completed++;
+            if (!string.IsNullOrWhiteSpace(profile.HomeBranchId)) completed++;
             if (profile.HeightCm.HasValue) completed++;
             if (profile.WeightKg.HasValue) completed++;
             if (!string.IsNullOrWhiteSpace(profile.ProfileImagePath)) completed++;
@@ -1014,12 +1048,13 @@ namespace EJCFitnessGym.Controllers
         private static int CalculateCompletionPercentFromInput(MemberProfileInputModel input, string? existingImagePath)
         {
             var completed = 0;
-            const int total = 7;
+            const int total = 8;
 
             if (!string.IsNullOrWhiteSpace(input.FirstName)) completed++;
             if (!string.IsNullOrWhiteSpace(input.LastName)) completed++;
             if (input.Age.HasValue) completed++;
             if (!string.IsNullOrWhiteSpace(input.PhoneNumber)) completed++;
+            if (!string.IsNullOrWhiteSpace(input.HomeBranchId)) completed++;
             if (input.HeightCm.HasValue) completed++;
             if (input.WeightKg.HasValue) completed++;
             if (input.ProfileImage != null || !string.IsNullOrWhiteSpace(existingImagePath)) completed++;
@@ -1065,6 +1100,10 @@ namespace EJCFitnessGym.Controllers
         [MaxLength(30)]
         [Display(Name = "Phone number")]
         public string? PhoneNumber { get; set; }
+
+        [Required]
+        [Display(Name = "Home branch")]
+        public string? HomeBranchId { get; set; }
 
         [Range(50, 250)]
         [Display(Name = "Height (cm)")]

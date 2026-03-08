@@ -5,6 +5,32 @@
 }
 
 <div class="py-4" data-finance-dashboard>
+    <!-- No Data Alert -->
+    <div class="alert alert-info alert-dismissible fade show d-none" role="alert" data-fin-no-data-alert>
+        <div class="d-flex align-items-start gap-3">
+            <i class="bi bi-info-circle-fill fs-4"></i>
+            <div class="flex-grow-1">
+                <h6 class="alert-heading mb-2">No Financial Data Found</h6>
+                <p class="mb-2 small">The selected date range has no recorded payments or expenses. This could mean:</p>
+                <ul class="mb-2 small">
+                    <li>No member payments were processed during this period</li>
+                    <li>No operating expenses were recorded</li>
+                    <li>The date range is in the future or before business operations began</li>
+                </ul>
+                <p class="mb-0 small"><strong>Tip:</strong> Try selecting a different date range using the filter button, or use the "Last 30D" quick filter to see recent activity.</p>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-sm btn-primary" data-fin-try-last-30d>
+                        <i class="bi bi-calendar-range"></i> Try Last 30 Days
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-fin-try-ytd>
+                        <i class="bi bi-calendar-check"></i> Try Year to Date
+                    </button>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
     <div class="ejc-page-header">
         <div class="ejc-finance-header-intro">
             <h1 class="h2 mb-1">Finance KPIs</h1>
@@ -31,45 +57,61 @@
         </div>
     </div>
 
-    <div class="ejc-admin-metrics">
+    <div class="ejc-admin-metrics ejc-finance-kpi-grid">
         <article class="ejc-admin-metric ejc-finance-metric">
             <div class="ejc-admin-metric-link">
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex justify-content-between align-items-start mb-2">
                     <span class="ejc-admin-metric-label">Gross Revenue</span>
-                    <span class="ejc-admin-metric-icon"><i class="bi bi-currency-exchange"></i></span>
+                    <span class="ejc-admin-metric-icon ejc-finance-icon-revenue"><i class="bi bi-currency-exchange"></i></span>
                 </div>
-                <strong data-fin-kpi-value="grossRevenue">PHP 1.8M</strong>
-                <span class="ejc-admin-metric-meta text-success" data-fin-kpi-meta="grossRevenue">+8.4% vs previous period</span>
+                <strong class="ejc-finance-kpi-value" data-fin-kpi-value="grossRevenue">
+                    <span class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </span>
+                </strong>
+                <span class="ejc-admin-metric-meta" data-fin-kpi-meta="grossRevenue">Loading data...</span>
             </div>
         </article>
         <article class="ejc-admin-metric ejc-finance-metric">
             <div class="ejc-admin-metric-link">
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex justify-content-between align-items-start mb-2">
                     <span class="ejc-admin-metric-label">Gross Profit</span>
-                    <span class="ejc-admin-metric-icon"><i class="bi bi-graph-up"></i></span>
+                    <span class="ejc-admin-metric-icon ejc-finance-icon-profit"><i class="bi bi-graph-up"></i></span>
                 </div>
-                <strong data-fin-kpi-value="grossProfit">PHP 1.1M</strong>
-                <span class="ejc-admin-metric-meta" data-fin-kpi-meta="grossProfit">Gross margin 59.5%</span>
+                <strong class="ejc-finance-kpi-value" data-fin-kpi-value="grossProfit">
+                    <span class="spinner-border spinner-border-sm text-success" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </span>
+                </strong>
+                <span class="ejc-admin-metric-meta" data-fin-kpi-meta="grossProfit">Loading data...</span>
             </div>
         </article>
         <article class="ejc-admin-metric ejc-finance-metric">
             <div class="ejc-admin-metric-link">
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex justify-content-between align-items-start mb-2">
                     <span class="ejc-admin-metric-label">Net Profit</span>
-                    <span class="ejc-admin-metric-icon"><i class="bi bi-wallet2"></i></span>
+                    <span class="ejc-admin-metric-icon ejc-finance-icon-net"><i class="bi bi-wallet2"></i></span>
                 </div>
-                <strong data-fin-kpi-value="netProfit">PHP 612K</strong>
-                <span class="ejc-admin-metric-meta" data-fin-kpi-meta="netProfit">Net margin 33.2%</span>
+                <strong class="ejc-finance-kpi-value" data-fin-kpi-value="netProfit">
+                    <span class="spinner-border spinner-border-sm text-warning" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </span>
+                </strong>
+                <span class="ejc-admin-metric-meta" data-fin-kpi-meta="netProfit">Loading data...</span>
             </div>
         </article>
         <article class="ejc-admin-metric ejc-finance-metric">
             <div class="ejc-admin-metric-link">
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex justify-content-between align-items-start mb-2">
                     <span class="ejc-admin-metric-label">Projected Net Profit</span>
-                    <span class="ejc-admin-metric-icon"><i class="bi bi-calculator"></i></span>
+                    <span class="ejc-admin-metric-icon ejc-finance-icon-forecast"><i class="bi bi-calculator"></i></span>
                 </div>
-                <strong data-fin-kpi-value="projectedNetProfit">PHP 649K</strong>
-                <span class="ejc-admin-metric-meta" data-fin-kpi-meta="projectedNetProfit">Next 30 days forecast</span>
+                <strong class="ejc-finance-kpi-value" data-fin-kpi-value="projectedNetProfit">
+                    <span class="spinner-border spinner-border-sm text-info" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </span>
+                </strong>
+                <span class="ejc-admin-metric-meta" data-fin-kpi-meta="projectedNetProfit">Loading data...</span>
             </div>
         </article>
     </div>

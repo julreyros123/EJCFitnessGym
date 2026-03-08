@@ -1,0 +1,23 @@
+<div class="modal fade" id="ejcQuickCommandModal" tabindex="-1" aria-labelledby="ejcQuickCommandModalLabel" aria-hidden="true" data-ejc-command-modal>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 class="modal-title h5 mb-1" id="ejcQuickCommandModalLabel">Quick Launcher</h2>
+                    <p class="text-muted small mb-0">Search shortcuts, then press Enter to open.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="ejcQuickCommandSearch" class="form-label">Search actions</label>
+                <input id="ejcQuickCommandSearch"
+                       type="search"
+                       class="form-control"
+                       placeholder="Payments, plans, reports, support..."
+                       autocomplete="off"
+                       data-ejc-command-search />
+                <div class="list-group mt-3" data-ejc-command-list></div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,50 +1,208 @@
+using EJCFitnessGym.Models.Inventory;
+using EJCFitnessGym.Security;
+using EJCFitnessGym.Services.Inventory;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.Security.Claims;
 
 namespace EJCFitnessGym.Pages.Admin
 {
+    [Authorize(Roles = "Admin,SuperAdmin,Finance,Finance Audit")]
     public class InventoryModel : PageModel
     {
-        public IReadOnlyList<InventoryItem> StockItems { get; private set; } = Array.Empty<InventoryItem>();
+        private readonly IProductSalesService _productSalesService;
+        private readonly ISupplyRequestService _supplyRequestService;
+        private readonly UserManager<IdentityUser> _userManager;
 
-        public IReadOnlyList<SupplyWorkflowEntry> WorkflowEntries { get; private set; } = Array.Empty<SupplyWorkflowEntry>();
-
-        public IReadOnlyList<WorkflowStepOwner> WorkflowOwners { get; private set; } = Array.Empty<WorkflowStepOwner>();
-
-        public void OnGet()
+        public InventoryModel(
+            IProductSalesService productSalesService,
+            ISupplyRequestService supplyRequestService,
+            UserManager<IdentityUser> userManager)
         {
-            StockItems =
-            [
-                new("WHEY-5LB", "Whey Protein 5lb", "Supplements", 28, 12, "Healthy"),
-                new("SHAKER-BLK", "Shaker Bottle (Black)", "Merch", 9, 10, "Low"),
-                new("AMINO-30", "BCAA Amino (30 servings)", "Supplements", 0, 8, "Out"),
-                new("WATER-1L", "Mineral Water 1L", "Beverages", 44, 20, "Healthy"),
-                new("MAT-EVA", "Yoga Mat EVA", "Accessories", 6, 8, "Low"),
-                new("TOWEL-XL", "Gym Towel XL", "Merch", 19, 10, "Healthy")
-            ];
+            _productSalesService = productSalesService;
+            _supplyRequestService = supplyRequestService;
+            _userManager = userManager;
+        }
 
-            WorkflowEntries =
-            [
-                new("SR-2201", "Resistance Bands", "20 pcs", "North Branch", "Requested", "Staff", "Admin", "Feb 13, 2026 08:42"),
-                new("SR-2202", "Protein Bars", "120 bars", "Central Branch", "Approved", "Admin", "Admin", "Feb 13, 2026 09:18"),
-                new("SR-2203", "Bottled Water", "20 cases", "West Branch", "Ordered", "Admin", "Staff", "Feb 13, 2026 09:47"),
-                new("SR-2204", "Creatine Monohydrate", "8 tubs", "East Branch", "Received Draft", "Staff", "Admin", "Feb 13, 2026 10:05"),
-                new("SR-2205", "Locker Key Tags", "50 pcs", "North Branch", "Received Confirmed", "Admin", "Finance", "Feb 13, 2026 10:21"),
-                new("SR-2197", "Disinfectant Refill", "24 liters", "Central Branch", "Invoiced", "Finance", "Finance", "Feb 12, 2026 04:33"),
-                new("SR-2194", "POS Paper Roll", "100 rolls", "West Branch", "Paid", "Finance", "Finance Audit", "Feb 12, 2026 02:14"),
-                new("SR-2189", "Barbell Clamp Set", "16 pairs", "East Branch", "Audited", "Finance Audit", "-", "Feb 11, 2026 05:58")
-            ];
+        public IReadOnlyList<RetailProductViewModel> StockItems { get; private set; } = [];
 
-            WorkflowOwners =
-            [
-                new(1, "Requested", "Staff", "Staff creates request with item, quantity, and reason."),
-                new(2, "Approved", "Admin", "Admin reviews request and approves purchase."),
-                new(3, "Ordered", "Admin", "Admin issues supplier order and expected delivery date."),
-                new(4, "Received Draft", "Staff", "Staff encodes draft receiving with count and condition."),
-                new(5, "Received Confirmed", "Admin", "Admin verifies receiving draft and posts stock."),
-                new(6, "Invoiced", "Finance", "Finance records supplier invoice against the request."),
-                new(7, "Paid", "Finance", "Finance releases payment after verification."),
-                new(8, "Audited", "Finance Audit", "Audit validates trail, documents, and variances.")
-            ];
+        public IReadOnlyList<SupplyRequestViewModel> WorkflowEntries { get; private set; } = [];
+
+        [TempData]
+        public string? FlashMessage { get; set; }
+
+        [TempData]
+        public string? FlashType { get; set; }
+
+        public async Task<IActionResult> OnGetAsync()
+        {
+            var branchId = User.GetBranchId();
+
+            var products = await _productSalesService.GetProductsAsync(branchId);
+            StockItems = products.Select(p => new RetailProductViewModel(
+                p.Id,
+                p.Sku ?? p.Id.ToString(),
+                p.Name,
+                p.Category ?? "Uncategorized",
+                p.StockQuantity,
+                p.ReorderLevel,
+                GetStockStatus(p.StockQuantity, p.ReorderLevel)
+            )).ToList();
+
+            var requests = await _supplyRequestService.GetRequestsAsync(branchId, take: 50);
+            WorkflowEntries = requests.Select(r => new SupplyRequestViewModel(
+                r.Id,
+                r.RequestNumber,
+                r.ItemName,
+                $"{r.RequestedQuantity} {r.Unit}",
+                r.BranchId ?? "N/A",
+                r.Stage.ToString(),
+                GetStageOwner(r.Stage),
+                GetNextOwner(r.Stage),
+                r.UpdatedAtUtc?.ToLocalTime().ToString("MMM d, yyyy HH:mm") ?? r.CreatedAtUtc.ToLocalTime().ToString("MMM d, yyyy HH:mm")
+            )).ToList();
+
+            return Page();
+        }
+
+        public async Task<IActionResult> OnPostApproveAsync(int id)
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+                var request = await _supplyRequestService.ApproveAsync(id, userId);
+                FlashMessage = $"Request {request.RequestNumber} approved.";
+                FlashType = "success";
+            }
+            catch (Exception ex)
+            {
+                FlashMessage = ex.Message;
+                FlashType = "error";
+            }
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostOrderAsync(int id)
+        {
+            try
+            {
+                var request = await _supplyRequestService.MarkOrderedAsync(id);
+                FlashMessage = $"Request {request.RequestNumber} marked as ordered.";
+                FlashType = "success";
+            }
+            catch (Exception ex)
+            {
+                FlashMessage = ex.Message;
+                FlashType = "error";
+            }
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostReceiveDraftAsync(int id, int receivedQuantity, decimal actualUnitCost)
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+                var request = await _supplyRequestService.ReceiveDraftAsync(id, receivedQuantity, actualUnitCost, userId);
+                FlashMessage = $"Draft receipt encoded for {request.RequestNumber}.";
+                FlashType = "success";
+            }
+            catch (Exception ex)
+            {
+                FlashMessage = ex.Message;
+                FlashType = "error";
+            }
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostConfirmReceiptAsync(int id)
+        {
+            try
+            {
+                var request = await _supplyRequestService.ConfirmReceiptAsync(id);
+                FlashMessage = $"Receipt confirmed for {request.RequestNumber}. Stock updated.";
+                FlashType = "success";
+            }
+            catch (Exception ex)
+            {
+                FlashMessage = ex.Message;
+                FlashType = "error";
+            }
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostCreateExpenseAsync(int id)
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+                var (request, _) = await _supplyRequestService.CreateExpenseAsync(id, userId);
+                FlashMessage = $"Invoice created for {request.RequestNumber}.";
+                FlashType = "success";
+            }
+            catch (Exception ex)
+            {
+                FlashMessage = ex.Message;
+                FlashType = "error";
+            }
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostMarkPaidAsync(int id)
+        {
+            try
+            {
+                var request = await _supplyRequestService.MarkPaidAsync(id);
+                FlashMessage = $"Request {request.RequestNumber} marked as paid.";
+                FlashType = "success";
+            }
+            catch (Exception ex)
+            {
+                FlashMessage = ex.Message;
+                FlashType = "error";
+            }
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostMarkAuditedAsync(int id)
+        {
+            try
+            {
+                var request = await _supplyRequestService.MarkAuditedAsync(id);
+                FlashMessage = $"Request {request.RequestNumber} audited completely.";
+                FlashType = "success";
+            }
+            catch (Exception ex)
+            {
+                FlashMessage = ex.Message;
+                FlashType = "error";
+            }
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostCancelAsync(int id, string reason)
+        {
+            try
+            {
+                var request = await _supplyRequestService.CancelAsync(id, reason);
+                FlashMessage = $"Request {request.RequestNumber} cancelled.";
+                FlashType = "success";
+            }
+            catch (Exception ex)
+            {
+                FlashMessage = ex.Message;
+                FlashType = "error";
+            }
+            return RedirectToPage();
+        }
+
+        private static string GetStockStatus(int stock, int reorder)
+        {
+            if (stock <= 0) return "Out";
+            if (stock <= reorder) return "Low";
+            return "Healthy";
         }
 
         public static string StockStatusBadge(string status) =>
@@ -62,8 +220,8 @@ namespace EJCFitnessGym.Pages.Admin
                 "Requested" => "badge bg-secondary",
                 "Approved" => "badge ejc-badge",
                 "Ordered" => "badge bg-primary",
-                "Received Draft" => "badge bg-info text-dark",
-                "Received Confirmed" => "badge bg-success",
+                "ReceivedDraft" => "badge bg-info text-dark",
+                "ReceivedConfirmed" => "badge bg-success",
                 "Invoiced" => "badge bg-warning text-dark",
                 "Paid" => "badge bg-success",
                 "Audited" => "badge bg-dark",
@@ -81,7 +239,29 @@ namespace EJCFitnessGym.Pages.Admin
                 _ => "badge bg-secondary"
             };
 
-        public sealed record InventoryItem(
+        private static string GetStageOwner(SupplyRequestStage stage) =>
+            stage switch
+            {
+                SupplyRequestStage.Requested => "Staff",
+                SupplyRequestStage.Approved or SupplyRequestStage.Ordered => "Admin",
+                SupplyRequestStage.ReceivedDraft or SupplyRequestStage.ReceivedConfirmed => "Admin",
+                SupplyRequestStage.Invoiced or SupplyRequestStage.Paid or SupplyRequestStage.Audited => "Finance",
+                _ => "System"
+            };
+
+        private static string GetNextOwner(SupplyRequestStage stage) =>
+            stage switch
+            {
+                SupplyRequestStage.Requested => "Admin",
+                SupplyRequestStage.Approved or SupplyRequestStage.Ordered => "Admin",
+                SupplyRequestStage.ReceivedDraft => "Admin",
+                SupplyRequestStage.ReceivedConfirmed => "Finance",
+                SupplyRequestStage.Invoiced or SupplyRequestStage.Paid => "Finance",
+                _ => "Complete"
+            };
+
+        public sealed record RetailProductViewModel(
+            int Id,
             string Sku,
             string Item,
             string Category,
@@ -89,7 +269,8 @@ namespace EJCFitnessGym.Pages.Admin
             int ReorderLevel,
             string Status);
 
-        public sealed record SupplyWorkflowEntry(
+        public sealed record SupplyRequestViewModel(
+            int Id,
             string RequestNo,
             string Item,
             string Quantity,
@@ -98,11 +279,5 @@ namespace EJCFitnessGym.Pages.Admin
             string CurrentOwner,
             string NextOwner,
             string LastUpdated);
-
-        public sealed record WorkflowStepOwner(
-            int Sequence,
-            string Stage,
-            string PrimaryRole,
-            string Description);
     }
 }

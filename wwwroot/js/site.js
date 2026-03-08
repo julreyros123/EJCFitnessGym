@@ -878,3 +878,309 @@ document.addEventListener('click', (event) => {
         });
     });
 })();
+
+// Animated Number Counter for Landing Page
+(() => {
+    const formatNumber = (num) => {
+        return Math.floor(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    };
+
+    const animateValue = (obj, start, end, duration, suffix = '') => {
+        let startTimestamp = null;
+        const step = (timestamp) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            
+            // easeOutQuart curve
+            const easeProgress = 1 - Math.pow(1 - progress, 4);
+            const current = progress === 1 ? end : start + (end - start) * easeProgress;
+            
+            obj.innerHTML = formatNumber(current) + suffix;
+            
+            if (progress < 1) {
+                window.requestAnimationFrame(step);
+            }
+        };
+        window.requestAnimationFrame(step);
+    };
+
+    const counters = document.querySelectorAll('[data-count-up]');
+    if (!counters.length || typeof IntersectionObserver === 'undefined') {
+        return;
+    }
+
+    const observer = new IntersectionObserver(
+        (entries) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) return;
+                
+                const target = entry.target;
+                const endValue = parseInt(target.getAttribute('data-count-up'), 10);
+                const suffix = target.getAttribute('data-count-suffix') || '';
+                
+                if (!isNaN(endValue)) {
+                    animateValue(target, 0, endValue, 2500, suffix);
+                }
+                
+                observer.unobserve(target);
+            });
+        },
+        {
+            rootMargin: '0px 0px -10% 0px',
+            threshold: 0.1
+        }
+    );
+
+    counters.forEach((counter) => observer.observe(counter));
+})();
+
+(() => {
+    if (document.querySelector('a[data-superadmin-nav-item]')) {
+        return;
+    }
+
+    const shortcutLinks = Array.from(document.querySelectorAll('a[data-ejc-shortcut-item][href]'));
+    if (!shortcutLinks.length) {
+        return;
+    }
+
+    const normalize = (value) => (value || '').toLowerCase().trim();
+    const toRelativeHref = (href) => {
+        try {
+            const url = new URL(href, window.location.origin);
+            return `${url.pathname}${url.search}`;
+        } catch {
+            return href || '/';
+        }
+    };
+    const normalizePath = (value) => normalize(toRelativeHref(value)).replace(/\/+$/, '') || '/';
+    const currentPathNormalized = normalizePath(`${window.location.pathname}${window.location.search}`);
+
+    const uniqueEntries = [];
+    const seenPaths = new Set();
+
+    shortcutLinks.forEach((link, index) => {
+        const href = toRelativeHref(link.getAttribute('href') || '/');
+        const path = normalizePath(href);
+        if (seenPaths.has(path)) {
+            return;
+        }
+
+        seenPaths.add(path);
+        uniqueEntries.push({
+            href,
+            path,
+            label: (link.dataset.ejcShortcutLabel || link.textContent || `Shortcut ${index + 1}`).trim(),
+            description: (link.dataset.ejcShortcutDescription || link.getAttribute('title') || '').trim(),
+            shortcut: (link.dataset.ejcShortcut || `Alt+${index + 1}`).trim(),
+            haystack: normalize(`${link.dataset.ejcShortcutLabel || ''} ${link.dataset.ejcShortcutDescription || ''} ${href} ${link.textContent || ''}`)
+        });
+    });
+
+    if (!uniqueEntries.length) {
+        return;
+    }
+
+    const isEditableTarget = (target) => {
+        if (!(target instanceof HTMLElement)) {
+            return false;
+        }
+
+        const tagName = target.tagName.toLowerCase();
+        return tagName === 'input'
+            || tagName === 'textarea'
+            || tagName === 'select'
+            || target.isContentEditable;
+    };
+
+    const activateShortcut = (index) => {
+        const entry = uniqueEntries[index];
+        if (!entry || entry.path === currentPathNormalized) {
+            return;
+        }
+
+        window.location.assign(entry.href);
+    };
+
+    const modalElement = document.querySelector('[data-ejc-command-modal]');
+    const searchInput = modalElement?.querySelector('[data-ejc-command-search]');
+    const commandList = modalElement?.querySelector('[data-ejc-command-list]');
+    const openButtons = Array.from(document.querySelectorAll('[data-ejc-command-open]'));
+
+    document.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey)
+            && !event.altKey
+            && !event.shiftKey
+            && normalize(event.key) === 'k') {
+            if (!modalElement || typeof bootstrap === 'undefined') {
+                return;
+            }
+
+            event.preventDefault();
+            bootstrap.Modal.getOrCreateInstance(modalElement).show();
+            return;
+        }
+
+        if (event.altKey
+            && !event.ctrlKey
+            && !event.metaKey
+            && !event.shiftKey
+            && /^[1-9]$/.test(event.key)
+            && !isEditableTarget(event.target)) {
+            event.preventDefault();
+            activateShortcut(Number.parseInt(event.key, 10) - 1);
+        }
+    });
+
+    if (!modalElement || !searchInput || !commandList || typeof bootstrap === 'undefined') {
+        return;
+    }
+
+    let filteredEntries = [...uniqueEntries];
+    let selectedIndex = 0;
+
+    const renderEntries = () => {
+        commandList.innerHTML = '';
+
+        if (!filteredEntries.length) {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'list-group-item text-muted';
+            emptyState.textContent = 'No actions match your search.';
+            commandList.appendChild(emptyState);
+            return;
+        }
+
+        filteredEntries.forEach((entry, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'list-group-item list-group-item-action';
+            if (index === selectedIndex) {
+                button.classList.add('active');
+            }
+
+            const topRow = document.createElement('div');
+            topRow.className = 'd-flex justify-content-between align-items-center gap-3';
+
+            const label = document.createElement('span');
+            label.className = 'fw-semibold';
+            label.textContent = entry.label;
+
+            const shortcut = document.createElement('span');
+            shortcut.className = 'badge text-bg-dark border';
+            shortcut.textContent = entry.path === currentPathNormalized ? 'Current' : entry.shortcut;
+
+            topRow.appendChild(label);
+            topRow.appendChild(shortcut);
+
+            const description = document.createElement('div');
+            description.className = index === selectedIndex ? 'small text-white-50 mt-1' : 'small text-muted mt-1';
+            description.textContent = entry.description || entry.href;
+
+            button.appendChild(topRow);
+            button.appendChild(description);
+            button.addEventListener('click', () => {
+                if (entry.path === currentPathNormalized) {
+                    return;
+                }
+
+                bootstrap.Modal.getOrCreateInstance(modalElement).hide();
+                window.location.assign(entry.href);
+            });
+
+            commandList.appendChild(button);
+        });
+    };
+
+    const applyFilter = () => {
+        const query = normalize(searchInput.value);
+        const terms = query.split(/\s+/).filter(Boolean);
+        filteredEntries = uniqueEntries.filter((entry) => terms.every((term) => entry.haystack.includes(term)));
+        selectedIndex = 0;
+        renderEntries();
+    };
+
+    const openSelectedEntry = () => {
+        const entry = filteredEntries[selectedIndex];
+        if (!entry || entry.path === currentPathNormalized) {
+            return;
+        }
+
+        bootstrap.Modal.getOrCreateInstance(modalElement).hide();
+        window.location.assign(entry.href);
+    };
+
+    openButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            bootstrap.Modal.getOrCreateInstance(modalElement).show();
+        });
+    });
+
+    modalElement.addEventListener('shown.bs.modal', () => {
+        searchInput.value = '';
+        filteredEntries = [...uniqueEntries];
+        selectedIndex = filteredEntries.findIndex((entry) => entry.path === currentPathNormalized);
+        if (selectedIndex < 0) {
+            selectedIndex = 0;
+        }
+
+        renderEntries();
+        searchInput.focus();
+        searchInput.select();
+    });
+
+    searchInput.addEventListener('input', applyFilter);
+
+    modalElement.addEventListener('keydown', (event) => {
+        if (!filteredEntries.length) {
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            selectedIndex = (selectedIndex + 1) % filteredEntries.length;
+            renderEntries();
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            selectedIndex = (selectedIndex - 1 + filteredEntries.length) % filteredEntries.length;
+            renderEntries();
+            return;
+        }
+
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            openSelectedEntry();
+        }
+    });
+})();
+
+// FAQ Accordion Toggle Behavior
+(() => {
+    const faqs = document.querySelectorAll('.enterprise-faq-item');
+    if (!faqs.length) return;
+
+    faqs.forEach(faq => {
+        const summary = faq.querySelector('.enterprise-faq-question');
+        if (!summary) return;
+
+        summary.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            // Close other open FAQs
+            faqs.forEach(otherFaq => {
+                if (otherFaq !== faq && otherFaq.hasAttribute('open')) {
+                    otherFaq.removeAttribute('open');
+                }
+            });
+
+            // Toggle current FAQ
+            if (faq.hasAttribute('open')) {
+                faq.removeAttribute('open');
+            } else {
+                faq.setAttribute('open', '');
+            }
+        });
+    });
+})();

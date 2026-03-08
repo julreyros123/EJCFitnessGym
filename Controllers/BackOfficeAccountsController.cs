@@ -257,7 +257,7 @@ namespace EJCFitnessGym.Controllers
 
             var branchNameById = branchRecords.ToDictionary(
                 branch => branch.BranchId,
-                branch => branch.Name,
+                branch => BranchNaming.BuildDisplayName(branch.Name),
                 StringComparer.OrdinalIgnoreCase);
 
             var branchOptions = branchRecords
@@ -265,7 +265,7 @@ namespace EJCFitnessGym.Controllers
                 .Select(branch => new BackOfficeBranchOptionViewModel
                 {
                     BranchId = branch.BranchId,
-                    BranchName = branch.Name
+                    BranchName = BranchNaming.BuildDisplayName(branch.Name)
                 })
                 .ToList();
 

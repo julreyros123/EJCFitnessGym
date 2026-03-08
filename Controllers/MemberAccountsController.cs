@@ -3,6 +3,7 @@ using EJCFitnessGym.Models;
 using EJCFitnessGym.Models.Admin;
 using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Services.AI;
+using EJCFitnessGym.Services.Memberships;
 using EJCFitnessGym.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -51,25 +52,33 @@ namespace EJCFitnessGym.Controllers
 
             var memberUsers = (await _userManager.GetUsersInRoleAsync("Member")).ToList();
             var memberIds = memberUsers.Select(u => u.Id).ToList();
+            var homeBranchByUserId = await MemberBranchAssignment.ResolveHomeBranchMapAsync(_db, memberIds);
             if (!isSuperAdmin)
             {
-                var scopedMemberIds = await _db.UserClaims
-                    .Where(c =>
-                        c.ClaimType == BranchAccess.BranchIdClaimType &&
-                        c.ClaimValue == currentBranchId &&
-                        memberIds.Contains(c.UserId))
-                    .Select(c => c.UserId)
-                    .Distinct()
-                    .ToListAsync();
+                var scopedMemberIds = memberIds
+                    .Where(userId =>
+                        homeBranchByUserId.TryGetValue(userId, out var branchId) &&
+                        string.Equals(branchId, currentBranchId, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
 
                 var scopedSet = scopedMemberIds.ToHashSet(StringComparer.Ordinal);
                 memberUsers = memberUsers.Where(u => scopedSet.Contains(u.Id)).ToList();
                 memberIds = memberUsers.Select(u => u.Id).ToList();
+                homeBranchByUserId = homeBranchByUserId
+                    .Where(entry => scopedSet.Contains(entry.Key))
+                    .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
             }
 
             var profiles = await _db.MemberProfiles
                 .Where(p => memberIds.Contains(p.UserId))
                 .ToDictionaryAsync(p => p.UserId);
+
+            var branchDisplayById = await _db.BranchRecords
+                .AsNoTracking()
+                .ToDictionaryAsync(
+                    branch => branch.BranchId,
+                    branch => BranchNaming.BuildDisplayName(branch.Name),
+                    StringComparer.OrdinalIgnoreCase);
 
             var subscriptions = await _db.MemberSubscriptions
                 .Where(s => memberIds.Contains(s.MemberUserId))
@@ -150,6 +159,12 @@ namespace EJCFitnessGym.Controllers
                         FullName = fullName,
                         Email = user.Email ?? string.Empty,
                         PhoneNumber = profile?.PhoneNumber ?? user.PhoneNumber,
+                        HomeBranchId = homeBranchByUserId.TryGetValue(user.Id, out var homeBranchId) ? homeBranchId : null,
+                        HomeBranchDisplayName = homeBranchByUserId.TryGetValue(user.Id, out var branchId) &&
+                            !string.IsNullOrWhiteSpace(branchId) &&
+                            branchDisplayById.TryGetValue(branchId, out var displayName)
+                                ? displayName
+                                : null,
                         PlanName = subscription?.SubscriptionPlan?.Name ?? "No Plan",
                         SubscriptionStatus = subscription?.Status,
                         StartDateUtc = subscription?.StartDateUtc,
@@ -288,11 +303,6 @@ namespace EJCFitnessGym.Controllers
         [Authorize(Roles = "SuperAdmin")]
         public async Task<IActionResult> Create()
         {
-            if (string.IsNullOrWhiteSpace(User.GetBranchId()))
-            {
-                return Forbid();
-            }
-
             var model = new MemberAccountFormViewModel
             {
                 RequirePassword = true,
@@ -301,6 +311,7 @@ namespace EJCFitnessGym.Controllers
             };
 
             await PopulatePlanOptionsAsync(model.SubscriptionPlanId);
+            await PopulateHomeBranchOptionsAsync(model.HomeBranchId);
             return View(model);
         }
 
@@ -309,17 +320,12 @@ namespace EJCFitnessGym.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(MemberAccountFormViewModel input)
         {
-            var currentBranchId = User.GetBranchId();
-            if (string.IsNullOrWhiteSpace(currentBranchId))
-            {
-                return Forbid();
-            }
-
             input.RequirePassword = true;
             input.Email = (input.Email ?? string.Empty).Trim();
             input.PhoneNumber = string.IsNullOrWhiteSpace(input.PhoneNumber) ? null : input.PhoneNumber.Trim();
             input.FirstName = string.IsNullOrWhiteSpace(input.FirstName) ? null : input.FirstName.Trim();
             input.LastName = string.IsNullOrWhiteSpace(input.LastName) ? null : input.LastName.Trim();
+            input.HomeBranchId = BranchNaming.NormalizeBranchId(input.HomeBranchId);
 
             if (string.IsNullOrWhiteSpace(input.Password))
             {
@@ -338,9 +344,15 @@ namespace EJCFitnessGym.Controllers
                 ModelState.AddModelError(nameof(input.SubscriptionPlanId), "Selected plan is not available.");
             }
 
+            if (!await IsValidActiveBranchAsync(input.HomeBranchId))
+            {
+                ModelState.AddModelError(nameof(input.HomeBranchId), "Select an active home branch.");
+            }
+
             if (!ModelState.IsValid)
             {
                 await PopulatePlanOptionsAsync(input.SubscriptionPlanId);
+                await PopulateHomeBranchOptionsAsync(input.HomeBranchId);
                 return View(input);
             }
 
@@ -367,6 +379,7 @@ namespace EJCFitnessGym.Controllers
             {
                 AddIdentityErrors(createResult);
                 await PopulatePlanOptionsAsync(input.SubscriptionPlanId);
+                await PopulateHomeBranchOptionsAsync(input.HomeBranchId);
                 return View(input);
             }
 
@@ -375,28 +388,29 @@ namespace EJCFitnessGym.Controllers
             {
                 AddIdentityErrors(roleResult);
                 await PopulatePlanOptionsAsync(input.SubscriptionPlanId);
-                return View(input);
-            }
-
-            var branchClaimResult = await _userManager.AddClaimAsync(
-                user,
-                new Claim(BranchAccess.BranchIdClaimType, currentBranchId));
-            if (!branchClaimResult.Succeeded)
-            {
-                AddIdentityErrors(branchClaimResult);
+                await PopulateHomeBranchOptionsAsync(input.HomeBranchId);
                 await PopulatePlanOptionsAsync(input.SubscriptionPlanId);
                 return View(input);
             }
 
-            _db.MemberProfiles.Add(new MemberProfile
+            var profile = new MemberProfile
             {
                 UserId = user.Id,
                 FirstName = input.FirstName,
                 LastName = input.LastName,
                 PhoneNumber = input.PhoneNumber,
+                HomeBranchId = input.HomeBranchId,
                 CreatedUtc = DateTime.UtcNow,
                 UpdatedUtc = DateTime.UtcNow
-            });
+            };
+            _db.MemberProfiles.Add(profile);
+
+            await MemberBranchAssignment.AssignHomeBranchAsync(
+                _db,
+                _userManager,
+                user,
+                input.HomeBranchId,
+                profile);
 
             _db.MemberSubscriptions.Add(new MemberSubscription
             {
@@ -468,6 +482,7 @@ namespace EJCFitnessGym.Controllers
                 FirstName = profile?.FirstName,
                 LastName = profile?.LastName,
                 PhoneNumber = profile?.PhoneNumber ?? user.PhoneNumber,
+                HomeBranchId = await MemberBranchAssignment.ResolveHomeBranchIdAsync(_db, user.Id) ?? string.Empty,
                 SubscriptionPlanId = subscription?.SubscriptionPlanId ?? 0,
                 StartDateUtc = (subscription?.StartDateUtc ?? DateTime.UtcNow).Date,
                 EndDateUtc = subscription?.EndDateUtc?.Date,
@@ -476,6 +491,7 @@ namespace EJCFitnessGym.Controllers
             };
 
             await PopulatePlanOptionsAsync(model.SubscriptionPlanId);
+            await PopulateHomeBranchOptionsAsync(model.HomeBranchId);
             return View(model);
         }
 
@@ -499,6 +515,7 @@ namespace EJCFitnessGym.Controllers
             input.PhoneNumber = string.IsNullOrWhiteSpace(input.PhoneNumber) ? null : input.PhoneNumber.Trim();
             input.FirstName = string.IsNullOrWhiteSpace(input.FirstName) ? null : input.FirstName.Trim();
             input.LastName = string.IsNullOrWhiteSpace(input.LastName) ? null : input.LastName.Trim();
+            input.HomeBranchId = BranchNaming.NormalizeBranchId(input.HomeBranchId);
 
             if (input.EndDateUtc.HasValue && input.EndDateUtc.Value.Date < input.StartDateUtc.Date)
             {
@@ -511,9 +528,15 @@ namespace EJCFitnessGym.Controllers
                 ModelState.AddModelError(nameof(input.SubscriptionPlanId), "Selected plan was not found.");
             }
 
+            if (!await IsValidActiveBranchAsync(input.HomeBranchId))
+            {
+                ModelState.AddModelError(nameof(input.HomeBranchId), "Select an active home branch.");
+            }
+
             if (!ModelState.IsValid)
             {
                 await PopulatePlanOptionsAsync(input.SubscriptionPlanId);
+                await PopulateHomeBranchOptionsAsync(input.HomeBranchId);
                 return View(input);
             }
 
@@ -528,6 +551,7 @@ namespace EJCFitnessGym.Controllers
             {
                 ModelState.AddModelError(nameof(input.Email), "A different user already has this email.");
                 await PopulatePlanOptionsAsync(input.SubscriptionPlanId);
+                await PopulateHomeBranchOptionsAsync(input.HomeBranchId);
                 return View(input);
             }
 
@@ -541,6 +565,7 @@ namespace EJCFitnessGym.Controllers
             {
                 AddIdentityErrors(updateUserResult);
                 await PopulatePlanOptionsAsync(input.SubscriptionPlanId);
+                await PopulateHomeBranchOptionsAsync(input.HomeBranchId);
                 return View(input);
             }
 
@@ -552,6 +577,7 @@ namespace EJCFitnessGym.Controllers
                 {
                     AddIdentityErrors(resetResult);
                     await PopulatePlanOptionsAsync(input.SubscriptionPlanId);
+                    await PopulateHomeBranchOptionsAsync(input.HomeBranchId);
                     return View(input);
                 }
             }
@@ -570,7 +596,15 @@ namespace EJCFitnessGym.Controllers
             profile.FirstName = input.FirstName;
             profile.LastName = input.LastName;
             profile.PhoneNumber = input.PhoneNumber;
+            profile.HomeBranchId = input.HomeBranchId;
             profile.UpdatedUtc = DateTime.UtcNow;
+
+            await MemberBranchAssignment.AssignHomeBranchAsync(
+                _db,
+                _userManager,
+                user,
+                input.HomeBranchId,
+                profile);
 
             var subscription = await _db.MemberSubscriptions
                 .Where(s => s.MemberUserId == user.Id)
@@ -718,6 +752,14 @@ namespace EJCFitnessGym.Controllers
             var isMembershipActive = subscription is not null &&
                 subscription.Status == SubscriptionStatus.Active &&
                 (!subscription.EndDateUtc.HasValue || subscription.EndDateUtc.Value.Date >= todayUtc);
+            var homeBranchId = await MemberBranchAssignment.ResolveHomeBranchIdAsync(_db, user.Id);
+            var homeBranchDisplayName = string.IsNullOrWhiteSpace(homeBranchId)
+                ? null
+                : await _db.BranchRecords
+                    .AsNoTracking()
+                    .Where(branch => branch.BranchId == homeBranchId)
+                    .Select(branch => BranchNaming.BuildDisplayName(branch.Name))
+                    .FirstOrDefaultAsync();
 
             return new MemberAccountDetailsViewModel
             {
@@ -725,6 +767,8 @@ namespace EJCFitnessGym.Controllers
                 FullName = BuildFullName(profile?.FirstName, profile?.LastName, user.Email ?? user.UserName ?? user.Id),
                 Email = user.Email ?? string.Empty,
                 PhoneNumber = profile?.PhoneNumber ?? user.PhoneNumber,
+                HomeBranchId = homeBranchId,
+                HomeBranchDisplayName = homeBranchDisplayName,
                 PlanName = subscription?.SubscriptionPlan?.Name ?? "No Plan",
                 SubscriptionStatus = subscription?.Status,
                 StartDateUtc = subscription?.StartDateUtc,
@@ -755,10 +799,8 @@ namespace EJCFitnessGym.Controllers
                 return false;
             }
 
-            return await _db.UserClaims.AnyAsync(c =>
-                c.UserId == memberUserId &&
-                c.ClaimType == BranchAccess.BranchIdClaimType &&
-                c.ClaimValue == currentBranchId);
+            var memberHomeBranchId = await MemberBranchAssignment.ResolveHomeBranchIdAsync(_db, memberUserId);
+            return string.Equals(memberHomeBranchId, currentBranchId, StringComparison.OrdinalIgnoreCase);
         }
 
         private async Task PopulatePlanOptionsAsync(int selectedPlanId)
@@ -778,6 +820,34 @@ namespace EJCFitnessGym.Controllers
                 .ToList();
 
             ViewBag.PlanOptions = new SelectList(options, "Id", "Label", selectedPlanId);
+        }
+
+        private async Task PopulateHomeBranchOptionsAsync(string? selectedHomeBranchId)
+        {
+            var selectedBranchId = BranchNaming.NormalizeBranchId(selectedHomeBranchId);
+            var branches = await _db.BranchRecords
+                .AsNoTracking()
+                .Where(branch => branch.IsActive)
+                .OrderBy(branch => branch.BranchId)
+                .Select(branch => new
+                {
+                    branch.BranchId,
+                    Label = BranchNaming.BuildDisplayName(branch.Name)
+                })
+                .ToListAsync();
+
+            ViewBag.HomeBranchOptions = new SelectList(branches, "BranchId", "Label", selectedBranchId);
+        }
+
+        private Task<bool> IsValidActiveBranchAsync(string? branchId)
+        {
+            var normalizedBranchId = BranchNaming.NormalizeBranchId(branchId);
+            if (string.IsNullOrWhiteSpace(normalizedBranchId))
+            {
+                return Task.FromResult(false);
+            }
+
+            return _db.BranchRecords.AnyAsync(branch => branch.IsActive && branch.BranchId == normalizedBranchId);
         }
 
         private static DateTime ToUtcDate(DateTime date) => DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);

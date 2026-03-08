@@ -1,0 +1,172 @@
+@page
+@using System.Globalization
+@model EJCFitnessGym.Pages.Staff.CommunicationHubModel
+@{
+    ViewData["Title"] = "Communication Hub";
+    var peso = CultureInfo.GetCultureInfo("en-PH");
+}
+
+<div class="py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Communication Hub</h1>
+            <p class="text-muted mb-0">Queue payment reminders and monitor near-term member follow-ups.</p>
+            <small class="text-muted">@Model.ScopeLabel</small>
+        </div>
+        <a class="btn btn-outline-primary btn-sm" asp-page="/Staff/Reports">Back to Staff Reports</a>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Due Soon (3 days)</div>
+                    <div class="fs-4 fw-bold">@Model.DueSoonInvoiceCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Overdue Invoices</div>
+                    <div class="fs-4 fw-bold">@Model.OverdueInvoiceCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Plans Expiring (7 days)</div>
+                    <div class="fs-4 fw-bold">@Model.ExpiringPlans.Count</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h6 mb-0">Invoice Reminder Queue</h2>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Invoice</th>
+                            <th>Member</th>
+                            <th>Due Date</th>
+                            <th>Amount</th>
+                            <th>Last Reminder</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.InvoiceReminders.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6" class="text-muted text-center py-4">No invoice reminders needed for the current branch scope.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var row in Model.InvoiceReminders)
+                            {
+                                var dueClass = row.DaysFromDueDate < 0 ? "text-danger fw-semibold" : row.DaysFromDueDate <= 3 ? "text-warning fw-semibold" : string.Empty;
+                                <tr>
+                                    <td>@row.InvoiceNumber</td>
+                                    <td>
+                                        <div>@row.MemberDisplayName</div>
+                                        <div class="small text-muted">@row.MemberUserId</div>
+                                    </td>
+                                    <td class="@dueClass">
+                                        @row.DueDateUtc.ToLocalTime().ToString("MMM dd, yyyy")
+                                        <div class="small text-muted">
+                                            @(row.DaysFromDueDate < 0 ? $"{Math.Abs(row.DaysFromDueDate)} day(s) overdue" : $"{row.DaysFromDueDate} day(s) left")
+                                        </div>
+                                    </td>
+                                    <td>@row.Amount.ToString("C0", peso)</td>
+                                    <td>
+                                        @if (row.LastReminderUtc.HasValue)
+                                        {
+                                            @row.LastReminderUtc.Value.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">None</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <form method="post" asp-page-handler="QueueReminder" class="d-inline">
+                                            <input type="hidden" name="invoiceId" value="@row.InvoiceId" />
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">Queue Reminder</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="h6 mb-0">Upcoming Plan Expirations</h2>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Member</th>
+                            <th>Plan</th>
+                            <th>End Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.ExpiringPlans.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="4" class="text-muted text-center py-4">No plan expiring in the next 7 days.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var plan in Model.ExpiringPlans)
+                            {
+                                <tr>
+                                    <td>
+                                        <div>@plan.MemberDisplayName</div>
+                                        <div class="small text-muted">@plan.MemberUserId</div>
+                                    </td>
+                                    <td>@plan.PlanName</td>
+                                    <td>@plan.EndDateUtc.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                                    <td>
+                                        @if (plan.DaysToEnd <= 2)
+                                        {
+                                            <span class="badge bg-warning text-dark">Urgent</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Follow-up</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

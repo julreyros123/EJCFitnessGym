@@ -1,15 +1,17 @@
 (() => {
   const dashboard = document.querySelector("[data-finance-dashboard]");
-  if (!dashboard || typeof Chart === "undefined") {
+  if (!dashboard) {
     return;
   }
 
   const trendCanvas = dashboard.querySelector("#financeTrendChart");
   const mixCanvas = dashboard.querySelector("#financeMixChart");
   const pipelineCanvas = dashboard.querySelector("#financePipelineChart");
-  if (!trendCanvas || !mixCanvas || !pipelineCanvas) {
-    return;
-  }
+  const chartsEnabled =
+    typeof Chart !== "undefined" &&
+    Boolean(trendCanvas) &&
+    Boolean(mixCanvas) &&
+    Boolean(pipelineCanvas);
 
   const startInput = dashboard.querySelector("[data-fin-filter-start]");
   const endInput = dashboard.querySelector("[data-fin-filter-end]");
@@ -24,6 +26,9 @@
   const pipelineSubtitle = dashboard.querySelector("[data-fin-pipeline-subtitle]");
   const pipelineNote = dashboard.querySelector("[data-fin-pipeline-note]");
   const headerState = dashboard.querySelector("[data-fin-header-state] span");
+  const noDataAlert = dashboard.querySelector("[data-fin-no-data-alert]");
+  const tryLast30dButton = dashboard.querySelector("[data-fin-try-last-30d]");
+  const tryYtdButton = dashboard.querySelector("[data-fin-try-ytd]");
 
   const kpiValueElements = {
     grossRevenue: dashboard.querySelector('[data-fin-kpi-value="grossRevenue"]'),
@@ -284,173 +289,182 @@
   };
 
   const initialChartTheme = getChartThemeTokens();
+  let trendChart = null;
+  let mixChart = null;
+  let pipelineChart = null;
 
-  const trendChart = new Chart(trendCanvas, {
-    type: "line",
-    data: {
-      labels: [],
-      datasets: [
-        {
-          label: "Revenue",
-          data: [],
-          borderColor: initialChartTheme.lineSecondary,
-          pointBackgroundColor: initialChartTheme.lineSecondary,
-          pointBorderColor: initialChartTheme.lineSecondary,
-          pointHoverBackgroundColor: initialChartTheme.lineSecondary,
-          pointHoverBorderColor: initialChartTheme.lineSecondary,
-          borderWidth: 2.4,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          tension: 0.35
-        },
-        {
-          label: "Net Profit",
-          data: [],
-          borderColor: initialChartTheme.line,
-          pointBackgroundColor: initialChartTheme.line,
-          pointBorderColor: initialChartTheme.line,
-          pointHoverBackgroundColor: initialChartTheme.lineHover,
-          pointHoverBorderColor: initialChartTheme.lineHover,
-          borderWidth: 2.4,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          tension: 0.35
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          labels: {
-            color: initialChartTheme.text
-          }
-        },
-        tooltip: {
-          backgroundColor: initialChartTheme.tooltipBg,
-          titleColor: initialChartTheme.tooltipText,
-          bodyColor: initialChartTheme.tooltipText,
-          borderColor: initialChartTheme.axisLine,
-          borderWidth: 1,
-          callbacks: {
-            label: (ctx) => `${ctx.dataset.label}: ${currencyFormatter.format(Number(ctx.parsed.y || 0))}`
-          }
-        }
-      },
-      scales: {
-        x: {
-          ticks: { color: initialChartTheme.axisLabel },
-          grid: { color: initialChartTheme.grid },
-          border: { color: initialChartTheme.axisLine }
-        },
-        y: {
-          ticks: {
-            color: initialChartTheme.axisLabel,
-            callback: (value) => compactCurrency(Number(value))
+  if (chartsEnabled) {
+    trendChart = new Chart(trendCanvas, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "Revenue",
+            data: [],
+            borderColor: initialChartTheme.lineSecondary,
+            pointBackgroundColor: initialChartTheme.lineSecondary,
+            pointBorderColor: initialChartTheme.lineSecondary,
+            pointHoverBackgroundColor: initialChartTheme.lineSecondary,
+            pointHoverBorderColor: initialChartTheme.lineSecondary,
+            borderWidth: 2.4,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.35
           },
-          grid: { color: initialChartTheme.grid },
-          border: { color: initialChartTheme.axisLine }
-        }
-      }
-    }
-  });
-
-  const mixChart = new Chart(mixCanvas, {
-    type: "doughnut",
-    data: {
-      labels: ["COGS", "Operating Expenses", "Net Profit"],
-      datasets: [
-        {
-          data: [0, 0, 0],
-          backgroundColor: [initialChartTheme.lineSecondary, initialChartTheme.neutral, initialChartTheme.line],
-          borderColor: initialChartTheme.axisLine,
-          borderWidth: 1.5
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: "64%",
-      plugins: {
-        legend: {
-          position: "bottom",
-          labels: {
-            color: initialChartTheme.text,
-            boxWidth: 10,
-            usePointStyle: true,
-            pointStyle: "circle"
+          {
+            label: "Net Profit",
+            data: [],
+            borderColor: initialChartTheme.line,
+            pointBackgroundColor: initialChartTheme.line,
+            pointBorderColor: initialChartTheme.line,
+            pointHoverBackgroundColor: initialChartTheme.lineHover,
+            pointHoverBorderColor: initialChartTheme.lineHover,
+            borderWidth: 2.4,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.35
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: {
+              color: initialChartTheme.text
+            }
+          },
+          tooltip: {
+            backgroundColor: initialChartTheme.tooltipBg,
+            titleColor: initialChartTheme.tooltipText,
+            bodyColor: initialChartTheme.tooltipText,
+            borderColor: initialChartTheme.axisLine,
+            borderWidth: 1,
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: ${currencyFormatter.format(Number(ctx.parsed.y || 0))}`
+            }
           }
         },
-        tooltip: {
-          backgroundColor: initialChartTheme.tooltipBg,
-          titleColor: initialChartTheme.tooltipText,
-          bodyColor: initialChartTheme.tooltipText,
-          borderColor: initialChartTheme.axisLine,
-          borderWidth: 1,
-          callbacks: {
-            label: (ctx) => `${ctx.label}: ${currencyFormatter.format(Number(ctx.parsed || 0))}`
+        scales: {
+          x: {
+            ticks: { color: initialChartTheme.axisLabel },
+            grid: { color: initialChartTheme.grid },
+            border: { color: initialChartTheme.axisLine }
+          },
+          y: {
+            ticks: {
+              color: initialChartTheme.axisLabel,
+              callback: (value) => compactCurrency(Number(value))
+            },
+            grid: { color: initialChartTheme.grid },
+            border: { color: initialChartTheme.axisLine }
           }
         }
       }
-    }
-  });
+    });
 
-  const pipelineChart = new Chart(pipelineCanvas, {
-    type: "bar",
-    data: {
-      labels: ["For Review", "Pending", "Queued", "Approved"],
-      datasets: [
-        {
-          label: "Requests",
-          data: [0, 0, 0, 0],
-          backgroundColor: ["#facc15", "#f59e0b", "#94a3b8", "#84cc16"],
-          borderRadius: 8,
-          maxBarThickness: 42,
-          categoryPercentage: 0.62,
-          barPercentage: 0.9
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (context) => {
-              const value = Number(context.parsed.y || 0);
-              const dataset = context.dataset.data.map((item) => Number(item || 0));
-              const total = dataset.reduce((sum, current) => sum + current, 0);
-              const share = total > 0 ? (value / total) * 100 : 0;
-              return `${context.label}: ${numberFormatter.format(value)} (${share.toFixed(1)}%)`;
+    mixChart = new Chart(mixCanvas, {
+      type: "doughnut",
+      data: {
+        labels: ["COGS", "Operating Expenses", "Net Profit"],
+        datasets: [
+          {
+            data: [0, 0, 0],
+            backgroundColor: [initialChartTheme.lineSecondary, initialChartTheme.neutral, initialChartTheme.line],
+            borderColor: initialChartTheme.axisLine,
+            borderWidth: 1.5
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "64%",
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: {
+              color: initialChartTheme.text,
+              boxWidth: 10,
+              usePointStyle: true,
+              pointStyle: "circle"
+            }
+          },
+          tooltip: {
+            backgroundColor: initialChartTheme.tooltipBg,
+            titleColor: initialChartTheme.tooltipText,
+            bodyColor: initialChartTheme.tooltipText,
+            borderColor: initialChartTheme.axisLine,
+            borderWidth: 1,
+            callbacks: {
+              label: (ctx) => `${ctx.label}: ${currencyFormatter.format(Number(ctx.parsed || 0))}`
             }
           }
         }
+      }
+    });
+
+    pipelineChart = new Chart(pipelineCanvas, {
+      type: "bar",
+      data: {
+        labels: ["For Review", "Pending", "Queued", "Approved"],
+        datasets: [
+          {
+            label: "Requests",
+            data: [0, 0, 0, 0],
+            backgroundColor: ["#facc15", "#f59e0b", "#94a3b8", "#84cc16"],
+            borderRadius: 8,
+            maxBarThickness: 42,
+            categoryPercentage: 0.62,
+            barPercentage: 0.9
+          }
+        ]
       },
-      scales: {
-        x: {
-          ticks: { color: initialChartTheme.axisLabel },
-          grid: { display: false },
-          border: { color: initialChartTheme.axisLine }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const value = Number(context.parsed.y || 0);
+                const dataset = context.dataset.data.map((item) => Number(item || 0));
+                const total = dataset.reduce((sum, current) => sum + current, 0);
+                const share = total > 0 ? (value / total) * 100 : 0;
+                return `${context.label}: ${numberFormatter.format(value)} (${share.toFixed(1)}%)`;
+              }
+            }
+          }
         },
-        y: {
-          beginAtZero: true,
-          ticks: {
-            color: initialChartTheme.axisLabel,
-            precision: 0,
-            stepSize: 5
+        scales: {
+          x: {
+            ticks: { color: initialChartTheme.axisLabel },
+            grid: { display: false },
+            border: { color: initialChartTheme.axisLine }
           },
-          grid: { color: initialChartTheme.grid },
-          border: { color: initialChartTheme.axisLine }
+          y: {
+            beginAtZero: true,
+            ticks: {
+              color: initialChartTheme.axisLabel,
+              precision: 0,
+              stepSize: 5
+            },
+            grid: { color: initialChartTheme.grid },
+            border: { color: initialChartTheme.axisLine }
+          }
         }
       }
-    }
-  });
+    });
+  }
 
   const applyChartTheme = () => {
+    if (!trendChart || !mixChart || !pipelineChart) {
+      return;
+    }
+
     const palette = getChartThemeTokens();
 
     const trendRevenue = trendChart.data.datasets[0];
@@ -523,7 +537,8 @@
   const setKpiValue = (key, value) => {
     const element = kpiValueElements[key];
     if (element) {
-      element.textContent = compactCurrency(value);
+      element.innerHTML = compactCurrency(value);
+      element.classList.remove('ejc-kpi-loading');
     }
   };
 
@@ -531,6 +546,7 @@
     const element = kpiMetaElements[key];
     if (element) {
       element.textContent = text;
+      element.classList.remove('ejc-kpi-loading');
     }
   };
 
@@ -765,6 +781,14 @@
 
   const applyLiveOverview = (overview) => {
     if (!overview) {
+      setKpiValue("grossRevenue", 0);
+      setKpiValue("grossProfit", 0);
+      setKpiValue("netProfit", 0);
+      setKpiValue("projectedNetProfit", 0);
+      setKpiMeta("grossRevenue", "No data available for selected range");
+      setKpiMeta("grossProfit", "No data available");
+      setKpiMeta("netProfit", "No data available");
+      setKpiMeta("projectedNetProfit", "No data available");
       return;
     }
 
@@ -779,20 +803,61 @@
     const successfulPayments = Math.round(toNumber(overview.successfulPaymentsCount));
     const equipmentPaybackPercent = toNumber(overview.equipmentPaybackPercent);
 
-    setKpiValue("grossRevenue", totalRevenue);
-    setKpiValue("grossProfit", totalRevenue - operatingExpenses);
-    setKpiValue("netProfit", estimatedNetProfit);
-    setKpiValue("projectedNetProfit", Math.round(estimatedNetProfit * 1.05));
+    const grossProfit = totalRevenue - operatingExpenses;
+    const projectedNet = Math.round(estimatedNetProfit * 1.05);
 
-    setKpiMeta("grossRevenue", `${successfulPayments} successful payment(s) in selected range`);
-    setKpiMeta("grossProfit", `Operating expenses in range: ${currencyFormatter.format(operatingExpenses)}`);
-    setKpiMeta("netProfit", `Total costs incl. depreciation: ${currencyFormatter.format(totalCosts || (operatingExpenses + equipmentMonthlyDepreciation))}`);
-    setKpiMeta(
-      "projectedNetProfit",
-      equipmentInvestment > 0
-        ? `PayMongo revenue ${currencyFormatter.format(payMongoRevenue)} • equipment payback ${equipmentPaybackPercent.toFixed(1)}%`
-        : `PayMongo revenue ${currencyFormatter.format(payMongoRevenue)} • no equipment assets yet`
-    );
+    // Check if we have any actual data
+    const hasData = totalRevenue > 0 || operatingExpenses > 0 || equipmentInvestment > 0;
+
+    if (!hasData) {
+      setKpiValue("grossRevenue", 0);
+      setKpiValue("grossProfit", 0);
+      setKpiValue("netProfit", 0);
+      setKpiValue("projectedNetProfit", 0);
+      setKpiMeta("grossRevenue", "No payments recorded in this date range");
+      setKpiMeta("grossProfit", "No expenses recorded in this date range");
+      setKpiMeta("netProfit", "No financial activity in this date range");
+      setKpiMeta("projectedNetProfit", "Insufficient data for forecast");
+      
+      // Show no data alert
+      if (noDataAlert) {
+        noDataAlert.classList.remove("d-none");
+      }
+      return;
+    }
+
+    // Hide no data alert if we have data
+    if (noDataAlert) {
+      noDataAlert.classList.add("d-none");
+    }
+
+    setKpiValue("grossRevenue", totalRevenue);
+    setKpiValue("grossProfit", grossProfit);
+    setKpiValue("netProfit", estimatedNetProfit);
+    setKpiValue("projectedNetProfit", projectedNet);
+
+    const revenueMetaText = successfulPayments > 0 
+      ? `${successfulPayments} successful payment(s) in selected range`
+      : "No payments recorded in selected range";
+    
+    const profitMetaText = operatingExpenses > 0
+      ? `Operating expenses: ${currencyFormatter.format(operatingExpenses)}`
+      : "No operating expenses recorded";
+    
+    const netMetaText = totalCosts > 0
+      ? `Total costs incl. depreciation: ${currencyFormatter.format(totalCosts)}`
+      : `Costs: ${currencyFormatter.format(operatingExpenses + equipmentMonthlyDepreciation)}`;
+    
+    const projectedMetaText = equipmentInvestment > 0
+      ? `PayMongo: ${currencyFormatter.format(payMongoRevenue)} • Equipment payback: ${equipmentPaybackPercent.toFixed(1)}%`
+      : payMongoRevenue > 0
+        ? `PayMongo revenue: ${currencyFormatter.format(payMongoRevenue)}`
+        : "Forecast based on current run-rate";
+
+    setKpiMeta("grossRevenue", revenueMetaText);
+    setKpiMeta("grossProfit", profitMetaText);
+    setKpiMeta("netProfit", netMetaText);
+    setKpiMeta("projectedNetProfit", projectedMetaText);
   };
 
   const loadLiveOverview = async () => {
@@ -812,7 +877,13 @@
         headers: { Accept: "application/json" }
       });
 
-      if (!response.ok || requestId !== latestOverviewRequestId) {
+      if (requestId !== latestOverviewRequestId) {
+        return;
+      }
+
+      if (!response.ok) {
+        console.warn(`Finance overview API returned ${response.status}`);
+        applyLiveOverview(null);
         return;
       }
 
@@ -824,6 +895,9 @@
       applyLiveOverview(overview);
     } catch (error) {
       console.error("Failed to load live finance overview.", error);
+      if (requestId === latestOverviewRequestId) {
+        applyLiveOverview(null);
+      }
     }
   };
 
@@ -869,21 +943,27 @@
     const revenueSeries = buildSeries(records, "revenue");
     const netProfitSeries = buildSeries(records, "netProfit");
 
-    trendChart.data.labels = revenueSeries.labels;
-    trendChart.data.datasets[0].data = revenueSeries.values;
-    trendChart.data.datasets[1].data = netProfitSeries.values;
-    trendChart.update();
+    if (trendChart) {
+      trendChart.data.labels = revenueSeries.labels;
+      trendChart.data.datasets[0].data = revenueSeries.values;
+      trendChart.data.datasets[1].data = netProfitSeries.values;
+      trendChart.update();
+    }
 
-    mixChart.data.datasets[0].data = [summary.totalCogs, summary.totalOpEx, summary.totalNetProfit];
-    mixChart.update();
+    if (mixChart) {
+      mixChart.data.datasets[0].data = [summary.totalCogs, summary.totalOpEx, summary.totalNetProfit];
+      mixChart.update();
+    }
 
-    pipelineChart.data.datasets[0].data = [
-      summary.pipeline.forReview,
-      summary.pipeline.pending,
-      summary.pipeline.queued,
-      summary.pipeline.approved
-    ];
-    pipelineChart.update();
+    if (pipelineChart) {
+      pipelineChart.data.datasets[0].data = [
+        summary.pipeline.forReview,
+        summary.pipeline.pending,
+        summary.pipeline.queued,
+        summary.pipeline.approved
+      ];
+      pipelineChart.update();
+    }
 
     const trendModeText = state.mode === "yearly" ? "Year to year" : "Month to month";
     const rangeText = `${longDateFormatter.format(state.start)} - ${longDateFormatter.format(state.end)}`;
@@ -1080,6 +1160,25 @@
       }
     }
   });
+
+  // Quick action buttons in no-data alert
+  if (tryLast30dButton) {
+    tryLast30dButton.addEventListener("click", () => {
+      setQuickRange("30");
+      if (noDataAlert) {
+        noDataAlert.classList.add("d-none");
+      }
+    });
+  }
+
+  if (tryYtdButton) {
+    tryYtdButton.addEventListener("click", () => {
+      setQuickRange("ytd");
+      if (noDataAlert) {
+        noDataAlert.classList.add("d-none");
+      }
+    });
+  }
 
   syncInputs();
   setQuickButtonsState("30");

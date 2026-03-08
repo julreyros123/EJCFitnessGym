@@ -17,8 +17,8 @@ namespace EJCFitnessGym.Controllers
         private static readonly Regex BranchIdPattern = new(
             "^[A-Za-z0-9][A-Za-z0-9_-]{1,31}$",
             RegexOptions.Compiled);
-        private const int MinBranchNameLength = 2;
-        private const int MaxBranchNameLength = 120;
+        private const int MinLocationNameLength = 2;
+        private const int MaxLocationNameLength = 120;
 
         private static readonly HashSet<string> ManagedRoles = new(StringComparer.Ordinal)
         {
@@ -110,14 +110,15 @@ namespace EJCFitnessGym.Controllers
 
             var branchNameById = branchRecords.ToDictionary(
                 b => b.BranchId,
-                b => b.Name,
+                b => BranchNaming.BuildDisplayName(b.Name),
                 StringComparer.OrdinalIgnoreCase);
 
             var branchItems = branchRecords
                 .Select(branch => new BranchDirectoryItemViewModel
                 {
                     BranchId = branch.BranchId,
-                    Name = branch.Name,
+                    LocationName = BranchNaming.NormalizeLocationName(branch.Name),
+                    DisplayName = BranchNaming.BuildDisplayName(branch.Name),
                     IsActive = branch.IsActive,
                     CreatedUtc = branch.CreatedUtc,
                     AssignedUserCount = assignmentCounts.TryGetValue(branch.BranchId, out var count) ? count : 0
@@ -139,7 +140,7 @@ namespace EJCFitnessGym.Controllers
                         Email = email,
                         RolesSummary = roles.Count == 0 ? "-" : string.Join(", ", roles),
                         BranchId = normalizedBranchId,
-                        BranchName = normalizedBranchId is null
+                        BranchDisplayName = normalizedBranchId is null
                             ? null
                             : branchNameById.TryGetValue(normalizedBranchId, out var branchName)
                                 ? branchName
@@ -170,29 +171,41 @@ namespace EJCFitnessGym.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateBranch(string branchId, string branchName)
+        public async Task<IActionResult> CreateBranch(string locationName)
         {
-            var normalizedBranchId = NormalizeBranchId(branchId);
+            var normalizedLocationName = BranchNaming.NormalizeLocationName(locationName);
+            if (normalizedLocationName.Length < MinLocationNameLength || normalizedLocationName.Length > MaxLocationNameLength)
+            {
+                TempData["StatusMessage"] = $"Location is required ({MinLocationNameLength}-{MaxLocationNameLength} characters).";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var normalizedBranchId = BranchNaming.GenerateBranchId(normalizedLocationName);
             if (!IsValidBranchId(normalizedBranchId))
             {
-                TempData["StatusMessage"] = "Branch ID is invalid. Use 2-32 chars: letters, numbers, dash, underscore.";
+                TempData["StatusMessage"] = "Branch code could not be generated from the location. Use letters and numbers only.";
                 return RedirectToAction(nameof(Index));
             }
 
-            var normalizedBranchName = NormalizeBranchName(branchName);
-            if (normalizedBranchName.Length < MinBranchNameLength || normalizedBranchName.Length > MaxBranchNameLength)
-            {
-                TempData["StatusMessage"] = $"Branch name is required ({MinBranchNameLength}-{MaxBranchNameLength} characters).";
-                return RedirectToAction(nameof(Index));
-            }
-
-            var existingBranch = await _db.BranchRecords
+            var existingBranches = await _db.BranchRecords
                 .AsNoTracking()
-                .AnyAsync(b => b.BranchId == normalizedBranchId);
+                .Select(branch => new
+                {
+                    branch.BranchId,
+                    branch.Name
+                })
+                .ToListAsync();
 
-            if (existingBranch)
+            var branchAlreadyExists = existingBranches.Any(branch =>
+                string.Equals(branch.BranchId, normalizedBranchId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(
+                    BranchNaming.NormalizeLocationName(branch.Name),
+                    normalizedLocationName,
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (branchAlreadyExists)
             {
-                TempData["StatusMessage"] = $"Branch '{normalizedBranchId}' already exists.";
+                TempData["StatusMessage"] = $"{BranchNaming.BuildDisplayName(normalizedLocationName)} already exists.";
                 return RedirectToAction(nameof(Index));
             }
 
@@ -200,7 +213,7 @@ namespace EJCFitnessGym.Controllers
             var branch = new BranchRecord
             {
                 BranchId = normalizedBranchId,
-                Name = normalizedBranchName,
+                Name = normalizedLocationName,
                 IsActive = true,
                 CreatedUtc = utcNow,
                 UpdatedUtc = utcNow,
@@ -210,7 +223,7 @@ namespace EJCFitnessGym.Controllers
             _db.BranchRecords.Add(branch);
             await _db.SaveChangesAsync();
 
-            TempData["StatusMessage"] = $"Branch '{normalizedBranchId}' created successfully.";
+            TempData["StatusMessage"] = $"{BranchNaming.BuildDisplayName(normalizedLocationName)} created successfully ({normalizedBranchId}).";
             return RedirectToAction(nameof(Index));
         }
 
@@ -239,7 +252,7 @@ namespace EJCFitnessGym.Controllers
             await _db.SaveChangesAsync();
 
             var statusLabel = branch.IsActive ? "activated" : "deactivated";
-            TempData["StatusMessage"] = $"Branch '{branch.BranchId}' is now {statusLabel}.";
+            TempData["StatusMessage"] = $"{BranchNaming.BuildDisplayName(branch.Name)} is now {statusLabel}.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -322,7 +335,7 @@ namespace EJCFitnessGym.Controllers
                 await _signInManager.RefreshSignInAsync(targetUser);
             }
 
-            TempData["StatusMessage"] = $"Branch assignment saved for {targetUser.Email ?? targetUser.UserName} ({branch.BranchId} - {branch.Name}).";
+            TempData["StatusMessage"] = $"Branch assignment saved for {targetUser.Email ?? targetUser.UserName} ({BranchNaming.BuildDisplayName(branch.Name)}).";
             return RedirectToAction(nameof(Index));
         }
 
@@ -343,10 +356,7 @@ namespace EJCFitnessGym.Controllers
         }
 
         private static string NormalizeBranchId(string branchId) =>
-            (branchId ?? string.Empty).Trim().ToUpperInvariant();
-
-        private static string NormalizeBranchName(string branchName) =>
-            (branchName ?? string.Empty).Trim();
+            BranchNaming.NormalizeBranchId(branchId);
 
         private static bool IsValidBranchId(string branchId) => BranchIdPattern.IsMatch(branchId);
     }

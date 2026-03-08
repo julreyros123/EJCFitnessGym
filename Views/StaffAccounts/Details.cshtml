@@ -1,0 +1,156 @@
+@model EJCFitnessGym.Models.Admin.StaffAccountDetailsViewModel
+@{
+    ViewData["Title"] = $"Staff Profile - {Model.Email}";
+}
+
+<div class="py-4">
+    <div class="mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="Index">Staff Accounts</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Staff Profile</li>
+            </ol>
+        </nav>
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 64px; height: 64px; font-size: 24px;">
+                <i class="bi bi-person-badge"></i>
+            </div>
+            <div>
+                <h1 class="h3 mb-0">@Model.Email</h1>
+                <p class="text-muted mb-0">Staff ID: @Model.UserId</p>
+            </div>
+            <div class="ms-auto">
+                @if (Model.IsArchived)
+                {
+                    <span class="badge bg-danger p-2 px-3">Archived</span>
+                }
+                else
+                {
+                    <span class="badge bg-success p-2 px-3">Active Staff</span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Info</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush bg-transparent">
+                        <li class="list-group-item bg-transparent px-0 py-3">
+                            <div class="text-muted small text-uppercase">Position</div>
+                            <div class="fw-bold">@(string.IsNullOrWhiteSpace(Model.Position) ? "Unassigned" : Model.Position)</div>
+                        </li>
+                        <li class="list-group-item bg-transparent px-0 py-3">
+                            <div class="text-muted small text-uppercase">Branch Assignment</div>
+                            <div class="fw-bold">
+                                @if (string.IsNullOrWhiteSpace(Model.BranchId))
+                                {
+                                    <span class="text-danger">No Branch Assigned</span>
+                                }
+                                else
+                                {
+                                    <span>@Model.BranchId - @Model.BranchName</span>
+                                }
+                            </div>
+                        </li>
+                        <li class="list-group-item bg-transparent px-0 py-3">
+                            <div class="text-muted small text-uppercase">Phone Number</div>
+                            <div class="fw-bold">@(string.IsNullOrWhiteSpace(Model.PhoneNumber) ? "-" : Model.PhoneNumber)</div>
+                        </li>
+                        <li class="list-group-item bg-transparent px-0 py-3">
+                            <div class="text-muted small text-uppercase">Last System Access</div>
+                            <div class="fw-bold">
+                                @if (Model.LastLoginUtc.HasValue)
+                                {
+                                    <span>@Model.LastLoginUtc.Value.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Never logged in</span>
+                                }
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Desk Activity</h5>
+                    <span class="badge bg-dark border text-muted">Last 10 Actions</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Action</th>
+                                    <th>Target Member</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (!Model.RecentAttendance.Any())
+                                {
+                                    <tr>
+                                        <td colspan="3" class="text-center py-4 text-muted">No recent desk activity recorded for this staff.</td>
+                                    </tr>
+                                }
+                                @foreach (var activity in Model.RecentAttendance)
+                                {
+                                    <tr>
+                                        <td class="text-nowrap">@activity.TimeLocal.ToString("MMM d, h:mm tt")</td>
+                                        <td>
+                                            <span class="badge @(activity.Action.Contains("In") ? "bg-success" : "bg-warning text-dark")">@activity.Action</span>
+                                        </td>
+                                        <td>@activity.StatusLabel</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            @if (Model.IsArchived)
+            {
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0">Archive Records</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-1"><strong>Date:</strong> @(Model.ArchivedAtUtc?.ToLocalTime().ToString("F") ?? "-")</p>
+                        <p class="mb-0"><strong>Reason:</strong> @(string.IsNullOrWhiteSpace(Model.ArchiveReason) ? "No reason specified." : Model.ArchiveReason)</p>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-light">Back to List</a>
+        @if (Model.IsArchived)
+        {
+            <form asp-action="Restore" method="post" class="d-inline" onsubmit="return confirm('Restore this staff account?');">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="userId" value="@Model.UserId" />
+                <button type="submit" class="btn btn-success">Restore Account</button>
+            </form>
+        }
+        else
+        {
+            <form asp-action="Archive" method="post" class="d-inline" onsubmit="return confirm('Archive this staff account?');">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="userId" value="@Model.UserId" />
+                <input type="hidden" name="reason" value="Archived from staff profile page." />
+                <button type="submit" class="btn btn-danger">Archive Account</button>
+            </form>
+        }
+    </div>
+</div>

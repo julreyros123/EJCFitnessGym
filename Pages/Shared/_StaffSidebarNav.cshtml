@@ -1,55 +1,86 @@
 @{
     var currentPath = Context.Request.Path.Value ?? string.Empty;
     var logoutReturnUrl = "/Identity/Account/BackOfficeLogin";
-    string ActiveIfPrefix(string prefix) =>
-        currentPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+
+    string ActiveIfExact(params string[] paths)
+    {
+        foreach (var path in paths)
+        {
+            if (string.Equals(currentPath, path, StringComparison.OrdinalIgnoreCase))
+            {
+                return "active";
+            }
+        }
+
+        return string.Empty;
+    }
+
+    string ActiveIfAnyPrefix(params string[] prefixes)
+    {
+        foreach (var prefix in prefixes)
+        {
+            if (currentPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return "active";
+            }
+        }
+
+        return string.Empty;
+    }
 }
 
 <nav class="ejc-admin-nav" aria-label="Front desk navigation">
     <div class="ejc-admin-nav-group">
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/CheckIn")" asp-page="/Staff/CheckIn" title="Check-In">
-            <i class="bi bi-person-check-fill"></i>
-            <span class="ejc-admin-nav-text">Check-In</span>
+        <span class="ejc-admin-nav-section">Daily Operations</span>
+        <a class="ejc-admin-nav-link @ActiveIfExact("/Staff", "/Staff/", "/Staff/Index")" asp-page="/Staff/Index" title="Front Desk Home">
+            <i class="bi bi-house-door"></i>
+            <span class="ejc-admin-nav-text">Home</span>
         </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/PlanStatus")" asp-page="/Staff/PlanStatus" title="Plan Status">
+        <a class="ejc-admin-nav-link @ActiveIfAnyPrefix("/Staff/CheckIn")" asp-page="/Staff/CheckIn" title="Check-In / Check-Out">
+            <i class="bi bi-person-check"></i>
+            <span class="ejc-admin-nav-text">Check-In / Out</span>
+        </a>
+        <a class="ejc-admin-nav-link @ActiveIfAnyPrefix("/Staff/PlanStatus")" asp-page="/Staff/PlanStatus" title="Billing and Plan Status">
             <i class="bi bi-card-checklist"></i>
-            <span class="ejc-admin-nav-text">Plan Status</span>
+            <span class="ejc-admin-nav-text">Billing & Plan</span>
         </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/SuppliesPayments")" asp-page="/Staff/SuppliesPayments" title="Product Sales">
+        <a class="ejc-admin-nav-link @ActiveIfAnyPrefix("/Staff/SuppliesPayments", "/Staff/POS")" asp-page="/Staff/SuppliesPayments" title="Point of Sale and Stock Requests">
             <i class="bi bi-cash-coin"></i>
-            <span class="ejc-admin-nav-text">Product Sales</span>
+            <span class="ejc-admin-nav-text">POS & Requests</span>
         </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/CommunicationHub")" asp-page="/Staff/CommunicationHub" title="Comms Hub">
-            <i class="bi bi-telephone-forward-fill"></i>
-            <span class="ejc-admin-nav-text">Comms Hub</span>
+        <a class="ejc-admin-nav-link @ActiveIfAnyPrefix("/Staff/CommunicationHub")" asp-page="/Staff/CommunicationHub" title="Member Follow-Ups">
+            <i class="bi bi-telephone-forward"></i>
+            <span class="ejc-admin-nav-text">Follow-Ups</span>
         </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/ReplacementRequests")" asp-page="/Staff/ReplacementRequests" title="Replacement Requests">
-            <i class="bi bi-exclamation-triangle-fill"></i>
-            <span class="ejc-admin-nav-text">Replacement</span>
-        </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/ActivityLogs")" asp-page="/Staff/ActivityLogs" title="Activity Logs">
-            <i class="bi bi-clipboard2-data-fill"></i>
-            <span class="ejc-admin-nav-text">Activity</span>
+        <a class="ejc-admin-nav-link @ActiveIfAnyPrefix("/Staff/ReplacementRequests")" asp-page="/Staff/ReplacementRequests" title="Replacement Requests">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span class="ejc-admin-nav-text">Replacements</span>
         </a>
     </div>
 
     <div class="ejc-admin-nav-divider"></div>
 
     <div class="ejc-admin-nav-group">
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/Attendance")" asp-page="/Staff/Attendance" title="Attendance">
-            <i class="bi bi-people-fill"></i>
+        <span class="ejc-admin-nav-section">Reports & Logs</span>
+        <a class="ejc-admin-nav-link @ActiveIfAnyPrefix("/Staff/Attendance")" asp-page="/Staff/Attendance" title="Attendance Monitor">
+            <i class="bi bi-people"></i>
             <span class="ejc-admin-nav-text">Attendance</span>
         </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff/Reports")" asp-page="/Staff/Reports" title="Reports">
+        <a class="ejc-admin-nav-link @ActiveIfAnyPrefix("/Staff/Reports")" asp-page="/Staff/Reports" title="Daily Reports">
             <i class="bi bi-graph-up-arrow"></i>
             <span class="ejc-admin-nav-text">Reports</span>
         </a>
+        <a class="ejc-admin-nav-link @ActiveIfAnyPrefix("/Staff/ActivityLogs")" asp-page="/Staff/ActivityLogs" title="Activity Logs">
+            <i class="bi bi-clipboard2-data"></i>
+            <span class="ejc-admin-nav-text">Activity Logs</span>
+        </a>
     </div>
 
     <div class="ejc-admin-nav-divider"></div>
 
     <div class="ejc-admin-nav-group">
-        <form class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
+        <span class="ejc-admin-nav-section">System</span>
+        <form method="post" class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
             <button type="submit" class="ejc-admin-nav-link ejc-admin-nav-link-button" title="Logout">
                 <i class="bi bi-box-arrow-right"></i>
                 <span class="ejc-admin-nav-text">Logout</span>

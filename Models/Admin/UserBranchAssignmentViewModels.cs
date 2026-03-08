@@ -17,7 +17,9 @@ namespace EJCFitnessGym.Models.Admin
     {
         public string BranchId { get; init; } = string.Empty;
 
-        public string Name { get; init; } = string.Empty;
+        public string LocationName { get; init; } = string.Empty;
+
+        public string DisplayName { get; init; } = string.Empty;
 
         public bool IsActive { get; init; }
 
@@ -36,7 +38,7 @@ namespace EJCFitnessGym.Models.Admin
 
         public string? BranchId { get; init; }
 
-        public string? BranchName { get; init; }
+        public string? BranchDisplayName { get; init; }
 
         public bool IsSuperAdmin { get; init; }
     }

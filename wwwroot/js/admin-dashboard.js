@@ -12,7 +12,9 @@
     const resetButton = dashboard.querySelector('[data-filter-reset]');
     const quickRangeButtons = Array.from(dashboard.querySelectorAll('[data-filter-quick]'));
 
-    const checkinsList = dashboard.querySelector('[data-checkins-list]');
+    const checkinsChartElement = dashboard.querySelector('#checkinsTrendChart');
+    const revenueByPlanChartElement = dashboard.querySelector('#revenueByPlanChart');
+    const branchCheckinsChartElement = dashboard.querySelector('#branchCheckinsChart');
     const trendSubtitle = dashboard.querySelector('[data-trend-subtitle]');
     const checkinsSubtitle = dashboard.querySelector('[data-checkins-subtitle]');
     const revenueSummary = dashboard.querySelector('[data-revenue-summary]');
@@ -226,34 +228,6 @@
         }));
     };
 
-    const renderCheckins = (rows) => {
-        if (!checkinsList) {
-            return;
-        }
-
-        checkinsList.innerHTML = '';
-        if (!rows.length) {
-            const fallback = document.createElement('li');
-            fallback.innerHTML = '<span>N/A</span><div class="progress"><div class="progress-bar" style="width: 0%"></div></div><strong>0</strong>';
-            checkinsList.appendChild(fallback);
-            return;
-        }
-
-        const maxValue = Math.max(...rows.map((row) => row.value), 1);
-        rows.forEach((row) => {
-            const item = document.createElement('li');
-            const width = Math.max(6, Math.round((row.value / maxValue) * 100));
-
-            item.innerHTML = `
-                <span>${row.label}</span>
-                <div class="progress"><div class="progress-bar" style="width: ${width}%"></div></div>
-                <strong>${numberFormatter.format(row.value)}</strong>
-            `;
-
-            checkinsList.appendChild(item);
-        });
-    };
-
     const setKpi = (key, value, meta, badge) => {
         if (kpiValueElements[key]) {
             kpiValueElements[key].textContent = numberFormatter.format(Math.max(0, Math.round(toNumber(value))));
@@ -277,7 +251,7 @@
                     label: 'Revenue',
                     data: [],
                     fill: true,
-                    tension: 0.35,
+                    tension: 0.45,
                     pointRadius: 3,
                     pointHoverRadius: 5,
                     borderWidth: 2,
@@ -359,6 +333,159 @@
         }
     });
 
+    const checkinsChartContext = checkinsChartElement ? checkinsChartElement.getContext('2d') : null;
+    const checkinsChart = checkinsChartContext ? new Chart(checkinsChartContext, {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Check-Ins',
+                    data: [],
+                    backgroundColor: initialChartTheme.line,
+                    borderRadius: 4,
+                    maxBarThickness: 48
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: initialChartTheme.tooltipBg,
+                    titleColor: initialChartTheme.tooltipText,
+                    bodyColor: initialChartTheme.tooltipText,
+                    borderColor: initialChartTheme.axisLine,
+                    borderWidth: 1
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: initialChartTheme.axisLabel,
+                        font: { size: 12, weight: '500' }
+                    },
+                    border: { color: initialChartTheme.axisLine }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: initialChartTheme.axisLabel,
+                        stepSize: 1
+                    },
+                    grid: { color: initialChartTheme.grid },
+                    border: { color: initialChartTheme.axisLine }
+                }
+            }
+        }
+    }) : null;
+
+    const revenueByPlanChartContext = revenueByPlanChartElement ? revenueByPlanChartElement.getContext('2d') : null;
+    const revenueByPlanChart = revenueByPlanChartContext ? new Chart(revenueByPlanChartContext, {
+        type: 'doughnut',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                backgroundColor: [
+                    '#84cc16', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            layout: {
+                padding: 16
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: initialChartTheme.axisLabel, padding: 20 }
+                },
+                tooltip: {
+                    backgroundColor: initialChartTheme.tooltipBg,
+                    titleColor: initialChartTheme.tooltipText,
+                    bodyColor: initialChartTheme.tooltipText,
+                    borderColor: initialChartTheme.axisLine,
+                    borderWidth: 1,
+                    callbacks: {
+                        label: (context) => `Revenue: ${currencyFormatter.format(context.parsed)}`
+                    }
+                }
+            }
+        }
+    }) : null;
+
+    const branchCheckinsChartContext = branchCheckinsChartElement ? branchCheckinsChartElement.getContext('2d') : null;
+    const branchCheckinsChart = branchCheckinsChartContext ? new Chart(branchCheckinsChartContext, {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Check-Ins',
+                    data: [],
+                    backgroundColor: initialChartTheme.line,
+                    borderRadius: 4,
+                    maxBarThickness: 48
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: initialChartTheme.tooltipBg,
+                    titleColor: initialChartTheme.tooltipText,
+                    bodyColor: initialChartTheme.tooltipText,
+                    borderColor: initialChartTheme.axisLine,
+                    borderWidth: 1
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        color: initialChartTheme.axisLabel,
+                        font: { size: 12, weight: '500' }
+                    },
+                    border: { color: initialChartTheme.axisLine }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: initialChartTheme.axisLabel,
+                        stepSize: 1
+                    },
+                    grid: { color: initialChartTheme.grid },
+                    border: { color: initialChartTheme.axisLine }
+                }
+            }
+        }
+    }) : null;
+
     const applyChartTheme = () => {
         const palette = getChartThemeTokens();
         const revenueDataset = revenueChart.data.datasets[0];
@@ -380,6 +507,46 @@
         revenueChart.options.scales.y.border.color = palette.axisLine;
 
         revenueChart.update('none');
+
+        if (checkinsChart) {
+            checkinsChart.data.datasets[0].backgroundColor = palette.line;
+
+            checkinsChart.options.plugins.tooltip.backgroundColor = palette.tooltipBg;
+            checkinsChart.options.plugins.tooltip.titleColor = palette.tooltipText;
+            checkinsChart.options.plugins.tooltip.bodyColor = palette.tooltipText;
+            checkinsChart.options.plugins.tooltip.borderColor = palette.axisLine;
+
+            checkinsChart.options.scales.x.ticks.color = palette.axisLabel;
+            checkinsChart.options.scales.x.border.color = palette.axisLine;
+            checkinsChart.options.scales.y.ticks.color = palette.axisLabel;
+            checkinsChart.options.scales.y.grid.color = palette.grid;
+            checkinsChart.options.scales.y.border.color = palette.axisLine;
+
+            checkinsChart.update('none');
+        }
+
+        if (revenueByPlanChart) {
+            revenueByPlanChart.options.plugins.legend.labels.color = palette.axisLabel;
+            revenueByPlanChart.options.plugins.tooltip.backgroundColor = palette.tooltipBg;
+            revenueByPlanChart.options.plugins.tooltip.titleColor = palette.tooltipText;
+            revenueByPlanChart.options.plugins.tooltip.bodyColor = palette.tooltipText;
+            revenueByPlanChart.options.plugins.tooltip.borderColor = palette.axisLine;
+            revenueByPlanChart.update('none');
+        }
+
+        if (branchCheckinsChart) {
+            branchCheckinsChart.data.datasets[0].backgroundColor = palette.line;
+            branchCheckinsChart.options.plugins.tooltip.backgroundColor = palette.tooltipBg;
+            branchCheckinsChart.options.plugins.tooltip.titleColor = palette.tooltipText;
+            branchCheckinsChart.options.plugins.tooltip.bodyColor = palette.tooltipText;
+            branchCheckinsChart.options.plugins.tooltip.borderColor = palette.axisLine;
+            branchCheckinsChart.options.scales.x.ticks.color = palette.axisLabel;
+            branchCheckinsChart.options.scales.x.border.color = palette.axisLine;
+            branchCheckinsChart.options.scales.y.ticks.color = palette.axisLabel;
+            branchCheckinsChart.options.scales.y.grid.color = palette.grid;
+            branchCheckinsChart.options.scales.y.border.color = palette.axisLine;
+            branchCheckinsChart.update('none');
+        }
     };
 
     if (typeof MutationObserver === 'function') {
@@ -473,7 +640,27 @@
         setKpi('expiringPlans', kpis.expiringPlans, 'ending in next 7 days', '7D');
         setKpi('auditAlerts', kpis.auditAlerts, 'highest daily count', 'Peak');
 
-        renderCheckins(checkinRows);
+        if (checkinsChart) {
+            checkinsChart.data.labels = checkinRows.map(r => r.label);
+            checkinsChart.data.datasets[0].data = checkinRows.map(r => r.value);
+            checkinsChart.update();
+        }
+
+        if (revenueByPlanChart && payload.revenueByPlan) {
+            const totalPlanRevenue = payload.revenueByPlan.reduce((sum, r) => sum + r.revenue, 0);
+            revenueByPlanChart.data.labels = payload.revenueByPlan.map(r => {
+                const percentage = totalPlanRevenue > 0 ? ((r.revenue / totalPlanRevenue) * 100).toFixed(1) : 0;
+                return `${r.planName} (${percentage}%)`;
+            });
+            revenueByPlanChart.data.datasets[0].data = payload.revenueByPlan.map(r => r.revenue);
+            revenueByPlanChart.update();
+        }
+
+        if (branchCheckinsChart && payload.checkInsByBranch) {
+            branchCheckinsChart.data.labels = payload.checkInsByBranch.map(r => r.branchId);
+            branchCheckinsChart.data.datasets[0].data = payload.checkInsByBranch.map(r => r.checkIns);
+            branchCheckinsChart.update();
+        }
     };
 
     const setQuickButtonsState = (activeValue) => {

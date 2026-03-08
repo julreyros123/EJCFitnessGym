@@ -1,5 +1,6 @@
 .vs/
 .vscode/
+.kiro/
 
 # Build outputs
 bin/
@@ -8,6 +9,13 @@ _buildtest/
 _efbuild/
 _verifybuild/
 .codex-build/
+publish/
+deploy_files/
+CodeCoverage/
+
+# Local dotnet caches/tooling artifacts
+.dotnet/
+.dotnet_cli/
 
 # User-specific files
 *.user
@@ -36,3 +44,7 @@ deploy.zip
 # Prevent accidental FTP publish profile commits
 Properties/PublishProfiles/*FTP*.pubxml
 Properties/PublishProfiles/*FTP*.pubxml.user
+
+# Keep a single click-publish profile
+Properties/PublishProfiles/*.pubxml
+!Properties/PublishProfiles/site55020-OneClick.pubxml

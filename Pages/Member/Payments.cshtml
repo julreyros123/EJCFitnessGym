@@ -1,0 +1,178 @@
+@page
+@model EJCFitnessGym.Pages.Member.PaymentsModel
+@{
+    ViewData["Title"] = "My Payments";
+}
+
+<section class="ejc-member-page">
+    <div class="container">
+        <partial name="/Pages/Shared/_MemberPortalNav.cshtml" />
+        <partial name="/Pages/Shared/_MemberBillingShortcuts.cshtml" />
+
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+            <div>
+                <h1 class="h3 mb-1">Payments & Invoices</h1>
+                <p class="text-muted mb-0">Track dues, pay quickly, and review your payment history.</p>
+            </div>
+            <a asp-page="/Member/PaymentMethods" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-wallet2"></i> Payment Methods
+            </a>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-sm-6 col-xl-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Outstanding</div>
+                        <div class="fs-4 fw-bold @(Model.TotalOutstanding > 0 ? "text-danger" : "text-success")">₱@Model.TotalOutstanding.ToString("N2")</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Total Paid</div>
+                        <div class="fs-4 fw-bold text-success">₱@Model.TotalPaid.ToString("N2")</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Open Invoices</div>
+                        <div class="fs-4 fw-bold">@Model.OpenInvoiceCount</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Urgent Attention</div>
+                        <div class="fs-4 fw-bold @(Model.OverdueInvoiceCount > 0 ? "text-danger" : "text-muted")">@Model.OverdueInvoiceCount overdue</div>
+                        <div class="small text-muted">@Model.DueSoonInvoiceCount due within 3 days</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.NextActionInvoice is not null)
+        {
+            <div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div>
+                    <strong>Next payment action:</strong> @Model.NextActionInvoice.InvoiceNumber
+                    <span class="text-muted">due @Model.NextActionInvoice.DueDateUtc.ToLocalTime().ToString("MMMM d, yyyy")</span>
+                    <span class="fw-semibold ms-1">₱@Model.NextActionInvoice.Amount.ToString("N2")</span>
+                </div>
+                <a asp-page="/Public/Pricing" asp-route-invoiceId="@Model.NextActionInvoice.Id" class="btn btn-sm btn-primary">
+                    <i class="bi bi-credit-card"></i> Pay Now
+                </a>
+            </div>
+        }
+
+        @if (!Model.Invoices.Any())
+        {
+            <div class="card">
+                <div class="card-body">
+                    <div class="mp-empty-state">
+                        <i class="bi bi-receipt"></i>
+                        <h6>No invoices yet</h6>
+                        <p class="text-muted mb-2">Your billing history will appear here once charges are generated.</p>
+                        <a asp-page="/Member/Subscriptions" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-card-checklist me-1"></i>Browse Plans
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="h6 mb-0">Invoice History</h2>
+                    <small class="text-muted">Latest first</small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Invoice</th>
+                                    <th>Issue Date</th>
+                                    <th>Due Date</th>
+                                    <th class="text-end">Amount</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var invoice in Model.Invoices)
+                                {
+                                    var paidAmount = invoice.Payments
+                                        .Where(payment => payment.Status == EJCFitnessGym.Models.Billing.PaymentStatus.Succeeded)
+                                        .Sum(payment => payment.Amount);
+
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">@invoice.InvoiceNumber</div>
+                                            @if (!string.IsNullOrWhiteSpace(invoice.Notes))
+                                            {
+                                                <small class="text-muted">@invoice.Notes</small>
+                                            }
+                                        </td>
+                                        <td>@invoice.IssueDateUtc.ToLocalTime().ToString("MMMM d, yyyy")</td>
+                                        <td>@invoice.DueDateUtc.ToLocalTime().ToString("MMMM d, yyyy")</td>
+                                        <td class="text-end">
+                                            <div>₱@invoice.Amount.ToString("N2")</div>
+                                            @if (paidAmount > 0)
+                                            {
+                                                <small class="text-muted">Paid: ₱@paidAmount.ToString("N2")</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge @Model.GetStatusBadgeClass(invoice.Status)">@invoice.Status</span>
+                                        </td>
+                                        <td class="text-end">
+                                            @if (invoice.Status == EJCFitnessGym.Models.Billing.InvoiceStatus.Unpaid ||
+                                                invoice.Status == EJCFitnessGym.Models.Billing.InvoiceStatus.Overdue)
+                                            {
+                                                <a asp-page="/Public/Pricing" asp-route-invoiceId="@invoice.Id" class="btn btn-sm btn-primary">
+                                                    <i class="bi bi-credit-card"></i> Pay
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted small">No action</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                    @if (invoice.Payments.Any())
+                                    {
+                                        <tr class="table-light">
+                                            <td colspan="6">
+                                                <div class="small">
+                                                    <strong>Payment History:</strong>
+                                                    @foreach (var payment in invoice.Payments.OrderByDescending(p => p.PaidAtUtc))
+                                                    {
+                                                        <div class="mt-1">
+                                                            <span class="badge @Model.GetPaymentStatusBadgeClass(payment.Status)">@payment.Status</span>
+                                                            ₱@payment.Amount.ToString("N2") via @Model.GetPaymentMethodText(payment.Method)
+                                                            <span class="text-muted">on @payment.PaidAtUtc.ToLocalTime().ToString("MMMM d, yyyy")</span>
+                                                            @if (!string.IsNullOrWhiteSpace(payment.ReferenceNumber))
+                                                            {
+                                                                <span class="text-muted">(Ref: @payment.ReferenceNumber)</span>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</section>

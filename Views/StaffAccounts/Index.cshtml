@@ -6,12 +6,17 @@
 }
 
 <div class="py-4">
-    <div class="ejc-table-toolbar mb-3">
+    <div class="ejc-table-toolbar mb-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div>
             <h1 class="display-6 mb-0">Staff Accounts</h1>
             <p class="ejc-muted mb-0">
                 Admin can create staff logins only. Member accounts must be created through member registration flow.
             </p>
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#createStaffModal">
+                <i class="bi bi-person-plus"></i> Create Staff Account
+            </button>
         </div>
     </div>
 
@@ -26,106 +31,7 @@
     }
 
     <div class="row g-3 mb-4">
-        <div class="col-xl-5">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h5 class="mb-0">Create Staff Account</h5>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-light border small mb-3">
-                        Staff credentials flow:
-                        <strong>Gmail login</strong>, <strong>PH mobile (+63)</strong>, auto-generated secure password, and instant credential email.
-                    </div>
-                    <form asp-action="Create" method="post" data-staff-create-form>
-                        @Html.AntiForgeryToken()
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <label asp-for="CreateInput.Email" class="form-label"></label>
-                                <div class="input-group">
-                                    <input type="text"
-                                           id="CreateInput_EmailLocal"
-                                           class="form-control"
-                                           placeholder="staffname"
-                                           autocomplete="off"
-                                           data-email-local />
-                                    <span class="input-group-text">@@gmail.com</span>
-                                </div>
-                                <input type="hidden" asp-for="CreateInput.Email" data-email-full />
-                                <div class="form-text">Example: <code>juan.delacruz@@gmail.com</code></div>
-                                <span asp-validation-for="CreateInput.Email" class="text-danger small"></span>
-                            </div>
-
-                            <div class="col-12">
-                                <label asp-for="CreateInput.PhoneNumber" class="form-label"></label>
-                                <div class="input-group">
-                                    <span class="input-group-text">+63</span>
-                                    <input type="tel"
-                                           id="CreateInput_PhoneLocal"
-                                           class="form-control"
-                                           placeholder="9XXXXXXXXX"
-                                           inputmode="numeric"
-                                           maxlength="10"
-                                           autocomplete="tel-national"
-                                           data-phone-local />
-                                </div>
-                                <input type="hidden" asp-for="CreateInput.PhoneNumber" data-phone-full />
-                                <div class="form-text">Enter 10-digit PH mobile number without country code.</div>
-                                <span asp-validation-for="CreateInput.PhoneNumber" class="text-danger small"></span>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label asp-for="CreateInput.Position" class="form-label"></label>
-                                <select asp-for="CreateInput.Position" class="form-select">
-                                    @foreach (var position in Model.PositionOptions)
-                                    {
-                                        <option value="@position.Value">@position.Label</option>
-                                    }
-                                </select>
-                                <span asp-validation-for="CreateInput.Position" class="text-danger small"></span>
-                            </div>
-
-                            @if (Model.CanChooseBranch)
-                            {
-                                <div class="col-md-6">
-                                    <label asp-for="CreateInput.BranchId" class="form-label"></label>
-                                    <select asp-for="CreateInput.BranchId" class="form-select">
-                                        <option value="">Select active branch</option>
-                                        @foreach (var branch in Model.BranchOptions)
-                                        {
-                                            <option value="@branch.BranchId">@branch.BranchId - @branch.BranchName</option>
-                                        }
-                                    </select>
-                                    <span asp-validation-for="CreateInput.BranchId" class="text-danger small"></span>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="col-md-6">
-                                    <label class="form-label">Branch</label>
-                                    <input type="text"
-                                           class="form-control"
-                                           value="@(string.IsNullOrWhiteSpace(Model.DefaultBranchName) ? Model.DefaultBranchId : $"{Model.DefaultBranchId} - {Model.DefaultBranchName}")"
-                                           readonly />
-                                    <input type="hidden" asp-for="CreateInput.BranchId" />
-                                </div>
-                            }
-
-                            <div class="col-12">
-                                <label class="form-label">Password</label>
-                                <input type="text" class="form-control" value="Auto-generated secure password" readonly />
-                                <div class="form-text">Password is generated on submit and sent directly to the staff Gmail.</div>
-                            </div>
-
-                            <div class="col-12">
-                                <button type="submit" class="btn btn-primary w-100">Create Staff &amp; Send Credentials</button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-7">
+        <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
                     <h5 class="mb-0">Staff Directory</h5>
@@ -180,6 +86,7 @@
                                                 <th>Position</th>
                                                 <th>Phone</th>
                                                 <th>Branch</th>
+                                                <th>Last Login</th>
                                                 <th class="text-end">Action</th>
                                             </tr>
                                         </thead>
@@ -187,14 +94,14 @@
                                             @if (activeStaffAccounts.Count == 0)
                                             {
                                                 <tr>
-                                                    <td colspan="5" class="text-center text-muted py-4">No active staff accounts found.</td>
+                                                    <td colspan="6" class="text-center text-muted py-4">No active staff accounts found.</td>
                                                 </tr>
                                             }
                                             @foreach (var staff in activeStaffAccounts)
                                             {
                                                 <tr>
                                                     <td>
-                                                        <div class="fw-semibold">@staff.Email</div>
+                                                        <a asp-action="Details" asp-route-id="@staff.UserId" class="fw-semibold text-decoration-none">@staff.Email</a>
                                                         <div class="small text-muted">@staff.UserId</div>
                                                     </td>
                                                     <td class="text-nowrap">
@@ -216,6 +123,17 @@
                                                         {
                                                             <span class="text-muted">@staff.BranchId</span>
                                                             <div class="small">@staff.BranchName</div>
+                                                        }
+                                                    </td>
+                                                    <td class="text-nowrap">
+                                                        @if (staff.LastLoginUtc.HasValue)
+                                                        {
+                                                            <div class="small fw-semibold">@staff.LastLoginUtc.Value.ToLocalTime().ToString("MMM d, yyyy")</div>
+                                                            <div class="small text-muted">@staff.LastLoginUtc.Value.ToLocalTime().ToString("h:mm tt")</div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted small">Never</span>
                                                         }
                                                     </td>
                                                     <td class="text-end text-nowrap">
@@ -267,7 +185,7 @@
                                             {
                                                 <tr>
                                                     <td>
-                                                        <div class="fw-semibold">@staff.Email</div>
+                                                        <a asp-action="Details" asp-route-id="@staff.UserId" class="fw-semibold text-decoration-none text-muted">@staff.Email</a>
                                                         <div class="small text-muted">@staff.UserId</div>
                                                     </td>
                                                     <td class="text-nowrap">
@@ -298,8 +216,111 @@
             </div>
         </div>
     </div>
+    </div>
 </div>
 
+<!-- Create Staff Modal -->
+<div class="modal fade" id="createStaffModal" tabindex="-1" aria-labelledby="createStaffModalLabel" aria-hidden="true" data-bs-theme="dark">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-light border-secondary" style="background-color: #1a1d20 !important;">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-light" id="createStaffModalLabel">Create Staff Account</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-dark border border-secondary small mb-3 text-light">
+                    Staff credentials flow:
+                    <strong>Gmail login</strong>, <strong>PH mobile (+63)</strong>, auto-generated secure password, and instant credential email.
+                </div>
+                <form asp-action="Create" method="post" data-staff-create-form>
+                    @Html.AntiForgeryToken()
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="CreateInput.Email" class="form-label"></label>
+                            <div class="input-group">
+                                <input type="text"
+                                       id="CreateInput_EmailLocal"
+                                       class="form-control"
+                                       placeholder="staffname"
+                                       autocomplete="off"
+                                       data-email-local />
+                                <span class="input-group-text">@@gmail.com</span>
+                            </div>
+                            <input type="hidden" asp-for="CreateInput.Email" data-email-full />
+                            <div class="form-text">Example: <code>juan.delacruz@@gmail.com</code></div>
+                            <span asp-validation-for="CreateInput.Email" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="CreateInput.PhoneNumber" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text">+63</span>
+                                <input type="tel"
+                                       id="CreateInput_PhoneLocal"
+                                       class="form-control"
+                                       placeholder="9XXXXXXXXX"
+                                       inputmode="numeric"
+                                       maxlength="10"
+                                       autocomplete="tel-national"
+                                       data-phone-local />
+                            </div>
+                            <input type="hidden" asp-for="CreateInput.PhoneNumber" data-phone-full />
+                            <div class="form-text">Enter 10-digit PH mobile number without country code.</div>
+                            <span asp-validation-for="CreateInput.PhoneNumber" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="CreateInput.Position" class="form-label"></label>
+                            <select asp-for="CreateInput.Position" class="form-select bg-dark text-white border-secondary">
+                                @foreach (var position in Model.PositionOptions)
+                                {
+                                    <option value="@position.Value">@position.Label</option>
+                                }
+                            </select>
+                            <span asp-validation-for="CreateInput.Position" class="text-danger small"></span>
+                        </div>
+
+                        @if (Model.CanChooseBranch)
+                        {
+                            <div class="col-md-6">
+                                <label asp-for="CreateInput.BranchId" class="form-label"></label>
+                                <select asp-for="CreateInput.BranchId" class="form-select bg-dark text-white border-secondary">
+                                    <option value="">Select active branch</option>
+                                    @foreach (var branch in Model.BranchOptions)
+                                    {
+                                        <option value="@branch.BranchId">@branch.BranchId - @branch.BranchName</option>
+                                    }
+                                </select>
+                                <span asp-validation-for="CreateInput.BranchId" class="text-danger small"></span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="col-md-6">
+                                <label class="form-label">Branch</label>
+                                <input type="text"
+                                       class="form-control"
+                                       value="@(string.IsNullOrWhiteSpace(Model.DefaultBranchName) ? Model.DefaultBranchId : $"{Model.DefaultBranchId} - {Model.DefaultBranchName}")"
+                                       readonly />
+                                <input type="hidden" asp-for="CreateInput.BranchId" />
+                            </div>
+                        }
+
+                        <div class="col-12">
+                            <label class="form-label">Password</label>
+                            <input type="text" class="form-control" value="Auto-generated secure password" readonly />
+                            <div class="form-text">Password is generated on submit and sent directly to the staff Gmail.</div>
+                        </div>
+
+                        <div class="col-12 mt-4">
+                            <button type="submit" class="btn btn-primary w-100">Create Staff &amp; Send Credentials</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>

@@ -39,6 +39,8 @@ namespace EJCFitnessGym.Models.Admin
         public string FullName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }
+        public string? HomeBranchId { get; set; }
+        public string? HomeBranchDisplayName { get; set; }
         public string PlanName { get; set; } = "No Plan";
         public SubscriptionStatus? SubscriptionStatus { get; set; }
         public DateTime? StartDateUtc { get; set; }
@@ -84,6 +86,10 @@ namespace EJCFitnessGym.Models.Admin
         [MaxLength(30)]
         public string? PhoneNumber { get; set; }
 
+        [Required]
+        [Display(Name = "Home Branch")]
+        public string HomeBranchId { get; set; } = string.Empty;
+
         [Range(1, int.MaxValue, ErrorMessage = "Please select a membership plan.")]
         [Display(Name = "Membership Plan")]
         public int SubscriptionPlanId { get; set; }
@@ -108,6 +114,8 @@ namespace EJCFitnessGym.Models.Admin
         public string FullName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }
+        public string? HomeBranchId { get; set; }
+        public string? HomeBranchDisplayName { get; set; }
         public string PlanName { get; set; } = "No Plan";
         public SubscriptionStatus? SubscriptionStatus { get; set; }
         public DateTime? StartDateUtc { get; set; }

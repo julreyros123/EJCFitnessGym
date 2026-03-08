@@ -9,7 +9,7 @@
         <div>
             <span class="ejc-eyebrow">Finance Module</span>
             <h1 class="h2 mb-1">Equipment Assets</h1>
-            <p class="ejc-muted mb-0">Track total gym equipment, investment cost, and depreciation used in profit calculations.</p>
+            <p class="ejc-muted mb-0">Finance records final equipment asset value for depreciation and reporting after the physical delivery has been verified.</p>
         </div>
         <div class="ejc-actions d-flex gap-2">
             <form method="post" asp-page-handler="SeedSample">
@@ -23,6 +23,14 @@
     {
         <div class="alert alert-info py-2 px-3">@Model.StatusMessage</div>
     }
+
+    <div class="alert alert-info py-2 px-3 mb-4">
+        <span class="small">
+            Use this page for <strong>gym equipment assets</strong> only.
+            Products, consumables, and resale items belong in <strong>Admin Inventory</strong>.
+            Record equipment here when finance is ready to lock the official quantity, unit cost, and useful life.
+        </span>
+    </div>
 
     <div class="row g-3 mb-4">
         <div class="col-md-4 col-xl-2">
@@ -45,7 +53,7 @@
     <div class="row g-4 mb-4">
         <div class="col-xl-5">
             <div class="card h-100">
-                <div class="card-header"><h5 class="mb-0">Add Equipment Asset</h5></div>
+                <div class="card-header"><h5 class="mb-0">Record Equipment Asset</h5></div>
                 <div class="card-body">
                     <form method="post" asp-page-handler="Add" class="row g-3">
                         <div class="col-12">
@@ -95,7 +103,7 @@
                             </div>
                         </div>
                         <div class="col-12">
-                            <button type="submit" class="btn btn-primary">Save Asset</button>
+                            <button type="submit" class="btn btn-primary">Save Equipment Asset</button>
                         </div>
                     </form>
                 </div>
@@ -105,7 +113,7 @@
         <div class="col-xl-7">
             <div class="card h-100">
                 <div class="card-header d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Current Equipment Inventory</h5>
+                    <h5 class="mb-0">Recorded Equipment Assets</h5>
                     <span class="text-muted small">@Model.Assets.Count item(s)</span>
                 </div>
                 <div class="card-body p-0">

@@ -71,8 +71,8 @@
                             {
                                 <tr>
                                     <td>@row.MemberDisplayName</td>
-                                    <td class="text-nowrap">@row.CheckInUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz")</td>
-                                    <td class="text-nowrap">@(row.CheckOutUtc.HasValue ? row.CheckOutUtc.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") : "-")</td>
+                                    <td class="text-nowrap">@row.CheckInUtc.ToLocalTime().ToString("MMMM d, yyyy h:mm tt")</td>
+                                    <td class="text-nowrap">@(row.CheckOutUtc.HasValue ? row.CheckOutUtc.Value.ToLocalTime().ToString("MMMM d, yyyy h:mm tt") : "-")</td>
                                     <td class="text-nowrap">@row.DurationLabel</td>
                                     <td><span class="@row.StatusBadgeClass">@row.StatusLabel</span></td>
                                     <td><span class="@row.MembershipStatusBadgeClass">@row.MembershipStatusLabel</span></td>

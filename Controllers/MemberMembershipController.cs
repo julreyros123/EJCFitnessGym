@@ -92,6 +92,12 @@ namespace EJCFitnessGym.Controllers
             {
                 hasSubscription = subscription is not null,
                 planName = subscription?.SubscriptionPlan?.Name,
+                planTier = subscription?.SubscriptionPlan is null
+                    ? null
+                    : SubscriptionPlanCatalog.InferTier(subscription.SubscriptionPlan).ToString(),
+                entitlements = subscription?.SubscriptionPlan is null
+                    ? Array.Empty<string>()
+                    : SubscriptionPlanCatalog.BuildBenefits(subscription.SubscriptionPlan),
                 status = subscription?.Status.ToString(),
                 startDateUtc = subscription?.StartDateUtc,
                 endDateUtc = subscription?.EndDateUtc,
@@ -138,9 +144,11 @@ namespace EJCFitnessGym.Controllers
                 {
                     id = p.Id,
                     name = p.Name,
+                    tier = SubscriptionPlanCatalog.InferTier(p).ToString(),
                     description = p.Description,
                     price = p.Price,
                     billingCycle = p.BillingCycle.ToString(),
+                    entitlements = SubscriptionPlanCatalog.BuildBenefits(p),
                     isCurrentPlan = currentPlanId.HasValue && p.Id == currentPlanId.Value
                 })
                 .ToListAsync(cancellationToken);

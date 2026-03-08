@@ -2,96 +2,252 @@
 @model EJCFitnessGym.Pages.Member.DashboardModel
 @{
     ViewData["Title"] = "Member Dashboard";
-    Layout = "_Layout"; // Or a custom member layout
+    var subscriptionEnd = Model.CurrentSubscription?.EndDateUtc?.ToLocalTime();
+
+    // Countdown ring data
+    var totalDays = 30; // default cycle
+    if (Model.CurrentSubscription?.StartDateUtc != null && Model.CurrentSubscription?.EndDateUtc != null)
+    {
+        totalDays = Math.Max(1, (int)(Model.CurrentSubscription.EndDateUtc.Value.Date - Model.CurrentSubscription.StartDateUtc.Date).TotalDays);
+    }
+    var daysLeft = Model.DaysRemaining ?? 0;
+    var ringPercent = totalDays > 0 ? Math.Clamp((double)daysLeft / totalDays * 100d, 0, 100) : 0;
+    var ringColor = daysLeft > 30 ? "#22c55e" : daysLeft > 7 ? "#f59e0b" : "#ef4444";
+    var circumference = 2 * Math.PI * 54; // radius=54
+    var dashOffset = circumference - (circumference * ringPercent / 100);
 }
 
-<section class="ejc-member-portal">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="#">EJC Fitness Member Portal</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#memberNavbar">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="memberNavbar">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" asp-page="/Member/Dashboard">Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" asp-page="/Member/Profile">Profile</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" asp-page="/Member/Subscriptions">Subscriptions</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" asp-page="/Member/Payments">Payments</a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="accountDropdown" role="button" data-bs-toggle="dropdown">
-                            Account
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" asp-page="/Identity/Account/Manage/Index">Manage Account</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><form method="post" asp-page-handler="Logout" asp-route-returnUrl="/"><button type="submit" class="dropdown-item">Logout</button></form></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+<section class="ejc-member-page">
+    <div class="container">
+        <partial name="/Pages/Shared/_MemberPortalNav.cshtml" />
 
-    <div class="container mt-4">
-        <h1 class="h3 mb-4">Welcome to Your Member Dashboard</h1>
-        <div class="card mb-4">
-            <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-                <div>
-                    <h5 class="card-title mb-1">My Check-In QR</h5>
-                    <p class="text-muted mb-2">Show this QR at the front desk for fast check-in.</p>
-                    <div><strong>Account Number:</strong> @Model.MemberAccountNumber</div>
-                </div>
-                <div class="text-center">
-                    <div id="member-dashboard-qr"
-                         data-member-qr="@Model.MemberQrPayload"
-                         style="width:180px;height:180px;"></div>
-                    <div class="small text-muted mt-2">Token: @Model.MemberQrPayload</div>
+        <div class="card ejc-member-hero-card mb-4">
+            <div class="card-body">
+                <div class="row g-3 align-items-center">
+                    <div class="col-lg-8">
+                        <p class="ejc-eyebrow mb-2">Member Portal</p>
+                        <h1 class="h3 mb-2">Hi @Model.WelcomeName, ready for today?</h1>
+                        <p class="text-muted mb-3">Everything you need is below: check-in QR, billing, subscription, and support.</p>
+                        <div class="d-flex flex-wrap gap-2">
+                            <span class="badge @Model.GetSubscriptionBadgeClass()">@Model.SubscriptionStatusLabel</span>
+                            @if (subscriptionEnd.HasValue)
+                            {
+                                <span class="badge text-bg-dark border">Plan ends @subscriptionEnd.Value.ToString("MMMM d, yyyy")</span>
+                            }
+                            @if (Model.DaysRemaining.HasValue)
+                            {
+                                <span class="badge text-bg-dark border">
+                                    @(Model.DaysRemaining.Value >= 0
+                                        ? $"{Model.DaysRemaining.Value} day(s) left"
+                                        : $"{Math.Abs(Model.DaysRemaining.Value)} day(s) overdue")
+                                </span>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="ejc-member-hero-metrics">
+                            <div>
+                                <small>Amount Due</small>
+                                <strong class="@(Model.HasOutstandingBalance ? "text-danger" : "text-success")">₱@Model.TotalOutstanding.ToString("N2")</strong>
+                            </div>
+                            <div>
+                                <small>Open Invoices</small>
+                                <strong>@Model.OutstandingInvoiceCount</strong>
+                            </div>
+                            <div>
+                                <small>Profile Completion</small>
+                                <strong>@Model.ProfileCompletionPercent%</strong>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <i class="bi bi-calendar-check-fill fs-1 text-primary"></i>
-                        <h5 class="card-title mt-2">Book Classes</h5>
-                        <p class="card-text">Schedule your fitness classes.</p>
-                        <a href="#" class="btn btn-primary">View Classes</a>
+
+        <div class="ejc-member-action-grid mb-4">
+            <a class="ejc-member-action-card" href="#member-qr-card">
+                <i class="bi bi-qr-code-scan"></i>
+                <span>Check-In QR</span>
+            </a>
+            <a class="ejc-member-action-card @(Model.HasOutstandingBalance ? "is-urgent" : string.Empty)" asp-page="/Member/Payments">
+                <i class="bi bi-credit-card-2-front"></i>
+                <span>@(Model.HasOutstandingBalance ? "Pay Now" : "Billing")</span>
+            </a>
+            <a class="ejc-member-action-card" asp-page="/Member/Subscriptions">
+                <i class="bi bi-card-checklist"></i>
+                <span>My Plan</span>
+            </a>
+            <a class="ejc-member-action-card" asp-page="/Public/Contact">
+                <i class="bi bi-life-preserver"></i>
+                <span>Support</span>
+            </a>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-xl-5">
+                <div class="row g-3">
+                    <!-- Membership Countdown Ring -->
+                    @if (Model.CurrentSubscription != null && Model.DaysRemaining.HasValue)
+                    {
+                        <div class="col-12">
+                            <div class="card h-100 mp-countdown-card">
+                                <div class="card-body d-flex align-items-center gap-3">
+                                    <div class="mp-countdown-ring">
+                                        <svg viewBox="0 0 120 120" class="mp-ring-svg">
+                                            <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" stroke-width="8" opacity="0.1"/>
+                                            <circle cx="60" cy="60" r="54"
+                                                    fill="none"
+                                                    stroke="@ringColor"
+                                                    stroke-width="8"
+                                                    stroke-linecap="round"
+                                                    stroke-dasharray="@circumference.ToString("F2")"
+                                                    stroke-dashoffset="@dashOffset.ToString("F2")"
+                                                    transform="rotate(-90 60 60)"
+                                                    class="mp-ring-progress"/>
+                                        </svg>
+                                        <div class="mp-ring-text">
+                                            <strong>@daysLeft</strong>
+                                            <small>days</small>
+                                        </div>
+                                    </div>
+                                    <div class="mp-countdown-info">
+                                        <div class="fw-semibold mb-1">Membership Countdown</div>
+                                        <div class="small text-muted">
+                                            @Model.CurrentSubscription.SubscriptionPlan?.Name
+                                        </div>
+                                        @if (daysLeft <= 7 && daysLeft >= 0)
+                                        {
+                                            <a asp-page="/Member/Subscriptions" class="btn btn-sm btn-warning mt-2">
+                                                <i class="bi bi-arrow-repeat me-1"></i>Renew Now
+                                            </a>
+                                        }
+                                        else if (daysLeft < 0)
+                                        {
+                                            <a asp-page="/Member/Subscriptions" class="btn btn-sm btn-danger mt-2">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>Expired — Renew
+                                            </a>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- QR Check-In Card -->
+                    <div class="col-12">
+                        <div class="card h-100" id="member-qr-card">
+                            <div class="card-body">
+                                <h2 class="h5 mb-1">My Check-In QR</h2>
+                                <p class="text-muted mb-3">Show this code at the front desk for quick check-in.</p>
+                                <div class="d-flex flex-column align-items-center">
+                                    <div id="member-dashboard-qr"
+                                         class="ejc-member-qr mp-qr-clickable"
+                                         data-member-qr="@Model.MemberQrPayload"
+                                         title="Tap to enlarge"></div>
+                                    <div class="small text-muted mt-3">Account Number: @Model.MemberAccountNumber</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card text-center">
+
+            <div class="col-xl-7">
+                <div class="card h-100 mb-3">
                     <div class="card-body">
-                        <i class="bi bi-graph-up fs-1 text-success"></i>
-                        <h5 class="card-title mt-2">Track Progress</h5>
-                        <p class="card-text">Monitor your fitness goals.</p>
-                        <a href="#" class="btn btn-success">View Progress</a>
+                        <h2 class="h5 mb-3">Next Steps</h2>
+                        <ul class="list-unstyled mb-0 ejc-member-checklist">
+                            <li>
+                                <i class="bi @(Model.ProfileCompletionPercent >= 100 ? "bi-check-circle-fill text-success" : "bi-circle text-muted")"></i>
+                                <span>Complete profile (@Model.ProfileCompletionPercent%)</span>
+                                <a asp-page="/Member/Profile" class="ms-auto small">Open</a>
+                            </li>
+                            <li>
+                                <i class="bi @((Model.AutomaticRenewalAvailable && Model.ActiveSavedPaymentMethods > 0) ? "bi-check-circle-fill text-success" : "bi-circle text-muted")"></i>
+                                <span>@(Model.AutomaticRenewalAvailable ? "Add payment method" : "Review billing setup")</span>
+                                <a asp-page="/Member/PaymentMethods" class="ms-auto small">Manage</a>
+                            </li>
+                            <li>
+                                <i class="bi @(!Model.HasOutstandingBalance ? "bi-check-circle-fill text-success" : "bi-circle text-muted")"></i>
+                                <span>Settle outstanding invoices</span>
+                                <a asp-page="/Member/Payments" class="ms-auto small">Review</a>
+                            </li>
+                            <li>
+                                <i class="bi @(Model.CurrentSubscription?.Status == EJCFitnessGym.Models.Billing.SubscriptionStatus.Active ? "bi-check-circle-fill text-success" : "bi-circle text-muted")"></i>
+                                <span>Keep subscription active</span>
+                                <a asp-page="/Member/Subscriptions" class="ms-auto small">View Plan</a>
+                            </li>
+                        </ul>
                     </div>
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card text-center">
+                <div class="card h-100">
                     <div class="card-body">
-                        <i class="bi bi-credit-card fs-1 text-warning"></i>
-                        <h5 class="card-title mt-2">Manage Billing</h5>
-                        <p class="card-text">View invoices and payments.</p>
-                        <a href="#" class="btn btn-warning">View Billing</a>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h2 class="h5 mb-0">Recent Billing</h2>
+                            <a asp-page="/Member/Payments" class="small">View all</a>
+                        </div>
+                        @if (!Model.RecentInvoices.Any())
+                        {
+                            <div class="mp-empty-state">
+                                <i class="bi bi-receipt"></i>
+                                <h6>No invoices yet</h6>
+                                <p class="text-muted mb-2">Your billing history will appear here after your first payment.</p>
+                                <a asp-page="/Member/Subscriptions" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-card-checklist me-1"></i>Browse Plans
+                                </a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Invoice</th>
+                                            <th>Due</th>
+                                            <th class="text-end">Amount</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var invoice in Model.RecentInvoices)
+                                        {
+                                            <tr>
+                                                <td>@invoice.InvoiceNumber</td>
+                                                <td>@invoice.DueDateUtc.ToLocalTime().ToString("MMMM d, yyyy")</td>
+                                                <td class="text-end">₱@invoice.Amount.ToString("N2")</td>
+                                                <td>
+                                                    <span class="badge @Model.GetInvoiceStatusBadgeClass(invoice.Status)">@invoice.Status</span>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </section>
+
+<!-- QR Fullscreen Modal -->
+<div class="modal fade" id="qrFullscreenModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content mp-qr-modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title"><i class="bi bi-qr-code-scan me-2"></i>Check-In QR</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="qr-modal-target" class="ejc-member-qr mp-qr-large"></div>
+                <div class="small text-muted mt-3">Account: @Model.MemberAccountNumber</div>
+                <p class="small text-muted mt-1 mb-0">Show this to the front desk for quick check-in</p>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -112,6 +268,21 @@
                 width: 180,
                 height: 180,
                 correctLevel: QRCode.CorrectLevel.M
+            });
+
+            // QR fullscreen modal
+            qrContainer.addEventListener("click", () => {
+                const modalTarget = document.getElementById("qr-modal-target");
+                if (!modalTarget) return;
+                modalTarget.innerHTML = "";
+                new QRCode(modalTarget, {
+                    text: payload,
+                    width: 260,
+                    height: 260,
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+                const modal = new bootstrap.Modal(document.getElementById("qrFullscreenModal"));
+                modal.show();
             });
         })();
     </script>

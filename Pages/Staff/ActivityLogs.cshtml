@@ -43,7 +43,7 @@
                             @foreach (var row in Model.Rows)
                             {
                                 <tr>
-                                    <td class="text-nowrap">@row.TimeLocal.ToString("yyyy-MM-dd HH:mm zzz")</td>
+                                    <td class="text-nowrap">@row.TimeLocal.ToString("MMMM d, yyyy h:mm tt")</td>
                                     <td>@row.EventTypeLabel</td>
                                     <td>@row.HandledBy</td>
                                     <td>@row.Member</td>

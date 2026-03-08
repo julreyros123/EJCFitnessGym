@@ -32,6 +32,19 @@
                 <dt class="col-sm-3">Phone</dt>
                 <dd class="col-sm-9">@(!string.IsNullOrWhiteSpace(Model.PhoneNumber) ? Model.PhoneNumber : "-")</dd>
 
+                <dt class="col-sm-3">Home Branch</dt>
+                <dd class="col-sm-9">
+                    @if (string.IsNullOrWhiteSpace(Model.HomeBranchDisplayName))
+                    {
+                        <span class="text-muted">Not assigned</span>
+                    }
+                    else
+                    {
+                        <span>@Model.HomeBranchDisplayName</span>
+                        <span class="ms-2 text-muted">@Model.HomeBranchId</span>
+                    }
+                </dd>
+
                 <dt class="col-sm-3">Plan</dt>
                 <dd class="col-sm-9">@Model.PlanName</dd>
 

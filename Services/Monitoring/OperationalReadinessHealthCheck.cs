@@ -10,13 +10,16 @@ namespace EJCFitnessGym.Services.Monitoring
     {
         private readonly ApplicationDbContext _db;
         private readonly OperationalHealthOptions _options;
+        private readonly StartupInitializationState _startupInitializationState;
 
         public OperationalReadinessHealthCheck(
             ApplicationDbContext db,
-            IOptions<OperationalHealthOptions> options)
+            IOptions<OperationalHealthOptions> options,
+            StartupInitializationState startupInitializationState)
         {
             _db = db;
             _options = options.Value;
+            _startupInitializationState = startupInitializationState;
         }
 
         public async Task<HealthCheckResult> CheckHealthAsync(
@@ -26,6 +29,19 @@ namespace EJCFitnessGym.Services.Monitoring
             var nowUtc = DateTime.UtcNow;
             try
             {
+                if (_startupInitializationState.HasFailure)
+                {
+                    return HealthCheckResult.Unhealthy(
+                        "Startup initialization failed.",
+                        _startupInitializationState.FailureException,
+                        new Dictionary<string, object>
+                        {
+                            ["startup.initialization.failed"] = true,
+                            ["startup.initialization.message"] =
+                                _startupInitializationState.FailureMessage ?? "Unknown startup initialization failure."
+                        });
+                }
+
                 var canConnect = await _db.Database.CanConnectAsync(cancellationToken);
                 if (!canConnect)
                 {

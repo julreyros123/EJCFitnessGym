@@ -20,6 +20,11 @@ namespace EJCFitnessGym.Pages.Admin
 
         public IReadOnlyList<PaymentTransactionRow> Transactions { get; private set; } = Array.Empty<PaymentTransactionRow>();
         public PaymentTransactionRow? RecentSuccessfulPayment { get; private set; }
+        public int SuccessfulCount { get; private set; }
+        public int PendingCount { get; private set; }
+        public int FailedCount { get; private set; }
+        public int MemberCount { get; private set; }
+        public decimal SuccessfulAmountTotal { get; private set; }
 
         public async Task OnGetAsync(CancellationToken cancellationToken)
         {
@@ -130,6 +135,16 @@ namespace EJCFitnessGym.Pages.Admin
             RecentSuccessfulPayment = Transactions.FirstOrDefault(payment =>
                 payment.Status == PaymentStatus.Succeeded &&
                 payment.PaidAtUtc >= notificationCutoffUtc);
+            SuccessfulCount = Transactions.Count(payment => payment.Status == PaymentStatus.Succeeded);
+            PendingCount = Transactions.Count(payment => payment.Status == PaymentStatus.Pending);
+            FailedCount = Transactions.Count(payment => payment.Status == PaymentStatus.Failed);
+            MemberCount = Transactions
+                .Select(payment => payment.MemberEmail)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+            SuccessfulAmountTotal = Transactions
+                .Where(payment => payment.Status == PaymentStatus.Succeeded)
+                .Sum(payment => payment.Amount);
         }
 
         private static string BuildMemberDisplayName(MemberProfile? profile, string fallback)

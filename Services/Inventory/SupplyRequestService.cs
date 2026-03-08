@@ -1,6 +1,7 @@
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Finance;
 using EJCFitnessGym.Models.Inventory;
+using EJCFitnessGym.Services.Integration;
 using Microsoft.EntityFrameworkCore;
 
 namespace EJCFitnessGym.Services.Inventory
@@ -8,10 +9,17 @@ namespace EJCFitnessGym.Services.Inventory
     public class SupplyRequestService : ISupplyRequestService
     {
         private readonly ApplicationDbContext _db;
+        private readonly IIntegrationOutbox _outbox;
+        private readonly ILogger<SupplyRequestService> _logger;
 
-        public SupplyRequestService(ApplicationDbContext db)
+        public SupplyRequestService(
+            ApplicationDbContext db,
+            IIntegrationOutbox outbox,
+            ILogger<SupplyRequestService> logger)
         {
             _db = db;
+            _outbox = outbox;
+            _logger = logger;
         }
 
         public async Task<SupplyRequest> CreateRequestAsync(SupplyRequest request, CancellationToken cancellationToken = default)
@@ -22,6 +30,18 @@ namespace EJCFitnessGym.Services.Inventory
 
             _db.SupplyRequests.Add(request);
             await _db.SaveChangesAsync(cancellationToken);
+
+            try
+            {
+                await _outbox.EnqueueBackOfficeAsync(
+                    "SupplyRequest_Created",
+                    $"New supply request: {request.RequestNumber} for {request.ItemName}",
+                    new { requestId = request.Id, branchId = request.BranchId, itemName = request.ItemName, quantity = request.RequestedQuantity },
+                    cancellationToken);
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            catch { }
+
             return request;
         }
 
@@ -131,13 +151,15 @@ namespace EJCFitnessGym.Services.Inventory
             var request = await _db.SupplyRequests.FindAsync(new object[] { requestId }, cancellationToken)
                 ?? throw new InvalidOperationException($"Supply request {requestId} not found.");
 
-            if (request.Stage != SupplyRequestStage.ReceivedDraft)
+            if (request.Stage != SupplyRequestStage.ReceivedDraft && request.Stage != SupplyRequestStage.Ordered)
             {
-                throw new InvalidOperationException($"Request must be in ReceivedDraft stage to confirm. Current: {request.Stage}");
+                throw new InvalidOperationException($"Request must be in Ordered or ReceivedDraft stage to confirm. Current: {request.Stage}");
             }
 
+            var previousStage = request.Stage;
             request.Stage = SupplyRequestStage.ReceivedConfirmed;
             request.UpdatedAtUtc = DateTime.UtcNow;
+            await SyncInventoryOnStageTransitionAsync(request, previousStage, request.Stage, cancellationToken);
 
             await _db.SaveChangesAsync(cancellationToken);
             return request;
@@ -175,10 +197,12 @@ namespace EJCFitnessGym.Services.Inventory
             _db.FinanceExpenseRecords.Add(expense);
             await _db.SaveChangesAsync(cancellationToken);
 
+            var previousStage = request.Stage;
             request.Stage = SupplyRequestStage.Invoiced;
             request.LinkedExpenseId = expense.Id;
             request.InvoicedAtUtc = DateTime.UtcNow;
             request.UpdatedAtUtc = DateTime.UtcNow;
+            await SyncInventoryOnStageTransitionAsync(request, previousStage, request.Stage, cancellationToken);
 
             await _db.SaveChangesAsync(cancellationToken);
 
@@ -195,9 +219,11 @@ namespace EJCFitnessGym.Services.Inventory
                 throw new InvalidOperationException($"Request must be in Invoiced stage to mark as paid. Current: {request.Stage}");
             }
 
+            var previousStage = request.Stage;
             request.Stage = SupplyRequestStage.Paid;
             request.PaidAtUtc = DateTime.UtcNow;
             request.UpdatedAtUtc = DateTime.UtcNow;
+            await SyncInventoryOnStageTransitionAsync(request, previousStage, request.Stage, cancellationToken);
 
             await _db.SaveChangesAsync(cancellationToken);
             return request;
@@ -289,6 +315,115 @@ namespace EJCFitnessGym.Services.Inventory
         private static string GenerateRequestNumber()
         {
             return $"SR-{DateTime.UtcNow:yyMMdd}-{Guid.NewGuid().ToString("N")[..4].ToUpperInvariant()}";
+        }
+
+        private async Task SyncInventoryOnStageTransitionAsync(
+            SupplyRequest request,
+            SupplyRequestStage previousStage,
+            SupplyRequestStage currentStage,
+            CancellationToken cancellationToken)
+        {
+            if (currentStage < SupplyRequestStage.ReceivedConfirmed)
+            {
+                return;
+            }
+
+            var quantityToReceive = request.ReceivedQuantity ?? request.RequestedQuantity;
+            if (quantityToReceive <= 0)
+            {
+                _logger.LogWarning(
+                    "Inventory sync skipped for supply request {SupplyRequestId} because quantity is not positive.",
+                    request.Id);
+                return;
+            }
+
+            var (product, created) = await ResolveOrCreateRetailProductAsync(request, cancellationToken);
+            var nowUtc = DateTime.UtcNow;
+            var unitCost = request.ActualUnitCost ?? request.EstimatedUnitCost ?? 0m;
+
+            // Apply stock increase once when the workflow crosses the confirmed receipt threshold.
+            if (previousStage < SupplyRequestStage.ReceivedConfirmed || created)
+            {
+                product.StockQuantity += quantityToReceive;
+            }
+
+            if (unitCost > 0m)
+            {
+                product.CostPrice = unitCost;
+                if (product.UnitPrice <= 0m)
+                {
+                    product.UnitPrice = unitCost;
+                }
+            }
+
+            product.UpdatedAtUtc = nowUtc;
+        }
+
+        private async Task<(RetailProduct Product, bool Created)> ResolveOrCreateRetailProductAsync(
+            SupplyRequest request,
+            CancellationToken cancellationToken)
+        {
+            var normalizedItemName = NormalizeRequiredValue(request.ItemName);
+            var normalizedUnit = NormalizeOptionalValue(request.Unit, fallback: "piece");
+            var normalizedCategory = NormalizeOptionalValue(request.Category, fallback: "Supplies");
+
+            var product = await _db.RetailProducts
+                .FirstOrDefaultAsync(
+                    p =>
+                        p.BranchId == request.BranchId &&
+                        p.Name == normalizedItemName &&
+                        p.Unit == normalizedUnit,
+                    cancellationToken);
+
+            if (product is not null)
+            {
+                if (!product.IsActive)
+                {
+                    product.IsActive = true;
+                }
+
+                if (string.IsNullOrWhiteSpace(product.Category))
+                {
+                    product.Category = normalizedCategory;
+                }
+
+                return (product, false);
+            }
+
+            var unitCost = request.ActualUnitCost ?? request.EstimatedUnitCost ?? 0m;
+            product = new RetailProduct
+            {
+                Name = normalizedItemName,
+                Category = normalizedCategory,
+                Unit = normalizedUnit,
+                UnitPrice = unitCost > 0m ? unitCost : 0m,
+                CostPrice = unitCost > 0m ? unitCost : 0m,
+                StockQuantity = 0,
+                ReorderLevel = 10,
+                BranchId = request.BranchId,
+                IsActive = true,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+
+            _db.RetailProducts.Add(product);
+            return (product, true);
+        }
+
+        private static string NormalizeRequiredValue(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new InvalidOperationException("A required supply request field is missing.");
+            }
+
+            return value.Trim();
+        }
+
+        private static string NormalizeOptionalValue(string? value, string fallback)
+        {
+            return string.IsNullOrWhiteSpace(value)
+                ? fallback
+                : value.Trim();
         }
     }
 }

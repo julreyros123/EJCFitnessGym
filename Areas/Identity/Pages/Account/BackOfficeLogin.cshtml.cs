@@ -90,6 +90,16 @@ public class BackOfficeLoginModel : PageModel
                 Input.Email,
                 string.Join(", ", backOfficeRoles));
 
+            // Record last login
+            var lastLoginClaimType = "staff_last_login_utc";
+            var existingClaims = await _userManager.GetClaimsAsync(user);
+            var existingLastLogin = existingClaims.Where(c => c.Type == lastLoginClaimType).ToArray();
+            if (existingLastLogin.Any())
+            {
+                await _userManager.RemoveClaimsAsync(user, existingLastLogin);
+            }
+            await _userManager.AddClaimAsync(user, new System.Security.Claims.Claim(lastLoginClaimType, DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture)));
+
             return LocalRedirect(target);
         }
 

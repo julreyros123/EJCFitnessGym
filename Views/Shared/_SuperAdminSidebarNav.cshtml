@@ -15,6 +15,7 @@
 }
 
 <nav class="ejc-admin-nav" aria-label="Platform navigation">
+    <div class="ejc-admin-nav-section">Core</div>
     <div class="ejc-admin-nav-group">
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Dashboard/SuperAdmin")"
            asp-controller="Dashboard"
@@ -35,9 +36,15 @@
            data-superadmin-nav-label="Branch Access"
            data-superadmin-nav-description="Assign and audit branch scope for back-office users"
            data-superadmin-nav-shortcut="Alt+2">
-            <i class="bi bi-diagram-3-fill"></i>
+            <i class="bi bi-diagram-3"></i>
             <span class="ejc-admin-nav-text">Branch Access</span>
         </a>
+    </div>
+
+    <div class="ejc-admin-nav-divider"></div>
+
+    <div class="ejc-admin-nav-section">People</div>
+    <div class="ejc-admin-nav-group">
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/MemberAccounts", "/Admin/Members")"
            asp-controller="MemberAccounts"
            asp-action="Index"
@@ -46,8 +53,8 @@
            data-superadmin-nav-label="Member Accounts"
            data-superadmin-nav-description="Manage member records, subscriptions, and account lifecycle"
            data-superadmin-nav-shortcut="Alt+3">
-            <i class="bi bi-people-fill"></i>
-            <span class="ejc-admin-nav-text">Member Accounts</span>
+            <i class="bi bi-people"></i>
+            <span class="ejc-admin-nav-text">Members</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/StaffAccounts")"
            asp-controller="StaffAccounts"
@@ -56,8 +63,8 @@
            data-superadmin-nav-item
            data-superadmin-nav-label="Staff Accounts"
            data-superadmin-nav-description="Create and review branch-scoped staff login accounts">
-            <i class="bi bi-person-badge-fill"></i>
-            <span class="ejc-admin-nav-text">Staff Accounts</span>
+            <i class="bi bi-person-badge"></i>
+            <span class="ejc-admin-nav-text">Staff</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/BackOfficeAccounts")"
            asp-controller="BackOfficeAccounts"
@@ -67,13 +74,14 @@
            data-superadmin-nav-label="Back Office Accounts"
            data-superadmin-nav-description="Create Admin and Finance accounts with branch assignment records"
            data-superadmin-nav-shortcut="Alt+7">
-            <i class="bi bi-shield-lock-fill"></i>
-            <span class="ejc-admin-nav-text">Back Office Accounts</span>
+            <i class="bi bi-shield-lock"></i>
+            <span class="ejc-admin-nav-text">Back Office</span>
         </a>
     </div>
 
     <div class="ejc-admin-nav-divider"></div>
 
+    <div class="ejc-admin-nav-section">Operations</div>
     <div class="ejc-admin-nav-group">
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Invoices")"
            asp-controller="Invoices"
@@ -92,8 +100,8 @@
            data-superadmin-nav-item
            data-superadmin-nav-label="Replacement Requests"
            data-superadmin-nav-description="Review staff-submitted concern and replacement queue">
-            <i class="bi bi-exclamation-triangle-fill"></i>
-            <span class="ejc-admin-nav-text">Replacement</span>
+            <i class="bi bi-exclamation-triangle"></i>
+            <span class="ejc-admin-nav-text">Replacements</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/SubscriptionPlans")"
            asp-controller="SubscriptionPlans"
@@ -121,7 +129,7 @@
     <div class="ejc-admin-nav-divider"></div>
 
     <div class="ejc-admin-nav-group">
-        <form class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="/Identity/Account/BackOfficeLogin">
+        <form method="post" class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="/Identity/Account/BackOfficeLogin">
             <button type="submit" class="ejc-admin-nav-link ejc-admin-nav-link-button" title="Logout">
                 <i class="bi bi-box-arrow-right"></i>
                 <span class="ejc-admin-nav-text">Logout</span>

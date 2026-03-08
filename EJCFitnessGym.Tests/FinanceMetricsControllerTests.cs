@@ -457,6 +457,16 @@ public class FinanceMetricsControllerTests
             return Task.CompletedTask;
         }
 
+        public Task PostRetailSaleAsync(int productSaleId, string? actorUserId = null, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task PostRetailSaleVoidAsync(int productSaleId, string? actorUserId = null, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task<GeneralLedgerEntry> CreateManualEntryAsync(
             string branchId,
             DateTime entryDateUtc,

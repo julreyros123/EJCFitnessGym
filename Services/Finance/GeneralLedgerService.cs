@@ -3,6 +3,8 @@ using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Models.Finance;
 using Microsoft.EntityFrameworkCore;
+using InventoryPaymentMethod = EJCFitnessGym.Models.Inventory.PaymentMethod;
+using ProductSaleStatus = EJCFitnessGym.Models.Inventory.ProductSaleStatus;
 
 namespace EJCFitnessGym.Services.Finance
 {
@@ -10,21 +12,26 @@ namespace EJCFitnessGym.Services.Finance
     {
         private const string CashOnHandCode = "1010";
         private const string CashInBankCode = "1020";
+        private const string AccountsReceivableCode = "1100";
         private const string MembershipRevenueCode = "4000";
+        private const string RetailRevenueCode = "4010";
         private const string OperatingExpenseCode = "5000";
 
         private const string PaymentSourceType = "Payment";
         private const string ExpenseSourceType = "Expense";
+        private const string ProductSaleSourceType = "ProductSale";
+        private const string ProductSaleVoidSourceType = "ProductSaleVoid";
         private const string ManualSourceType = "Manual";
 
         private static readonly IReadOnlyList<(string Code, string Name, GeneralLedgerAccountType Type)> DefaultAccounts =
         [
             (CashOnHandCode, "Cash on Hand", GeneralLedgerAccountType.Asset),
             (CashInBankCode, "Cash in Bank", GeneralLedgerAccountType.Asset),
-            ("1100", "Accounts Receivable", GeneralLedgerAccountType.Asset),
+            (AccountsReceivableCode, "Accounts Receivable", GeneralLedgerAccountType.Asset),
             ("2000", "Accounts Payable", GeneralLedgerAccountType.Liability),
             ("3000", "Owner Equity", GeneralLedgerAccountType.Equity),
             (MembershipRevenueCode, "Membership Revenue", GeneralLedgerAccountType.Revenue),
+            (RetailRevenueCode, "Retail Sales Revenue", GeneralLedgerAccountType.Revenue),
             (OperatingExpenseCode, "Operating Expense", GeneralLedgerAccountType.Expense)
         ];
 
@@ -287,6 +294,167 @@ namespace EJCFitnessGym.Services.Finance
             await SaveEntryIfMissingAsync(entry, cancellationToken);
         }
 
+        public async Task PostRetailSaleAsync(
+            int productSaleId,
+            string? actorUserId = null,
+            CancellationToken cancellationToken = default)
+        {
+            var sale = await _db.ProductSales
+                .AsNoTracking()
+                .FirstOrDefaultAsync(record => record.Id == productSaleId, cancellationToken);
+
+            if (sale is null ||
+                sale.Status != ProductSaleStatus.Completed ||
+                sale.TotalAmount <= 0m ||
+                string.IsNullOrWhiteSpace(sale.BranchId))
+            {
+                return;
+            }
+
+            var normalizedBranchId = sale.BranchId.Trim();
+            var sourceId = sale.Id.ToString(CultureInfo.InvariantCulture);
+            if (await SourceEntryExistsAsync(normalizedBranchId, ProductSaleSourceType, sourceId, cancellationToken))
+            {
+                return;
+            }
+
+            await EnsureDefaultAccountsAsync(normalizedBranchId, cancellationToken);
+
+            var debitAccountCode = ResolveRetailSaleDebitAccountCode(sale.PaymentMethod);
+            var accountMap = await _db.GeneralLedgerAccounts
+                .AsNoTracking()
+                .Where(account =>
+                    account.BranchId == normalizedBranchId &&
+                    account.IsActive &&
+                    (account.Code == debitAccountCode || account.Code == RetailRevenueCode))
+                .ToDictionaryAsync(account => account.Code, account => account, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+            if (!accountMap.TryGetValue(debitAccountCode, out var debitAccount) ||
+                !accountMap.TryGetValue(RetailRevenueCode, out var creditAccount))
+            {
+                _logger.LogWarning(
+                    "General ledger retail sale posting skipped for product sale {ProductSaleId} because required accounts are missing in branch {BranchId}.",
+                    productSaleId,
+                    normalizedBranchId);
+                return;
+            }
+
+            var entry = new GeneralLedgerEntry
+            {
+                BranchId = normalizedBranchId,
+                EntryNumber = GenerateEntryNumber(),
+                EntryDateUtc = NormalizeUtc(sale.SaleDateUtc),
+                Description = $"Retail sale recorded ({sale.ReceiptNumber})",
+                SourceType = ProductSaleSourceType,
+                SourceId = sourceId,
+                CreatedByUserId = NormalizeActor(actorUserId),
+                CreatedUtc = DateTime.UtcNow,
+                Lines =
+                [
+                    new GeneralLedgerLine
+                    {
+                        AccountId = debitAccount.Id,
+                        Debit = sale.TotalAmount,
+                        Credit = 0m,
+                        Memo = $"Receipt {sale.ReceiptNumber}"
+                    },
+                    new GeneralLedgerLine
+                    {
+                        AccountId = creditAccount.Id,
+                        Debit = 0m,
+                        Credit = sale.TotalAmount,
+                        Memo = $"Receipt {sale.ReceiptNumber}"
+                    }
+                ]
+            };
+
+            await SaveEntryIfMissingAsync(entry, cancellationToken);
+        }
+
+        public async Task PostRetailSaleVoidAsync(
+            int productSaleId,
+            string? actorUserId = null,
+            CancellationToken cancellationToken = default)
+        {
+            var sale = await _db.ProductSales
+                .AsNoTracking()
+                .FirstOrDefaultAsync(record => record.Id == productSaleId, cancellationToken);
+
+            if (sale is null ||
+                sale.Status != ProductSaleStatus.Voided ||
+                sale.TotalAmount <= 0m ||
+                string.IsNullOrWhiteSpace(sale.BranchId))
+            {
+                return;
+            }
+
+            var normalizedBranchId = sale.BranchId.Trim();
+            var sourceId = sale.Id.ToString(CultureInfo.InvariantCulture);
+            if (!await SourceEntryExistsAsync(normalizedBranchId, ProductSaleSourceType, sourceId, cancellationToken))
+            {
+                // There is no original sale GL entry to reverse.
+                return;
+            }
+
+            if (await SourceEntryExistsAsync(normalizedBranchId, ProductSaleVoidSourceType, sourceId, cancellationToken))
+            {
+                return;
+            }
+
+            await EnsureDefaultAccountsAsync(normalizedBranchId, cancellationToken);
+
+            var creditAccountCode = ResolveRetailSaleDebitAccountCode(sale.PaymentMethod);
+            var accountMap = await _db.GeneralLedgerAccounts
+                .AsNoTracking()
+                .Where(account =>
+                    account.BranchId == normalizedBranchId &&
+                    account.IsActive &&
+                    (account.Code == creditAccountCode || account.Code == RetailRevenueCode))
+                .ToDictionaryAsync(account => account.Code, account => account, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+            if (!accountMap.TryGetValue(creditAccountCode, out var creditAccount) ||
+                !accountMap.TryGetValue(RetailRevenueCode, out var debitAccount))
+            {
+                _logger.LogWarning(
+                    "General ledger retail sale reversal skipped for product sale {ProductSaleId} because required accounts are missing in branch {BranchId}.",
+                    productSaleId,
+                    normalizedBranchId);
+                return;
+            }
+
+            var reversalDateUtc = DateTime.UtcNow;
+            var entry = new GeneralLedgerEntry
+            {
+                BranchId = normalizedBranchId,
+                EntryNumber = GenerateEntryNumber(),
+                EntryDateUtc = NormalizeUtc(reversalDateUtc),
+                Description = $"Retail sale voided ({sale.ReceiptNumber})",
+                SourceType = ProductSaleVoidSourceType,
+                SourceId = sourceId,
+                CreatedByUserId = NormalizeActor(actorUserId),
+                CreatedUtc = reversalDateUtc,
+                Lines =
+                [
+                    new GeneralLedgerLine
+                    {
+                        AccountId = debitAccount.Id,
+                        Debit = sale.TotalAmount,
+                        Credit = 0m,
+                        Memo = $"Void receipt {sale.ReceiptNumber}"
+                    },
+                    new GeneralLedgerLine
+                    {
+                        AccountId = creditAccount.Id,
+                        Debit = 0m,
+                        Credit = sale.TotalAmount,
+                        Memo = $"Void receipt {sale.ReceiptNumber}"
+                    }
+                ]
+            };
+
+            await SaveEntryIfMissingAsync(entry, cancellationToken);
+        }
+
         public async Task<GeneralLedgerEntry> CreateManualEntryAsync(
             string branchId,
             DateTime entryDateUtc,
@@ -432,6 +600,16 @@ namespace EJCFitnessGym.Services.Finance
         private static string GenerateEntryNumber()
         {
             return $"GL-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+        }
+
+        private static string ResolveRetailSaleDebitAccountCode(InventoryPaymentMethod paymentMethod)
+        {
+            return paymentMethod switch
+            {
+                InventoryPaymentMethod.Cash => CashOnHandCode,
+                InventoryPaymentMethod.ChargeToAccount => AccountsReceivableCode,
+                _ => CashInBankCode
+            };
         }
     }
 }

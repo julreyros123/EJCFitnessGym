@@ -18,11 +18,6 @@
     }
 }
 
-<section class="ejc-admin-page">
-    <div class="ejc-admin-layout" data-admin-layout>
-        <partial name="/Pages/Shared/_AdminSidebar.cshtml" />
-
-        <div class="ejc-admin-content">
             <div class="ejc-page-header">
                 <div>
                     <span class="ejc-eyebrow">Billing</span>
@@ -30,7 +25,49 @@
                     <p class="ejc-muted mb-0">Track collections, verify invoice status, and resolve pending dues.</p>
                 </div>
                 <div class="ejc-actions">
+                    <button type="button" class="btn btn-outline-primary" data-ejc-command-open>
+                        <i class="bi bi-search me-1"></i>Ctrl+K
+                    </button>
                     <a class="btn btn-primary" asp-controller="Invoices" asp-action="Create">Create Invoice</a>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6 col-xl-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Successful</div>
+                            <div class="fs-4 fw-bold text-success">@Model.SuccessfulCount</div>
+                            <div class="small text-muted">Collected PHP @Model.SuccessfulAmountTotal.ToString("N2")</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-xl-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Pending</div>
+                            <div class="fs-4 fw-bold text-warning">@Model.PendingCount</div>
+                            <div class="small text-muted">Need follow-up or webhook review</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-xl-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Failed</div>
+                            <div class="fs-4 fw-bold text-danger">@Model.FailedCount</div>
+                            <div class="small text-muted">Retry or assist member</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-xl-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Members</div>
+                            <div class="fs-4 fw-bold">@Model.MemberCount</div>
+                            <div class="small text-muted">Distinct member records in recent activity</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -57,14 +94,143 @@
                 </article>
             }
 
+            <div class="card mb-4 d-none">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+                        <div>
+                            <span class="ejc-eyebrow">Shortcuts</span>
+                            <h2 class="h5 mb-1">Billing Quick Actions</h2>
+                            <p class="text-muted mb-0">Press <kbd>Alt</kbd> + <kbd>1-5</kbd> for direct jumps.</p>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6 col-xl-4">
+                            <a class="card h-100 text-decoration-none border-primary shadow-sm"
+                               asp-page="/Admin/Payments"
+                               data-ejc-shortcut-item
+                               data-ejc-shortcut="Alt+1"
+                               data-ejc-shortcut-label="Payments"
+                               data-ejc-shortcut-description="Stay on payment operations and transaction review.">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <span class="badge text-bg-dark border">Alt+1</span>
+                                        <i class="bi bi-receipt text-primary fs-4"></i>
+                                    </div>
+                                    <h3 class="h6 text-body mb-1">Payments</h3>
+                                    <p class="text-muted small mb-0">Review recent transactions and resolve failed or pending charges.</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6 col-xl-4">
+                            <a class="card h-100 text-decoration-none"
+                               asp-controller="Invoices"
+                               asp-action="Create"
+                               data-ejc-shortcut-item
+                               data-ejc-shortcut="Alt+2"
+                               data-ejc-shortcut-label="Create Invoice"
+                               data-ejc-shortcut-description="Generate a new invoice for a member or billing event.">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <span class="badge text-bg-dark border">Alt+2</span>
+                                        <i class="bi bi-file-earmark-plus text-primary fs-4"></i>
+                                    </div>
+                                    <h3 class="h6 text-body mb-1">Create Invoice</h3>
+                                    <p class="text-muted small mb-0">Start a new invoice without leaving the billing workflow.</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6 col-xl-4">
+                            <a class="card h-100 text-decoration-none"
+                               asp-controller="MemberAccounts"
+                               asp-action="Index"
+                               data-ejc-shortcut-item
+                               data-ejc-shortcut="Alt+3"
+                               data-ejc-shortcut-label="Members"
+                               data-ejc-shortcut-description="Open member records when a payment needs account review.">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <span class="badge text-bg-dark border">Alt+3</span>
+                                        <i class="bi bi-people text-primary fs-4"></i>
+                                    </div>
+                                    <h3 class="h6 text-body mb-1">Members</h3>
+                                    <p class="text-muted small mb-0">Check subscriptions, branches, and member details quickly.</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6 col-xl-4">
+                            <a class="card h-100 text-decoration-none"
+                               asp-controller="SubscriptionPlans"
+                               asp-action="Index"
+                               data-ejc-shortcut-item
+                               data-ejc-shortcut="Alt+4"
+                               data-ejc-shortcut-label="Subscription Plans"
+                               data-ejc-shortcut-description="Review plan pricing and benefits that affect invoices.">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <span class="badge text-bg-dark border">Alt+4</span>
+                                        <i class="bi bi-card-checklist text-primary fs-4"></i>
+                                    </div>
+                                    <h3 class="h6 text-body mb-1">Subscription Plans</h3>
+                                    <p class="text-muted small mb-0">Compare current plan tiers before adjusting billing.</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6 col-xl-4">
+                            <a class="card h-100 text-decoration-none"
+                               asp-page="/Admin/Reports"
+                               data-ejc-shortcut-item
+                               data-ejc-shortcut="Alt+5"
+                               data-ejc-shortcut-label="Reports"
+                               data-ejc-shortcut-description="Open reporting after reviewing payment collections.">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <span class="badge text-bg-dark border">Alt+5</span>
+                                        <i class="bi bi-bar-chart text-primary fs-4"></i>
+                                    </div>
+                                    <h3 class="h6 text-body mb-1">Reports</h3>
+                                    <p class="text-muted small mb-0">Jump into summaries for revenue and payment status trends.</p>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-lg-5">
+                            <label for="adminPaymentSearch" class="form-label">Search transactions</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input id="adminPaymentSearch"
+                                       type="search"
+                                       class="form-control"
+                                       placeholder="Invoice, member, gateway, reference..."
+                                       data-admin-payments-search />
+                            </div>
+                        </div>
+                        <div class="col-lg-7">
+                            <label class="form-label">Quick filters</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-sm btn-primary active px-3" data-admin-payments-filter="all" title="All"><i class="bi bi-funnel-fill"></i></button>
+                                <button type="button" class="btn btn-sm btn-outline-success px-3" data-admin-payments-filter="Succeeded" title="Succeeded"><i class="bi bi-check-circle-fill"></i></button>
+                                <button type="button" class="btn btn-sm btn-outline-warning px-3" data-admin-payments-filter="Pending" title="Pending"><i class="bi bi-clock-fill"></i></button>
+                                <button type="button" class="btn btn-sm btn-outline-danger px-3" data-admin-payments-filter="Failed" title="Failed"><i class="bi bi-x-circle-fill"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between">
                     <h5 class="mb-0">Recent Transactions</h5>
-                    <span class="text-muted small">@transactions.Count record(s)</span>
+                    <span class="text-muted small"><span data-admin-payments-visible-count>@transactions.Count</span> of @transactions.Count record(s)</span>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-sm table-striped table-hover align-middle mb-0">
+                        <table class="table table-sm table-striped table-hover align-middle mb-0" data-ejc-paginate-disabled="true">
                             <thead>
                                 <tr>
                                     <th>Invoice</th>
@@ -87,7 +253,11 @@
                                     @foreach (var payment in transactions)
                                     {
                                         var isRecentSuccess = recentSuccess is not null && payment.PaymentId == recentSuccess.PaymentId;
-                                        <tr class="@(isRecentSuccess ? "ejc-payment-row-success" : null)">
+                                        var searchBlob = $"{payment.InvoiceNumber} {payment.MemberDisplayName} {payment.MemberEmail} {payment.ReferenceNumber} {payment.GatewayProvider} {payment.Method} {payment.Status}";
+                                        <tr class="@(isRecentSuccess ? "ejc-payment-row-success" : null)"
+                                            data-admin-payment-row
+                                            data-payment-status="@payment.Status"
+                                            data-payment-search="@searchBlob">
                                             <td class="text-nowrap">@payment.InvoiceNumber</td>
                                             <td>
                                                 <div class="fw-semibold">@payment.MemberDisplayName</div>
@@ -117,6 +287,68 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-</section>
+            <div class="alert alert-secondary mt-3 d-none" data-admin-payments-empty>
+                No transactions matched the current filters.
+            </div>
+
+<partial name="/Pages/Shared/_QuickCommandModal.cshtml" />
+
+@section Scripts {
+    <script>
+        (() => {
+            const rows = Array.from(document.querySelectorAll('[data-admin-payment-row]'));
+            if (!rows.length) {
+                return;
+            }
+
+            const normalize = (value) => (value || '').toLowerCase().trim();
+            const searchInput = document.querySelector('[data-admin-payments-search]');
+            const filterButtons = Array.from(document.querySelectorAll('[data-admin-payments-filter]'));
+            const visibleCount = document.querySelector('[data-admin-payments-visible-count]');
+            const emptyState = document.querySelector('[data-admin-payments-empty]');
+            let activeFilter = 'all';
+
+            const applyFilters = () => {
+                const query = normalize(searchInput?.value);
+                let visibleRows = 0;
+
+                rows.forEach((row) => {
+                    const status = normalize(row.dataset.paymentStatus);
+                    const haystack = normalize(row.dataset.paymentSearch || row.textContent);
+                    const matchesStatus = activeFilter === 'all' || status === normalize(activeFilter);
+                    const matchesSearch = !query || haystack.includes(query);
+                    const shouldShow = matchesStatus && matchesSearch;
+                    row.hidden = !shouldShow;
+                    if (shouldShow) {
+                        visibleRows++;
+                    }
+                });
+
+                if (visibleCount) {
+                    visibleCount.textContent = `${visibleRows}`;
+                }
+
+                if (emptyState) {
+                    emptyState.classList.toggle('d-none', visibleRows > 0);
+                }
+            };
+
+            filterButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    activeFilter = button.dataset.adminPaymentsFilter || 'all';
+                    filterButtons.forEach((candidate) => {
+                        candidate.classList.toggle('active', candidate === button);
+                        candidate.classList.toggle('btn-primary', candidate === button);
+                        if (candidate !== button) {
+                            candidate.classList.remove('btn-primary');
+                        }
+                    });
+                    applyFilters();
+                });
+            });
+
+            searchInput?.addEventListener('input', applyFilters);
+            applyFilters();
+        })();
+    </script>
+}

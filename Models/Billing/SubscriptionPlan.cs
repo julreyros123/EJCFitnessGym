@@ -6,6 +6,9 @@ namespace EJCFitnessGym.Models.Billing
     {
         public int Id { get; set; }
 
+        [Display(Name = "Plan tier")]
+        public PlanTier Tier { get; set; } = PlanTier.Basic;
+
         [Required]
         [StringLength(100)]
         public string Name { get; set; } = string.Empty;
@@ -19,6 +22,30 @@ namespace EJCFitnessGym.Models.Billing
         public BillingCycle BillingCycle { get; set; } = BillingCycle.Monthly;
 
         public bool IsActive { get; set; } = true;
+
+        [Display(Name = "All branch access")]
+        public bool AllowsAllBranchAccess { get; set; } = true;
+
+        [Display(Name = "Basic equipment")]
+        public bool IncludesBasicEquipment { get; set; } = true;
+
+        [Display(Name = "Cardio access")]
+        public bool IncludesCardioAccess { get; set; }
+
+        [Display(Name = "Group classes")]
+        public bool IncludesGroupClasses { get; set; }
+
+        [Display(Name = "Free towel")]
+        public bool IncludesFreeTowel { get; set; }
+
+        [Display(Name = "Personal trainer")]
+        public bool IncludesPersonalTrainer { get; set; }
+
+        [Display(Name = "Fitness plan")]
+        public bool IncludesFitnessPlan { get; set; }
+
+        [Display(Name = "Full facility access")]
+        public bool IncludesFullFacilityAccess { get; set; }
 
         public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     }

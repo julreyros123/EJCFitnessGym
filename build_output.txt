@@ -1,0 +1,17 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+C:\Users\acer laptop\source\repos\EJCFitnessGym\Areas\Identity\Pages\Account\Register.cshtml(86,44): error CS0103: The name 'Context' does not exist in the current context [C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.csproj]
+C:\Users\acer laptop\source\repos\EJCFitnessGym\Areas\Identity\Pages\Account\Register.cshtml(86,72): error CS0103: The name 'Context' does not exist in the current context [C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.csproj]
+C:\Users\acer laptop\source\repos\EJCFitnessGym\Areas\Identity\Pages\Account\Login.cshtml(58,44): error CS0103: The name 'Context' does not exist in the current context [C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.csproj]
+C:\Users\acer laptop\source\repos\EJCFitnessGym\Areas\Identity\Pages\Account\Login.cshtml(58,72): error CS0103: The name 'Context' does not exist in the current context [C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.csproj]
+
+Build FAILED.
+
+C:\Users\acer laptop\source\repos\EJCFitnessGym\Areas\Identity\Pages\Account\Register.cshtml(86,44): error CS0103: The name 'Context' does not exist in the current context [C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.csproj]
+C:\Users\acer laptop\source\repos\EJCFitnessGym\Areas\Identity\Pages\Account\Register.cshtml(86,72): error CS0103: The name 'Context' does not exist in the current context [C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.csproj]
+C:\Users\acer laptop\source\repos\EJCFitnessGym\Areas\Identity\Pages\Account\Login.cshtml(58,44): error CS0103: The name 'Context' does not exist in the current context [C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.csproj]
+C:\Users\acer laptop\source\repos\EJCFitnessGym\Areas\Identity\Pages\Account\Login.cshtml(58,72): error CS0103: The name 'Context' does not exist in the current context [C:\Users\acer laptop\source\repos\EJCFitnessGym\EJCFitnessGym.csproj]
+    0 Warning(s)
+    4 Error(s)
+
+Time Elapsed 00:00:24.58

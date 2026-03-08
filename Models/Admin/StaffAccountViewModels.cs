@@ -82,5 +82,30 @@ namespace EJCFitnessGym.Models.Admin
         public string? ArchiveReason { get; init; }
 
         public DateTime? ArchivedAtUtc { get; init; }
+        public DateTime? LastLoginUtc { get; init; }
+    }
+    
+    public sealed class StaffAccountDetailsViewModel
+    {
+        public string UserId { get; init; } = string.Empty;
+        public string Email { get; init; } = string.Empty;
+        public string? PhoneNumber { get; init; }
+        public string? Position { get; init; }
+        public string? BranchId { get; init; }
+        public string? BranchName { get; init; }
+        public bool IsArchived { get; init; }
+        public string? ArchiveReason { get; init; }
+        public DateTime? ArchivedAtUtc { get; init; }
+        public DateTime? LastLoginUtc { get; init; }
+        public DateTime? CreatedUtc { get; init; }
+        
+        public IReadOnlyList<StaffAttendanceSnapItemViewModel> RecentAttendance { get; init; } = Array.Empty<StaffAttendanceSnapItemViewModel>();
+    }
+
+    public sealed class StaffAttendanceSnapItemViewModel
+    {
+        public DateTime TimeLocal { get; init; }
+        public string Action { get; init; } = string.Empty;
+        public string StatusLabel { get; init; } = string.Empty;
     }
 }

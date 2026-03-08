@@ -4,24 +4,23 @@
     ViewData["Title"] = "Inventory";
 }
 
-<section class="ejc-admin-page">
-    <div class="ejc-admin-layout" data-admin-layout>
-        <partial name="/Pages/Shared/_AdminSidebar.cshtml" />
-
-        <div class="ejc-admin-content">
             <div class="ejc-page-header">
                 <div>
                     <span class="ejc-eyebrow">Stockroom</span>
                     <h1 class="display-6 mb-0">Inventory</h1>
-                    <p class="ejc-muted mb-0">Manage stock with a controlled flow: Staff request, Admin receiving confirmation, then Finance invoice, payment, and audit.</p>
-                </div>
-                <div class="ejc-actions">
-                    <a class="btn btn-primary" asp-page="/Admin/Inventory">Add Item</a>
+                    <p class="ejc-muted mb-0">Admin owns product stock movement. Staff submits requests, admin confirms stock-in, and finance closes the cost and audit steps.</p>
                 </div>
             </div>
 
+            <partial name="_AlertMessage" model='(Model.FlashMessage, Model.FlashType)' />
+
             <div class="alert alert-info py-2 px-3 mb-4">
                 <span class="small">
+                    Role split:
+                    <strong>Staff</strong> submits request ->
+                    <strong>Admin</strong> approves, orders, and confirms stock-in ->
+                    <strong>Finance</strong> records expense, payment, and audit.
+                    <br />
                     Workflow stages:
                     <strong>Requested</strong> ->
                     <strong>Approved</strong> ->
@@ -35,14 +34,14 @@
             </div>
 
             <div class="row g-4 mb-4">
-                <div class="col-xl-7">
+                <div class="col-12">
                     <div class="card h-100">
                         <div class="card-header d-flex align-items-center justify-content-between">
-                            <h5 class="mb-0">Current Stock</h5>
-                            <span class="text-muted small">Low-stock watch</span>
+                            <h5 class="mb-0">Current Product Stock</h5>
+                            <span class="text-muted small">Admin-controlled on-hand count</span>
                         </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
+                        <div class="card-body p-0 ejc-table-shell-host">
+                            <div class="table-responsive ejc-table-shell">
                                 <table class="table table-sm table-striped table-hover align-middle mb-0"
                                        data-ejc-page-size="6"
                                        data-ejc-search-placeholder="Search SKU, item, category, or status">
@@ -74,41 +73,15 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="col-xl-5">
-                    <div class="card h-100">
-                        <div class="card-header d-flex align-items-center justify-content-between">
-                            <h5 class="mb-0">Role Ownership (Quick Guide)</h5>
-                            <span class="text-muted small">Reference only</span>
-                        </div>
-                        <div class="card-body">
-                            <p class="small text-muted mb-3">
-                                This is a quick ownership reference. Main work should happen in <strong>Current Stock</strong> and <strong>Open Supply Workflow Tracker</strong>.
-                            </p>
-                            <div class="vstack gap-2">
-                                @foreach (var step in Model.WorkflowOwners)
-                                {
-                                    <div class="border rounded px-3 py-2">
-                                        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
-                                            <div class="fw-semibold">@(step.Sequence.ToString("00")). @step.Stage</div>
-                                            <span class="@InventoryModel.RoleBadge(step.PrimaryRole)">@step.PrimaryRole</span>
-                                        </div>
-                                        <div class="small text-muted mt-1">@step.Description</div>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Open Supply Workflow Tracker</h5>
-                    <span class="text-muted small">Live handoff status</span>
+                    <h5 class="mb-0">Supply Workflow Tracker</h5>
+                    <span class="text-muted small">Who owns the next step</span>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
+                <div class="card-body p-0 ejc-table-shell-host">
+                    <div class="table-responsive ejc-table-shell">
                         <table class="table table-sm table-striped table-hover align-middle mb-0"
                                data-ejc-page-size="7"
                                data-ejc-search-placeholder="Search request, branch, item, stage, or role">
@@ -122,6 +95,7 @@
                                     <th>Owner</th>
                                     <th>Next Owner</th>
                                     <th class="text-nowrap">Last Updated</th>
+                                    <th class="text-end">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -136,6 +110,40 @@
                                         <td><span class="@InventoryModel.RoleBadge(flow.CurrentOwner)">@flow.CurrentOwner</span></td>
                                         <td><span class="@InventoryModel.RoleBadge(flow.NextOwner)">@flow.NextOwner</span></td>
                                         <td class="text-nowrap">@flow.LastUpdated</td>
+                                        <td class="text-end">
+                                            @if (flow.CurrentStage != "Audited" && flow.CurrentStage != "Cancelled")
+                                            {
+                                                <form method="post" class="d-inline-flex gap-1">
+                                                    <input type="hidden" name="id" value="@flow.Id" />
+                                                    @if (flow.CurrentStage == "Requested")
+                                                    {
+                                                        <button asp-page-handler="Approve" class="btn btn-sm btn-outline-success">Approve Request</button>
+                                                        <input type="hidden" name="reason" value="Declined by Admin" />
+                                                        <button asp-page-handler="Cancel" class="btn btn-sm btn-outline-danger">Reject Request</button>
+                                                    }
+                                                    else if (flow.CurrentStage == "Approved")
+                                                    {
+                                                        <button asp-page-handler="Order" class="btn btn-sm btn-outline-primary">Mark Purchase Ordered</button>
+                                                    }
+                                                    else if (flow.CurrentStage == "Ordered" || flow.CurrentStage == "ReceivedDraft")
+                                                    {
+                                                        <button asp-page-handler="ConfirmReceipt" class="btn btn-sm btn-outline-success">Confirm Receipt + Stock In</button>
+                                                    }
+                                                    else if (flow.CurrentStage == "ReceivedConfirmed")
+                                                    {
+                                                        <button asp-page-handler="CreateExpense" class="btn btn-sm btn-outline-warning">Create Finance Expense</button>
+                                                    }
+                                                    else if (flow.CurrentStage == "Invoiced")
+                                                    {
+                                                        <button asp-page-handler="MarkPaid" class="btn btn-sm btn-outline-success">Mark Supplier Paid</button>
+                                                    }
+                                                    else if (flow.CurrentStage == "Paid")
+                                                    {
+                                                        <button asp-page-handler="MarkAudited" class="btn btn-sm btn-outline-dark">Close Audit</button>
+                                                    }
+                                                </form>
+                                            }
+                                        </td>
                                     </tr>
                                 }
                             </tbody>
@@ -143,6 +151,3 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-</section>

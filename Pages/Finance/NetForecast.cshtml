@@ -1,0 +1,161 @@
+@page
+@using System.Globalization
+@model EJCFitnessGym.Pages.Finance.NetForecastModel
+@{
+    ViewData["Title"] = "Net Forecast";
+    var peso = CultureInfo.GetCultureInfo("en-PH");
+    var forecastNetClass = Model.Insights.ForecastNet >= 0 ? "text-success" : "text-danger";
+    var riskClass = Model.Insights.RiskLevel.Equals("High", StringComparison.OrdinalIgnoreCase)
+        ? "text-danger"
+        : Model.Insights.RiskLevel.Equals("Medium", StringComparison.OrdinalIgnoreCase)
+            ? "text-warning"
+            : "text-success";
+}
+
+<div class="py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Net Forecast</h1>
+            <p class="text-muted mb-0">Projection window based on actual revenue and expense behavior.</p>
+        </div>
+        <form method="get" class="d-flex flex-wrap gap-2 align-items-end">
+            <div>
+                <label asp-for="LookbackDays" class="form-label small mb-1">Lookback Days</label>
+                <input asp-for="LookbackDays" type="number" min="30" max="365" class="form-control form-control-sm" />
+            </div>
+            <div>
+                <label asp-for="ForecastDays" class="form-label small mb-1">Forecast Days</label>
+                <input asp-for="ForecastDays" type="number" min="7" max="180" class="form-control form-control-sm" />
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Refresh</button>
+        </form>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Forecast Net (@Model.Insights.ForecastDays days)</div>
+                    <div class="fs-4 fw-bold @forecastNetClass">@Model.Insights.ForecastNet.ToString("C0", peso)</div>
+                    <div class="small text-muted">@Model.Insights.GainOrLossSignal</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Forecast Revenue</div>
+                    <div class="fs-4 fw-bold">@Model.Insights.ForecastRevenue.ToString("C0", peso)</div>
+                    <div class="small text-muted">Daily avg: @Model.Insights.AverageDailyRevenue.ToString("C0", peso)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Forecast Expense</div>
+                    <div class="fs-4 fw-bold">@Model.Insights.ForecastTotalExpense.ToString("C0", peso)</div>
+                    <div class="small text-muted">Incl. depreciation @Model.Insights.ForecastDepreciationCost.ToString("C0", peso)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Risk Level</div>
+                    <div class="fs-4 fw-bold @riskClass">@Model.Insights.RiskLevel</div>
+                    <div class="small text-muted">
+                        Change:
+                        @if (Model.Insights.ForecastChangePercent.HasValue)
+                        {
+                            <span>@Model.Insights.ForecastChangePercent.Value.ToString("+#0.##;-#0.##;0")%</span>
+                        }
+                        else
+                        {
+                            <span>N/A</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-xl-8">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="h6 mb-0">Monthly Trend + Projection</h2>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Revenue</th>
+                                    <th>Expenses</th>
+                                    <th>Net</th>
+                                    <th>Snapshot</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var month in Model.Snapshots)
+                                {
+                                    <tr>
+                                        <td>@month.MonthStartUtc.ToLocalTime().ToString("MMM yyyy")</td>
+                                        <td>@month.Revenue.ToString("C0", peso)</td>
+                                        <td>@((month.OperatingExpenses + month.DepreciationCost).ToString("C0", peso))</td>
+                                        <td class="@(month.NetProfit >= 0 ? "text-success" : "text-danger")">@month.NetProfit.ToString("C0", peso)</td>
+                                        <td>
+                                            @if (month.IsProjected)
+                                            {
+                                                <span class="badge bg-info text-dark">Projected</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">Actual</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="h6 mb-0">Detected Anomalies</h2>
+                </div>
+                <div class="card-body">
+                    @if (Model.Insights.Anomalies.Count == 0)
+                    {
+                        <p class="text-muted mb-0">No high-signal anomalies detected in this lookback window.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var anomaly in Model.Insights.Anomalies.Take(8))
+                            {
+                                <li class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between align-items-start gap-2">
+                                        <div>
+                                            <div class="fw-semibold">@anomaly.Type</div>
+                                            <div class="small text-muted">@anomaly.DateUtc.ToLocalTime().ToString("MMM dd, yyyy")</div>
+                                            <div class="small">@anomaly.Description</div>
+                                        </div>
+                                        <span class="badge @(anomaly.Severity.Equals("High", StringComparison.OrdinalIgnoreCase) ? "bg-danger" : anomaly.Severity.Equals("Medium", StringComparison.OrdinalIgnoreCase) ? "bg-warning text-dark" : "bg-secondary")">
+                                            @anomaly.Severity
+                                        </span>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

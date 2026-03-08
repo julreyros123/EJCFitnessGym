@@ -20,6 +20,16 @@ namespace EJCFitnessGym.Services.Finance
             string? actorUserId = null,
             CancellationToken cancellationToken = default);
 
+        Task PostRetailSaleAsync(
+            int productSaleId,
+            string? actorUserId = null,
+            CancellationToken cancellationToken = default);
+
+        Task PostRetailSaleVoidAsync(
+            int productSaleId,
+            string? actorUserId = null,
+            CancellationToken cancellationToken = default);
+
         Task<GeneralLedgerEntry> CreateManualEntryAsync(
             string branchId,
             DateTime entryDateUtc,

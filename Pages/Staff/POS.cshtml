@@ -1,0 +1,154 @@
+@page
+@model EJCFitnessGym.Pages.Staff.POSModel
+@{
+    ViewData["Title"] = "Point of Sale";
+}
+
+<div class="container-fluid mt-3">
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="alert @(Model.IsSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show" role="alert">
+            @Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Products Section -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-shop"></i> Products</h5>
+                </div>
+                <div class="card-body">
+                    @if (!Model.Products.Any())
+                    {
+                        <div class="alert alert-info">No products available.</div>
+                    }
+                    else
+                    {
+                        <div class="row g-3">
+                            @foreach (var product in Model.Products)
+                            {
+                                <div class="col-md-4 col-lg-3">
+                                    <div class="card h-100">
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate" title="@product.Name">@product.Name</h6>
+                                            <p class="card-text mb-1">
+                                                <strong class="text-primary">₱@product.UnitPrice.ToString("N2")</strong>
+                                            </p>
+                                            <p class="card-text small text-muted mb-2">
+                                                Stock: @product.StockQuantity
+                                            </p>
+                                            <form method="post" asp-page-handler="AddToCart">
+                                                <input type="hidden" name="productId" value="@product.Id" />
+                                                <input type="hidden" name="quantity" value="1" />
+                                                <button type="submit" class="btn btn-sm btn-primary w-100">
+                                                    <i class="bi bi-cart-plus"></i> Add
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Cart Section -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm sticky-top" style="top: 20px;">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-cart"></i> Cart</h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    @if (!Model.CartItems.Any())
+                    {
+                        <p class="text-muted text-center">Cart is empty</p>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var item in Model.CartItems)
+                            {
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">@item.Name</h6>
+                                            <small class="text-muted">₱@item.UnitPrice.ToString("N2") each</small>
+                                        </div>
+                                        <form method="post" asp-page-handler="RemoveFromCart" class="d-inline">
+                                            <input type="hidden" name="productId" value="@item.ProductId" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <form method="post" asp-page-handler="UpdateQuantity" class="d-flex align-items-center gap-2">
+                                            <input type="hidden" name="productId" value="@item.ProductId" />
+                                            <input type="number" name="quantity" value="@item.Quantity" 
+                                                   min="1" max="100" class="form-control form-control-sm" style="width: 70px;" 
+                                                   onchange="this.form.submit()" />
+                                        </form>
+                                        <strong>₱@item.LineTotal.ToString("N2")</strong>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="card-footer">
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>Subtotal:</span>
+                            <strong>₱@Model.Subtotal.ToString("N2")</strong>
+                        </div>
+                        <div class="d-flex justify-content-between text-muted small">
+                            <span>VAT (12%):</span>
+                            <span>₱@Model.VatAmount.ToString("N2")</span>
+                        </div>
+                        <hr class="my-2" />
+                        <div class="d-flex justify-content-between">
+                            <strong>Total:</strong>
+                            <strong class="text-success fs-5">₱@Model.Total.ToString("N2")</strong>
+                        </div>
+                    </div>
+
+                    @if (Model.CartItems.Any())
+                    {
+                        <form method="post" asp-page-handler="Checkout">
+                            <div class="mb-2">
+                                <label class="form-label small">Customer Name (Optional)</label>
+                                <input asp-for="CustomerName" class="form-control form-control-sm" />
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Customer Phone (Optional)</label>
+                                <input asp-for="CustomerPhone" class="form-control form-control-sm" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small">Payment Method</label>
+                                <select asp-for="PaymentMethod" class="form-select form-select-sm">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Card">Card</option>
+                                    <option value="GCash">GCash</option>
+                                    <option value="PayMaya">PayMaya</option>
+                                </select>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-check-circle"></i> Complete Sale
+                                </button>
+                                <button type="submit" formaction="?handler=ClearCart" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-x-circle"></i> Clear Cart
+                                </button>
+                            </div>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

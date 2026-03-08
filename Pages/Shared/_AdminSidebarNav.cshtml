@@ -19,30 +19,31 @@
 
 <nav class="ejc-admin-nav" aria-label="Admin navigation">
     <div class="ejc-admin-nav-group">
+        <span class="ejc-admin-nav-section">Management</span>
         @if (isSuperAdmin)
         {
             <a class="ejc-admin-nav-link @ActiveIfPrefix("/Dashboard/SuperAdmin")" asp-controller="Dashboard" asp-action="SuperAdmin" title="Dashboard">
-                <i class="bi bi-house-door-fill"></i>
+                <i class="bi bi-house-door"></i>
                 <span class="ejc-admin-nav-text">Dashboard</span>
             </a>
         }
         else
         {
             <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/Dashboard")" asp-page="/Admin/Dashboard" title="Dashboard">
-                <i class="bi bi-house-door-fill"></i>
+                <i class="bi bi-house-door"></i>
                 <span class="ejc-admin-nav-text">Dashboard</span>
             </a>
         }
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/MemberAccounts", "/Admin/Members")" asp-controller="MemberAccounts" asp-action="Index" title="Members">
-            <i class="bi bi-people-fill"></i>
+            <i class="bi bi-people"></i>
             <span class="ejc-admin-nav-text">Members</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/StaffAccounts")" asp-controller="StaffAccounts" asp-action="Index" title="Staff Accounts">
-            <i class="bi bi-person-badge-fill"></i>
+            <i class="bi bi-person-badge"></i>
             <span class="ejc-admin-nav-text">Staff Accounts</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/Payments")" asp-page="/Admin/Payments" title="Payments">
-            <i class="bi bi-credit-card-2-front-fill"></i>
+            <i class="bi bi-credit-card-2-front"></i>
             <span class="ejc-admin-nav-text">Payments</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Invoices")" asp-controller="Invoices" asp-action="Index" title="Invoices">
@@ -50,11 +51,11 @@
             <span class="ejc-admin-nav-text">Invoices</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/Inventory")" asp-page="/Admin/Inventory" title="Inventory">
-            <i class="bi bi-box-seam-fill"></i>
+            <i class="bi bi-box-seam"></i>
             <span class="ejc-admin-nav-text">Inventory</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/ReplacementRequests")" asp-page="/Admin/ReplacementRequests" title="Replacement Requests">
-            <i class="bi bi-exclamation-triangle-fill"></i>
+            <i class="bi bi-exclamation-triangle"></i>
             <span class="ejc-admin-nav-text">Replacement</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/Reports")" asp-page="/Admin/Reports" title="Reports">
@@ -70,18 +71,19 @@
     <div class="ejc-admin-nav-divider"></div>
 
     <div class="ejc-admin-nav-group">
+        <span class="ejc-admin-nav-section">Settings & Admin</span>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/Settings")" asp-page="/Admin/Settings" title="Settings">
-            <i class="bi bi-gear-fill"></i>
+            <i class="bi bi-gear"></i>
             <span class="ejc-admin-nav-text">Settings</span>
         </a>
         @if (isSuperAdmin)
         {
             <a class="ejc-admin-nav-link @ActiveIfPrefix("/Admin/UserBranches")" asp-controller="UserBranches" asp-action="Index" title="Branch Access">
-                <i class="bi bi-diagram-3-fill"></i>
+                <i class="bi bi-diagram-3"></i>
                 <span class="ejc-admin-nav-text">Branch Access</span>
             </a>
         }
-        <form class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
+        <form method="post" class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
             <button type="submit" class="ejc-admin-nav-link ejc-admin-nav-link-button" title="Logout">
                 <i class="bi bi-box-arrow-right"></i>
                 <span class="ejc-admin-nav-text">Logout</span>

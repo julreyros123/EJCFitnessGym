@@ -40,7 +40,7 @@
         </a>
         <details class="ejc-admin-nav-module" @(isOperatingExpensesPath ? "open" : null)>
             <summary class="ejc-admin-nav-module-trigger" title="Operating Expenses">
-                <i class="bi bi-wallet-fill"></i>
+                <i class="bi bi-wallet2"></i>
                 <span class="ejc-admin-nav-text">Operating Expenses</span>
                 <i class="bi bi-chevron-down ejc-admin-nav-module-caret" aria-hidden="true"></i>
             </summary>
@@ -66,11 +66,11 @@
             <span class="ejc-admin-nav-text">Revenue &amp; Profit</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/NetForecast")" asp-page="/Finance/NetForecast" title="Net Forecast">
-            <i class="bi bi-calculator-fill"></i>
+            <i class="bi bi-calculator"></i>
             <span class="ejc-admin-nav-text">Net Forecast</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/GeneralLedger")" asp-page="/Finance/GeneralLedger" title="General Ledger">
-            <i class="bi bi-journal-bookmark-fill"></i>
+            <i class="bi bi-journal-bookmark"></i>
             <span class="ejc-admin-nav-text">General Ledger</span>
         </a>
     </div>
@@ -78,7 +78,8 @@
     <div class="ejc-admin-nav-divider"></div>
 
     <div class="ejc-admin-nav-group">
-        <form class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
+        <span class="ejc-admin-nav-section">System</span>
+        <form method="post" class="ejc-admin-nav-form" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@logoutReturnUrl">
             <button type="submit" class="ejc-admin-nav-link ejc-admin-nav-link-button" title="Logout">
                 <i class="bi bi-box-arrow-right"></i>
                 <span class="ejc-admin-nav-text">Logout</span>

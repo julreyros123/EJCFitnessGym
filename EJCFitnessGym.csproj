@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Google.Apis.Auth" Version="1.73.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.23" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="8.0.23" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.23" />
@@ -27,9 +28,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="_buildtest\\**\\*.cs;_efbuild\\**\\*.cs;.codex-build\\**\\*.cs;_verifybuild\\**\\*.cs;artifacts\\**\\*.cs;obj\\**\\*.cs" />
-    <None Remove="_buildtest\\**\\*;_efbuild\\**\\*;.codex-build\\**\\*;_verifybuild\\**\\*;artifacts\\**\\*;obj\\**\\*" />
-    <Content Remove="_buildtest\\**\\*;_efbuild\\**\\*;.codex-build\\**\\*;_verifybuild\\**\\*;artifacts\\**\\*;obj\\**\\*" />
+    <Compile Remove="_buildtest\\**\\*.cs;_efbuild\\**\\*.cs;.codex-build\\**\\*.cs;_verifybuild\\**\\*.cs;artifacts\\**\\*.cs;obj\\**\\*.cs;publish\\**\\*.cs;clean_deploy\\**\\*.cs;deploy_files\\**\\*.cs;tmp_remote\\**\\*.cs;CodeCoverage\\**\\*.cs;.dotnet\\**\\*.cs;.dotnet_cli\\**\\*.cs" />
+    <None Remove="_buildtest\\**\\*;_efbuild\\**\\*;.codex-build\\**\\*;_verifybuild\\**\\*;artifacts\\**\\*;obj\\**\\*;publish\\**\\*;clean_deploy\\**\\*;deploy_files\\**\\*;tmp_remote\\**\\*;CodeCoverage\\**\\*;.dotnet\\**\\*;.dotnet_cli\\**\\*" />
+    <Content Remove="_buildtest\\**\\*;_efbuild\\**\\*;.codex-build\\**\\*;_verifybuild\\**\\*;artifacts\\**\\*;obj\\**\\*;publish\\**\\*;clean_deploy\\**\\*;deploy_files\\**\\*;tmp_remote\\**\\*;CodeCoverage\\**\\*;.dotnet\\**\\*;.dotnet_cli\\**\\*" />
   </ItemGroup>
 
 </Project>

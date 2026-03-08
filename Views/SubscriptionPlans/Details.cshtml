@@ -1,6 +1,7 @@
 @model EJCFitnessGym.Models.Billing.SubscriptionPlan
 @{
     ViewData["Title"] = "Plan Details";
+    var benefits = ViewData["Benefits"] as IReadOnlyList<string> ?? Array.Empty<string>();
 }
 
 <div class="container py-5">
@@ -21,6 +22,9 @@
                 <dt class="col-sm-3">Name</dt>
                 <dd class="col-sm-9">@Model.Name</dd>
 
+                <dt class="col-sm-3">Tier</dt>
+                <dd class="col-sm-9">@Model.Tier</dd>
+
                 <dt class="col-sm-3">Description</dt>
                 <dd class="col-sm-9">@Model.Description</dd>
 
@@ -32,6 +36,16 @@
 
                 <dt class="col-sm-3">Status</dt>
                 <dd class="col-sm-9">@(Model.IsActive ? "Active" : "Inactive")</dd>
+
+                <dt class="col-sm-3">Included Access</dt>
+                <dd class="col-sm-9">
+                    <ul class="mb-0">
+                        @foreach (var benefit in benefits)
+                        {
+                            <li>@benefit</li>
+                        }
+                    </ul>
+                </dd>
             </dl>
         </div>
     </div>

@@ -2,6 +2,7 @@ using EJCFitnessGym.Data;
 using EJCFitnessGym.Models;
 using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Security;
+using EJCFitnessGym.Services.Memberships;
 using EJCFitnessGym.Services.Payments;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -65,26 +66,10 @@ namespace EJCFitnessGym.Pages.Staff
                 .ToDictionary(subscription => subscription.MemberUserId, StringComparer.Ordinal);
 
             var allMemberIds = latestByMember.Keys.ToList();
-            var branchByMemberId = await _db.UserClaims
-                .AsNoTracking()
-                .Where(claim =>
-                    claim.ClaimType == BranchAccess.BranchIdClaimType &&
-                    claim.ClaimValue != null &&
-                    allMemberIds.Contains(claim.UserId))
-                .GroupBy(claim => claim.UserId)
-                .Select(group => new
-                {
-                    MemberUserId = group.Key,
-                    BranchId = group
-                        .OrderByDescending(claim => claim.Id)
-                        .Select(claim => claim.ClaimValue)
-                        .FirstOrDefault()
-                })
-                .ToDictionaryAsync(
-                    item => item.MemberUserId,
-                    item => item.BranchId,
-                    StringComparer.Ordinal,
-                    cancellationToken);
+            var branchByMemberId = await MemberBranchAssignment.ResolveHomeBranchMapAsync(
+                _db,
+                allMemberIds,
+                cancellationToken);
 
             var scopedMemberIds = isSuperAdmin
                 ? allMemberIds

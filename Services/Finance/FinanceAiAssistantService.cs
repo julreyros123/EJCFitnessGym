@@ -4,7 +4,7 @@ using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Models.Finance;
 using EJCFitnessGym.Security;
 using EJCFitnessGym.Services.AI;
-using EJCFitnessGym.Services.Realtime;
+using EJCFitnessGym.Services.Integration;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -16,7 +16,7 @@ namespace EJCFitnessGym.Services.Finance
         private const string HighChurnAlertType = "FinanceMemberChurnHigh";
         private readonly ApplicationDbContext _db;
         private readonly IMemberChurnRiskService _memberChurnRiskService;
-        private readonly IErpEventPublisher _erpEventPublisher;
+        private readonly IIntegrationOutbox _integrationOutbox;
         private readonly IEmailSender _emailSender;
         private readonly FinanceAlertOptions _financeAlertOptions;
         private readonly ILogger<FinanceAiAssistantService> _logger;
@@ -24,14 +24,14 @@ namespace EJCFitnessGym.Services.Finance
         public FinanceAiAssistantService(
             ApplicationDbContext db,
             IMemberChurnRiskService memberChurnRiskService,
-            IErpEventPublisher erpEventPublisher,
+            IIntegrationOutbox integrationOutbox,
             IEmailSender emailSender,
             IOptions<FinanceAlertOptions> financeAlertOptions,
             ILogger<FinanceAiAssistantService> logger)
         {
             _db = db;
             _memberChurnRiskService = memberChurnRiskService;
-            _erpEventPublisher = erpEventPublisher;
+            _integrationOutbox = integrationOutbox;
             _emailSender = emailSender;
             _financeAlertOptions = financeAlertOptions.Value;
             _logger = logger;
@@ -427,28 +427,28 @@ namespace EJCFitnessGym.Services.Finance
             };
 
             var message = $"High churn risk member detected: {member.MemberEmail} (score {member.RiskScore}).";
-            var realtimePublished = false;
+            var realtimeQueued = false;
             var emailAttempted = false;
             var emailSucceeded = false;
 
             try
             {
-                await _erpEventPublisher.PublishToRoleAsync(
+                await _integrationOutbox.EnqueueRoleAsync(
                     "Finance",
                     "finance.alert",
                     message,
                     payload,
                     cancellationToken);
-                await _erpEventPublisher.PublishToBackOfficeAsync(
+                await _integrationOutbox.EnqueueBackOfficeAsync(
                     "finance.alert",
                     message,
                     payload,
                     cancellationToken);
-                realtimePublished = true;
+                realtimeQueued = true;
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to publish churn alert for member {MemberUserId}.", member.MemberUserId);
+                _logger.LogWarning(ex, "Failed to enqueue churn alert for member {MemberUserId}.", member.MemberUserId);
             }
 
             var recipients = (_financeAlertOptions.EmailRecipients ?? Array.Empty<string>())
@@ -487,7 +487,7 @@ namespace EJCFitnessGym.Services.Finance
                 Trigger = memberTrigger,
                 Severity = "High",
                 Message = message,
-                RealtimePublished = realtimePublished,
+                RealtimePublished = realtimeQueued,
                 EmailAttempted = emailAttempted,
                 EmailSucceeded = emailSucceeded,
                 PayloadJson = JsonSerializer.Serialize(payload),
@@ -497,7 +497,7 @@ namespace EJCFitnessGym.Services.Finance
             });
 
             await _db.SaveChangesAsync(cancellationToken);
-            return realtimePublished || emailSucceeded;
+            return realtimeQueued || emailSucceeded;
         }
 
         private static string ResolveSuggestedAction(string riskLevel, int overdueInvoiceCount)

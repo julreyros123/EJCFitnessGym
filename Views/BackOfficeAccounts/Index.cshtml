@@ -4,13 +4,13 @@
     var accounts = Model.Accounts?.ToList() ?? new List<EJCFitnessGym.Models.Admin.BackOfficeAccountListItemViewModel>();
 }
 
-<div class="py-4">
-    <div class="ejc-table-toolbar mb-3">
-        <div>
-            <h1 class="display-6 mb-0">Back Office Accounts</h1>
-            <p class="ejc-muted mb-0">Create Admin and Finance logins, assign branch scope, and keep account records.</p>
-        </div>
+<div class="ejc-page-header">
+    <div>
+        <span class="ejc-eyebrow">Administration</span>
+        <h1 class="display-6 mb-0">Back Office Accounts</h1>
+        <p class="ejc-muted mb-0">Create Admin and Finance logins, assign branch scope, and keep account records.</p>
     </div>
+</div>
 
     @if (TempData["StatusMessage"] is string status && !string.IsNullOrWhiteSpace(status))
     {
@@ -201,7 +201,6 @@
             </div>
         </div>
     </div>
-</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

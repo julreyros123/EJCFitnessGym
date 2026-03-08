@@ -1,5 +1,6 @@
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Billing;
+using EJCFitnessGym.Services.Memberships;
 using EJCFitnessGym.Security;
 using EJCFitnessGym.Services.Finance;
 using Microsoft.AspNetCore.Authorization;
@@ -231,15 +232,12 @@ namespace EJCFitnessGym.Controllers
                 else
                 {
                     var memberIds = members.Select(user => user.Id).ToList();
-                    var scopedMemberIds = await _db.UserClaims
-                        .AsNoTracking()
-                        .Where(claim =>
-                            claim.ClaimType == BranchAccess.BranchIdClaimType &&
-                            claim.ClaimValue == branchId &&
-                            memberIds.Contains(claim.UserId))
-                        .Select(claim => claim.UserId)
-                        .Distinct()
-                        .ToListAsync();
+                    var memberBranchById = await MemberBranchAssignment.ResolveHomeBranchMapAsync(_db, memberIds);
+                    var scopedMemberIds = memberIds
+                        .Where(memberId =>
+                            memberBranchById.TryGetValue(memberId, out var memberBranchId) &&
+                            string.Equals(memberBranchId, branchId, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
 
                     var scopedSet = scopedMemberIds.ToHashSet(StringComparer.Ordinal);
                     members = members
@@ -270,30 +268,13 @@ namespace EJCFitnessGym.Controllers
                 return false;
             }
 
-            return await _db.UserClaims
-                .AsNoTracking()
-                .AnyAsync(claim =>
-                    claim.UserId == memberUserId &&
-                    claim.ClaimType == BranchAccess.BranchIdClaimType &&
-                    claim.ClaimValue == branchId);
+            var memberBranchId = await MemberBranchAssignment.ResolveHomeBranchIdAsync(_db, memberUserId);
+            return string.Equals(memberBranchId, branchId, StringComparison.OrdinalIgnoreCase);
         }
 
         private async Task<string?> ResolveMemberBranchIdAsync(string? memberUserId)
         {
-            if (string.IsNullOrWhiteSpace(memberUserId))
-            {
-                return null;
-            }
-
-            return await _db.UserClaims
-                .AsNoTracking()
-                .Where(claim =>
-                    claim.UserId == memberUserId &&
-                    claim.ClaimType == BranchAccess.BranchIdClaimType &&
-                    claim.ClaimValue != null)
-                .OrderByDescending(claim => claim.Id)
-                .Select(claim => claim.ClaimValue)
-                .FirstOrDefaultAsync();
+            return await MemberBranchAssignment.ResolveHomeBranchIdAsync(_db, memberUserId);
         }
     }
 }

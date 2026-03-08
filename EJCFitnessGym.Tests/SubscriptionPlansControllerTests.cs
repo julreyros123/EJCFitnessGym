@@ -19,7 +19,8 @@ public class SubscriptionPlansControllerTests
         db.SubscriptionPlans.Add(new SubscriptionPlan
         {
             Id = 1,
-            Name = "Starter",
+            Tier = PlanTier.Basic,
+            Name = "Basic",
             Price = 999m,
             BillingCycle = BillingCycle.Monthly,
             IsActive = true
@@ -118,14 +119,16 @@ public class SubscriptionPlansControllerTests
 
         db.SubscriptionPlans.Add(new SubscriptionPlan
         {
-            Name = "Starter",
-            Description = "Existing starter plan",
+            Tier = PlanTier.Basic,
+            Name = "Basic",
+            Description = "Existing basic plan",
             Price = 1099m,
             BillingCycle = BillingCycle.Monthly,
             IsActive = true
         });
         db.SubscriptionPlans.Add(new SubscriptionPlan
         {
+            Tier = PlanTier.Pro,
             Name = "Pro",
             Description = "Existing pro plan",
             Price = 1599m,
@@ -134,6 +137,7 @@ public class SubscriptionPlansControllerTests
         });
         db.SubscriptionPlans.Add(new SubscriptionPlan
         {
+            Tier = PlanTier.Elite,
             Name = "Elite",
             Description = "Existing elite plan",
             Price = 2099m,
@@ -168,7 +172,8 @@ public class SubscriptionPlansControllerTests
         db.SubscriptionPlans.Add(new SubscriptionPlan
         {
             Id = 9,
-            Name = "Starter",
+            Tier = PlanTier.Basic,
+            Name = "Basic",
             Description = "Old description",
             Price = 999m,
             BillingCycle = BillingCycle.Monthly,
@@ -181,7 +186,7 @@ public class SubscriptionPlansControllerTests
         var result = await controller.Edit(9, new SubscriptionPlan
         {
             Id = 9,
-            Name = "Starter Plus",
+            Tier = PlanTier.Pro,
             Description = "Updated description",
             Price = 1299m,
             BillingCycle = BillingCycle.Monthly,
@@ -192,10 +197,13 @@ public class SubscriptionPlansControllerTests
         Assert.Equal(nameof(SubscriptionPlansController.Index), redirect.ActionName);
 
         var updated = await db.SubscriptionPlans.SingleAsync(p => p.Id == 9);
-        Assert.Equal("Starter Plus", updated.Name);
-        Assert.Equal("Updated description", updated.Description);
+        Assert.Equal("Pro", updated.Name);
+        Assert.Equal("Expand into cardio and guided sessions with added comfort perks across all branches.", updated.Description);
         Assert.Equal(1299m, updated.Price);
         Assert.False(updated.IsActive);
+        Assert.Equal(PlanTier.Pro, updated.Tier);
+        Assert.True(updated.AllowsAllBranchAccess);
+        Assert.True(updated.IncludesFreeTowel);
         Assert.Equal(createdAtUtc, updated.CreatedAtUtc);
     }
 

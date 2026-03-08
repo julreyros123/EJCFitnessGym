@@ -3,6 +3,7 @@ using EJCFitnessGym.Models;
 using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Security;
 using EJCFitnessGym.Services.Integration;
+using EJCFitnessGym.Services.Memberships;
 using EJCFitnessGym.Services.Staff;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -546,15 +547,7 @@ namespace EJCFitnessGym.Pages.Staff
                     payment.Invoice.MemberUserId == memberUserId,
                     cancellationToken);
 
-            var branchId = await _db.UserClaims
-                .AsNoTracking()
-                .Where(claim =>
-                    claim.UserId == memberUserId &&
-                    claim.ClaimType == BranchAccess.BranchIdClaimType &&
-                    claim.ClaimValue != null)
-                .OrderByDescending(claim => claim.Id)
-                .Select(claim => claim.ClaimValue)
-                .FirstOrDefaultAsync(cancellationToken);
+            var branchId = await MemberBranchAssignment.ResolveHomeBranchIdAsync(_db, memberUserId, cancellationToken);
 
             var displayName = BuildDisplayName(profile, user.Email ?? user.UserName ?? memberUserId);
             var todayUtc = DateTime.UtcNow.Date;
@@ -610,15 +603,15 @@ namespace EJCFitnessGym.Pages.Staff
                 return new HashSet<string>(StringComparer.Ordinal);
             }
 
-            var scopedMemberUserIds = await _db.UserClaims
-                .AsNoTracking()
-                .Where(claim =>
-                    claim.ClaimType == BranchAccess.BranchIdClaimType &&
-                    claim.ClaimValue == currentBranchId &&
-                    memberUserIds.Contains(claim.UserId))
-                .Select(claim => claim.UserId)
-                .Distinct()
-                .ToListAsync(cancellationToken);
+            var branchByMemberId = await MemberBranchAssignment.ResolveHomeBranchMapAsync(
+                _db,
+                memberUserIds,
+                cancellationToken);
+            var scopedMemberUserIds = memberUserIds
+                .Where(memberUserId =>
+                    branchByMemberId.TryGetValue(memberUserId, out var memberBranchId) &&
+                    string.Equals(memberBranchId, currentBranchId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
             return scopedMemberUserIds.ToHashSet(StringComparer.Ordinal);
         }
@@ -630,10 +623,12 @@ namespace EJCFitnessGym.Pages.Staff
                 .Where(message =>
                     message.Target == Models.Integration.IntegrationOutboxTarget.BackOffice &&
                     (message.EventType == StaffAttendanceEvents.CheckInEventType ||
-                    message.EventType == StaffAttendanceEvents.CheckOutEventType))
+                    message.EventType == StaffAttendanceEvents.CheckOutEventType) &&
+                    message.PayloadJson != null &&
+                    message.PayloadJson.Contains(memberUserId))
                 .OrderByDescending(message => message.CreatedUtc)
                 .ThenByDescending(message => message.Id)
-                .Take(400)
+                .Take(50)
                 .ToListAsync(cancellationToken);
 
             var latestEventForMember = messages

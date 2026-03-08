@@ -1,0 +1,61 @@
+@page "{id:int}"
+@model EJCFitnessGym.Pages.Public.PlanDetailsModel
+@{
+    ViewData["Title"] = "Plan Details - " + Model.PlanCard?.Name;
+}
+
+<section class="enterprise-section pt-5 mt-4">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="mb-4">
+                    <a asp-page="/Public/Pricing" class="text-decoration-none" style="color: var(--ejc-primary);">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Pricing
+                    </a>
+                </div>
+
+                @if (Model.PlanCard is null)
+                {
+                    <div class="alert alert-warning">
+                        Plan details are currently unavailable.
+                    </div>
+                }
+                else
+                {
+                    <article class="enterprise-plan-card p-4 p-md-5">
+                        @if (!string.IsNullOrWhiteSpace(Model.PlanCard.Badge))
+                        {
+                            <span class="enterprise-plan-tag mb-3 d-inline-block">@Model.PlanCard.Badge</span>
+                        }
+                        
+                        <div class="text-center mb-5 pb-3 border-bottom border-dark">
+                            <h1 class="display-4 fw-bold text-white mb-3">@Model.PlanCard.Name</h1>
+                            <p class="enterprise-plan-sub fs-5 mx-auto" style="max-width: 600px;">@Model.PlanCard.Subtitle</p>
+                            <div class="enterprise-plan-price mt-4">PHP @Model.PlanCard.Price.ToString("N0") <small>/ month</small></div>
+                        </div>
+
+                        <h3 class="h4 text-white mb-4"><i class="bi bi-star-fill me-2" style="color: var(--ejc-primary);"></i>All Included Perks &amp; Benefits</h3>
+                        
+                        <div class="row g-4 mb-5">
+                            @foreach (var benefit in Model.PlanCard.Benefits)
+                            {
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-start text-light">
+                                        <i class="bi bi-check-circle-fill fs-5 mt-1 me-3" style="color: var(--ejc-primary);"></i>
+                                        <span class="fs-6">@benefit</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="text-center mt-4">
+                            <a asp-page="/Public/Pricing" asp-route-planId="@Model.PlanCard.PlanId" class="btn btn-modern-neon btn-lg rounded-pill px-5 py-3 fw-bold w-100 shadow-lg" style="max-width: 400px;">
+                                Subscribe to @Model.PlanCard.Name Plan
+                            </a>
+                        </div>
+                    </article>
+                }
+            </div>
+        </div>
+    </div>
+</section>

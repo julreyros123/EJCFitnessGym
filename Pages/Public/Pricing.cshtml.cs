@@ -1,4 +1,5 @@
 using EJCFitnessGym.Data;
+using EJCFitnessGym.Models.Admin;
 using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Models.Public;
 using EJCFitnessGym.Services.Memberships;
@@ -12,11 +13,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Globalization;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace EJCFitnessGym.Pages.Public
 {
     public class PricingModel : PageModel
     {
+        private static readonly Regex PlanTokenRegex = new(@"\[plan:(\d+)\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         private readonly ApplicationDbContext _db;
         private readonly UserManager<IdentityUser> _userManager;
         private readonly PayMongoClient _payMongo;
@@ -49,9 +53,13 @@ namespace EJCFitnessGym.Pages.Public
         public DateTime? NextBillingDueDateUtc { get; private set; }
         public DateTime? ReminderScheduledDateUtc { get; private set; }
         public PendingCheckoutSummary? ActivePendingCheckout { get; private set; }
+        public IReadOnlyList<BranchSelectionOption> AvailableBranches { get; private set; } = Array.Empty<BranchSelectionOption>();
+        public string? SelectedHomeBranchId { get; private set; }
+        public InvoiceCheckoutSummary? CheckoutInvoice { get; private set; }
 
         public async Task OnGet(
             int? planId = null,
+            int? invoiceId = null,
             string? checkout = null,
             int? paymentId = null,
             CancellationToken cancellationToken = default)
@@ -67,6 +75,7 @@ namespace EJCFitnessGym.Pages.Public
 
             Plans = monthlyPlans.Count > 0 ? monthlyPlans : activePlans;
             PlanCards = PlanCardCatalogBuilder.Build(Plans);
+            AvailableBranches = await LoadAvailableBranchesAsync(cancellationToken);
 
             if (planId.HasValue && planId.Value > 0 && Plans.Any(p => p.Id == planId.Value))
             {
@@ -78,6 +87,30 @@ namespace EJCFitnessGym.Pages.Public
                 var memberUserId = _userManager.GetUserId(User);
                 if (!string.IsNullOrWhiteSpace(memberUserId))
                 {
+                    SelectedHomeBranchId = await MemberBranchAssignment.ResolveHomeBranchIdAsync(
+                        _db,
+                        memberUserId,
+                        cancellationToken);
+
+                    if (string.IsNullOrWhiteSpace(SelectedHomeBranchId) && AvailableBranches.Count == 1)
+                    {
+                        SelectedHomeBranchId = AvailableBranches[0].BranchId;
+                    }
+
+                    if (invoiceId.HasValue && invoiceId.Value > 0)
+                    {
+                        CheckoutInvoice = await LoadCheckoutInvoiceAsync(memberUserId, invoiceId.Value, cancellationToken);
+                        if (CheckoutInvoice is null)
+                        {
+                            TempData["StatusMessage"] = "That invoice is no longer open for payment. Review your payments page or choose a plan below.";
+                        }
+                        else
+                        {
+                            SelectedPlanId ??= CheckoutInvoice.PlanId;
+                            SelectedHomeBranchId = BranchNaming.NormalizeBranchId(CheckoutInvoice.BranchId) ?? SelectedHomeBranchId;
+                        }
+                    }
+
                     if (_payMongoMembershipReconciliationService is not null)
                     {
                         try
@@ -138,11 +171,11 @@ namespace EJCFitnessGym.Pages.Public
             }
         }
 
-        public async Task<IActionResult> OnPostSubscribeAsync(int planId, CancellationToken cancellationToken)
+        public async Task<IActionResult> OnPostSubscribeAsync(int? planId, string? homeBranchId, int? invoiceId, CancellationToken cancellationToken)
         {
             if (User?.Identity?.IsAuthenticated != true)
             {
-                var returnUrl = BuildPricingReturnUrl(planId);
+                var returnUrl = BuildPricingReturnUrl(planId, invoiceId);
                 return RedirectToPage("/Account/Login", new { area = "Identity", returnUrl });
             }
 
@@ -151,30 +184,16 @@ namespace EJCFitnessGym.Pages.Public
                 return Forbid();
             }
 
-            var plan = await _db.SubscriptionPlans.FirstOrDefaultAsync(p => p.Id == planId && p.IsActive);
-            if (plan is null)
-            {
-                return NotFound();
-            }
-
             var memberUserId = _userManager.GetUserId(User);
             if (string.IsNullOrWhiteSpace(memberUserId))
             {
                 return Challenge();
             }
 
-            var memberBranchId = await ResolveOrAssignMemberBranchIdAsync(memberUserId, cancellationToken);
-
-            if (string.IsNullOrWhiteSpace(memberBranchId))
-            {
-                TempData["StatusMessage"] = "No branch is available for membership checkout yet. Please add at least one branch in admin settings.";
-                return RedirectToPage("/Public/Pricing", new { planId });
-            }
-
             if (string.IsNullOrWhiteSpace(_payMongoOptions.SecretKey))
             {
                 TempData["StatusMessage"] = "Online payment is currently unavailable. Please contact support.";
-                return RedirectToPage("/Public/Pricing", new { planId });
+                return RedirectToPage("/Public/Pricing", new { planId, invoiceId });
             }
 
             var nowUtc = DateTime.UtcNow;
@@ -207,59 +226,109 @@ namespace EJCFitnessGym.Pages.Public
 
                     TempData["StatusMessage"] =
                         $"You already have a pending PayMongo checkout (Invoice {pendingInvoiceNumber}, started {pendingStartedLocal}, due {pendingDueLocal}). Complete it, or cancel it from the pricing page before starting a new payment.";
+                    return RedirectToPage("/Public/Pricing", new { planId, invoiceId });
+                }
+            }
+
+            Invoice invoice;
+            SubscriptionPlan? plan = null;
+            string? memberBranchId;
+
+            if (invoiceId.HasValue && invoiceId.Value > 0)
+            {
+                var targetedInvoice = await BuildInvoiceCheckoutQuery(memberUserId, invoiceId.Value)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (targetedInvoice is null)
+                {
+                    TempData["StatusMessage"] = "That invoice is no longer available for payment.";
+                    return RedirectToPage("/Public/Pricing", new { invoiceId });
+                }
+
+                invoice = targetedInvoice;
+                plan = await ResolvePlanFromInvoiceAsync(invoice, cancellationToken);
+                planId ??= plan?.Id;
+
+                memberBranchId = BranchNaming.NormalizeBranchId(invoice.BranchId)
+                    ?? await ResolveSelectedHomeBranchIdAsync(memberUserId, homeBranchId, cancellationToken);
+            }
+            else
+            {
+                if (!planId.HasValue || planId.Value <= 0)
+                {
+                    return NotFound();
+                }
+
+                plan = await _db.SubscriptionPlans.FirstOrDefaultAsync(p => p.Id == planId.Value && p.IsActive, cancellationToken);
+                if (plan is null)
+                {
+                    return NotFound();
+                }
+
+                memberBranchId = await ResolveSelectedHomeBranchIdAsync(memberUserId, homeBranchId, cancellationToken);
+                if (string.IsNullOrWhiteSpace(memberBranchId))
+                {
+                    TempData["StatusMessage"] = "Choose your home branch before starting membership checkout.";
                     return RedirectToPage("/Public/Pricing", new { planId });
                 }
-            }
 
-            var planToken = $"[plan:{plan.Id}]";
-            var openInvoice = await _db.Invoices
-                .Include(invoice => invoice.MemberSubscription)
-                .Where(invoice =>
-                    invoice.MemberUserId == memberUserId &&
-                    (invoice.Status == InvoiceStatus.Unpaid || invoice.Status == InvoiceStatus.Overdue) &&
-                    ((invoice.MemberSubscriptionId.HasValue &&
-                      invoice.MemberSubscription != null &&
-                      invoice.MemberSubscription.SubscriptionPlanId == plan.Id) ||
-                     (invoice.Notes != null && invoice.Notes.Contains(planToken))))
-                .OrderBy(invoice => invoice.DueDateUtc)
-                .ThenBy(invoice => invoice.Id)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            var invoice = openInvoice;
-            if (invoice is null)
-            {
-                var activeSubscription = await _db.MemberSubscriptions
-                    .AsNoTracking()
-                    .Where(subscription =>
-                        subscription.MemberUserId == memberUserId &&
-                        subscription.SubscriptionPlanId == plan.Id &&
-                        (subscription.Status == SubscriptionStatus.Active || subscription.Status == SubscriptionStatus.Paused))
-                    .OrderByDescending(subscription => subscription.EndDateUtc ?? DateTime.MinValue)
-                    .ThenByDescending(subscription => subscription.Id)
+                var planToken = $"[plan:{plan.Id}]";
+                var openInvoice = await _db.Invoices
+                    .Include(existingInvoice => existingInvoice.MemberSubscription)
+                    .Where(existingInvoice =>
+                        existingInvoice.MemberUserId == memberUserId &&
+                        (existingInvoice.Status == InvoiceStatus.Unpaid || existingInvoice.Status == InvoiceStatus.Overdue) &&
+                        ((existingInvoice.MemberSubscriptionId.HasValue &&
+                          existingInvoice.MemberSubscription != null &&
+                          existingInvoice.MemberSubscription.SubscriptionPlanId == plan.Id) ||
+                         (existingInvoice.Notes != null && existingInvoice.Notes.Contains(planToken))))
+                    .OrderBy(existingInvoice => existingInvoice.DueDateUtc)
+                    .ThenBy(existingInvoice => existingInvoice.Id)
                     .FirstOrDefaultAsync(cancellationToken);
 
-                var dueDateUtc = activeSubscription?.EndDateUtc ?? nowUtc.AddDays(1);
-                if (dueDateUtc <= nowUtc)
+                invoice = openInvoice ?? new Invoice();
+                if (openInvoice is null)
                 {
-                    dueDateUtc = nowUtc.AddDays(1);
+                    var activeSubscription = await _db.MemberSubscriptions
+                        .AsNoTracking()
+                        .Where(subscription =>
+                            subscription.MemberUserId == memberUserId &&
+                            subscription.SubscriptionPlanId == plan.Id &&
+                            (subscription.Status == SubscriptionStatus.Active || subscription.Status == SubscriptionStatus.Paused))
+                        .OrderByDescending(subscription => subscription.EndDateUtc ?? DateTime.MinValue)
+                        .ThenByDescending(subscription => subscription.Id)
+                        .FirstOrDefaultAsync(cancellationToken);
+
+                    var dueDateUtc = activeSubscription?.EndDateUtc ?? nowUtc.AddDays(1);
+                    if (dueDateUtc <= nowUtc)
+                    {
+                        dueDateUtc = nowUtc.AddDays(1);
+                    }
+
+                    invoice = new Invoice
+                    {
+                        InvoiceNumber = GenerateInvoiceNumber(),
+                        MemberUserId = memberUserId,
+                        BranchId = memberBranchId,
+                        MemberSubscriptionId = activeSubscription?.Id,
+                        IssueDateUtc = nowUtc,
+                        DueDateUtc = dueDateUtc,
+                        Amount = plan.Price,
+                        Status = InvoiceStatus.Unpaid,
+                        Notes = $"Subscription purchase: {plan.Name} [plan:{plan.Id}]"
+                    };
+
+                    _db.Invoices.Add(invoice);
+                    await _db.SaveChangesAsync(cancellationToken);
                 }
-
-                invoice = new Invoice
-                {
-                    InvoiceNumber = GenerateInvoiceNumber(),
-                    MemberUserId = memberUserId,
-                    BranchId = memberBranchId,
-                    MemberSubscriptionId = activeSubscription?.Id,
-                    IssueDateUtc = nowUtc,
-                    DueDateUtc = dueDateUtc,
-                    Amount = plan.Price,
-                    Status = InvoiceStatus.Unpaid,
-                    Notes = $"Subscription purchase: {plan.Name} [plan:{plan.Id}]"
-                };
-
-                _db.Invoices.Add(invoice);
-                await _db.SaveChangesAsync(cancellationToken);
             }
+
+            if (string.IsNullOrWhiteSpace(memberBranchId))
+            {
+                TempData["StatusMessage"] = "Choose your home branch before starting membership checkout.";
+                return RedirectToPage("/Public/Pricing", new { planId, invoiceId });
+            }
+
+            invoice.BranchId ??= memberBranchId;
 
             var payment = new Payment
             {
@@ -279,25 +348,53 @@ namespace EJCFitnessGym.Pages.Public
 
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
             var successUrl = string.IsNullOrWhiteSpace(_payMongoOptions.SuccessUrl)
-                ? baseUrl + Url.Page("/Public/Pricing", values: new { planId, checkout = "success", paymentId = payment.Id })
+                ? baseUrl + Url.Page("/Public/Pricing", values: new { planId, invoiceId, checkout = "success", paymentId = payment.Id })
                 : AppendQueryParameters(
                     _payMongoOptions.SuccessUrl,
                     new Dictionary<string, string>
                     {
-                        ["planId"] = planId.ToString(CultureInfo.InvariantCulture),
+                        ["planId"] = planId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+                        ["invoiceId"] = invoiceId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
                         ["checkout"] = "success",
                         ["paymentId"] = payment.Id.ToString(CultureInfo.InvariantCulture)
-                    });
+                    }.Where(entry => !string.IsNullOrWhiteSpace(entry.Value))
+                     .ToDictionary(entry => entry.Key, entry => entry.Value));
             var cancelUrl = string.IsNullOrWhiteSpace(_payMongoOptions.CancelUrl)
-                ? baseUrl + Url.Page("/Public/Pricing", values: new { planId, checkout = "cancelled", paymentId = payment.Id })
+                ? baseUrl + Url.Page("/Public/Pricing", values: new { planId, invoiceId, checkout = "cancelled", paymentId = payment.Id })
                 : AppendQueryParameters(
                     _payMongoOptions.CancelUrl,
                     new Dictionary<string, string>
                     {
-                        ["planId"] = planId.ToString(CultureInfo.InvariantCulture),
+                        ["planId"] = planId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+                        ["invoiceId"] = invoiceId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
                         ["checkout"] = "cancelled",
                         ["paymentId"] = payment.Id.ToString(CultureInfo.InvariantCulture)
-                    });
+                    }.Where(entry => !string.IsNullOrWhiteSpace(entry.Value))
+                     .ToDictionary(entry => entry.Key, entry => entry.Value));
+
+            var planName = plan?.Name ?? invoice.MemberSubscription?.SubscriptionPlan?.Name ?? $"Invoice {invoice.InvoiceNumber}";
+            var planDescription = plan?.Description;
+            var checkoutDescription = plan is not null
+                ? $"Gym subscription: {plan.Name}"
+                : $"Invoice payment: {invoice.InvoiceNumber}";
+
+            var checkoutMetadata = new Dictionary<string, string>
+            {
+                ["invoice_id"] = invoice.Id.ToString(),
+                ["invoice_number"] = invoice.InvoiceNumber,
+                ["payment_id"] = payment.Id.ToString(),
+                ["member_user_id"] = memberUserId,
+                ["branch_id"] = memberBranchId,
+                ["invoice_amount"] = invoice.Amount.ToString("0.00", CultureInfo.InvariantCulture),
+                ["invoice_due_date_utc"] = invoice.DueDateUtc.ToString("O")
+            };
+
+            if (plan is not null)
+            {
+                checkoutMetadata["plan_id"] = plan.Id.ToString();
+                checkoutMetadata["plan_name"] = plan.Name;
+                checkoutMetadata["billing_cycle"] = plan.BillingCycle.ToString();
+            }
 
             var checkoutRequest = new CreateCheckoutSessionRequest
             {
@@ -305,7 +402,7 @@ namespace EJCFitnessGym.Pages.Public
                 {
                     Attributes = new CreateCheckoutSessionAttributes
                     {
-                        Description = $"Gym subscription: {plan.Name}",
+                        Description = checkoutDescription,
                         SuccessUrl = successUrl,
                         CancelUrl = cancelUrl,
                         PaymentMethodTypes = new List<string> { "card", "gcash" },
@@ -313,27 +410,15 @@ namespace EJCFitnessGym.Pages.Public
                         {
                             new CheckoutLineItem
                             {
-                                Name = plan.Name,
-                                Description = plan.Description,
+                                Name = planName,
+                                Description = planDescription ?? invoice.Notes,
                                 Quantity = 1,
                                 Currency = "PHP",
                                 Amount = (int)Math.Round(invoice.Amount * 100m)
                             }
                         },
                         ReferenceNumber = invoice.InvoiceNumber,
-                        Metadata = new Dictionary<string, string>
-                        {
-                            ["invoice_id"] = invoice.Id.ToString(),
-                            ["invoice_number"] = invoice.InvoiceNumber,
-                            ["payment_id"] = payment.Id.ToString(),
-                            ["member_user_id"] = memberUserId,
-                            ["branch_id"] = memberBranchId,
-                            ["plan_id"] = plan.Id.ToString(),
-                            ["plan_name"] = plan.Name,
-                            ["billing_cycle"] = plan.BillingCycle.ToString(),
-                            ["invoice_amount"] = invoice.Amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
-                            ["invoice_due_date_utc"] = invoice.DueDateUtc.ToString("O")
-                        }
+                        Metadata = checkoutMetadata
                     }
                 }
             };
@@ -353,10 +438,10 @@ namespace EJCFitnessGym.Pages.Public
                     "Failed to create PayMongo checkout for member {MemberUserId}, invoice {InvoiceId}, plan {PlanId}.",
                     memberUserId,
                     invoice.Id,
-                    plan.Id);
+                    planId);
 
                 TempData["StatusMessage"] = "We could not start the online payment right now. Please try again in a few minutes.";
-                return RedirectToPage("/Public/Pricing", new { planId });
+                return RedirectToPage("/Public/Pricing", new { planId, invoiceId });
             }
 
             payment.ReferenceNumber = checkout.CheckoutSessionId;
@@ -368,8 +453,8 @@ namespace EJCFitnessGym.Pages.Public
                 paymentId = payment.Id,
                 memberUserId,
                 branchId = memberBranchId,
-                planId = plan.Id,
-                planName = plan.Name,
+                planId,
+                planName,
                 amount = payment.Amount,
                 invoiceDueDateUtc = invoice.DueDateUtc,
                 checkoutSessionId = checkout.CheckoutSessionId
@@ -389,11 +474,11 @@ namespace EJCFitnessGym.Pages.Public
             return Redirect(checkout.CheckoutUrl);
         }
 
-        public async Task<IActionResult> OnPostCancelPendingCheckoutAsync(int paymentId, int? planId = null, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> OnPostCancelPendingCheckoutAsync(int paymentId, int? planId = null, int? invoiceId = null, CancellationToken cancellationToken = default)
         {
             if (User?.Identity?.IsAuthenticated != true)
             {
-                var returnUrl = BuildPricingReturnUrl(planId);
+                var returnUrl = BuildPricingReturnUrl(planId, invoiceId);
                 return RedirectToPage("/Account/Login", new { area = "Identity", returnUrl });
             }
 
@@ -413,7 +498,7 @@ namespace EJCFitnessGym.Pages.Public
                 ? "Pending checkout cancelled. No charge was made. You can start a new payment."
                 : "No pending checkout was found to cancel.";
 
-            return RedirectToPage("/Public/Pricing", new { planId });
+            return RedirectToPage("/Public/Pricing", new { planId, invoiceId });
         }
 
         private static string GenerateInvoiceNumber()
@@ -421,10 +506,21 @@ namespace EJCFitnessGym.Pages.Public
             return $"INV-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
         }
 
-        private string BuildPricingReturnUrl(int? planId)
+        private string BuildPricingReturnUrl(int? planId, int? invoiceId)
         {
-            var pricingUrl = planId.HasValue
-                ? Url.Page("/Public/Pricing", values: new { planId = planId.Value })
+            var routeValues = new Dictionary<string, object>();
+            if (planId.HasValue)
+            {
+                routeValues["planId"] = planId.Value;
+            }
+
+            if (invoiceId.HasValue)
+            {
+                routeValues["invoiceId"] = invoiceId.Value;
+            }
+
+            var pricingUrl = routeValues.Count > 0
+                ? Url.Page("/Public/Pricing", values: routeValues)
                 : Url.Page("/Public/Pricing");
 
             return string.IsNullOrWhiteSpace(pricingUrl) ? Url.Content("~/") : pricingUrl;
@@ -534,100 +630,222 @@ namespace EJCFitnessGym.Pages.Public
             return result;
         }
 
-        private async Task<string?> ResolveOrAssignMemberBranchIdAsync(string memberUserId, CancellationToken cancellationToken)
+        private IQueryable<Invoice> BuildInvoiceCheckoutQuery(string memberUserId, int invoiceId)
         {
-            var existingBranchId = await _db.UserClaims
+            return _db.Invoices
+                .Include(invoice => invoice.MemberSubscription)
+                    .ThenInclude(subscription => subscription!.SubscriptionPlan)
+                .Where(invoice =>
+                    invoice.Id == invoiceId &&
+                    invoice.MemberUserId == memberUserId &&
+                    (invoice.Status == InvoiceStatus.Unpaid || invoice.Status == InvoiceStatus.Overdue));
+        }
+
+        private async Task<InvoiceCheckoutSummary?> LoadCheckoutInvoiceAsync(
+            string memberUserId,
+            int invoiceId,
+            CancellationToken cancellationToken)
+        {
+            var invoice = await BuildInvoiceCheckoutQuery(memberUserId, invoiceId)
                 .AsNoTracking()
-                .Where(claim =>
-                    claim.UserId == memberUserId &&
-                    claim.ClaimType == BranchAccess.BranchIdClaimType &&
-                    claim.ClaimValue != null)
-                .OrderByDescending(claim => claim.Id)
-                .Select(claim => claim.ClaimValue)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (!string.IsNullOrWhiteSpace(existingBranchId))
+            if (invoice is null)
             {
-                return existingBranchId.Trim();
+                return null;
             }
 
-            var resolvedBranchId = await _db.BranchRecords
+            var plan = await ResolvePlanFromInvoiceAsync(invoice, cancellationToken);
+
+            return new InvoiceCheckoutSummary
+            {
+                InvoiceId = invoice.Id,
+                InvoiceNumber = invoice.InvoiceNumber,
+                Amount = invoice.Amount,
+                DueDateUtc = invoice.DueDateUtc,
+                Status = invoice.Status,
+                Notes = invoice.Notes,
+                PlanId = plan?.Id,
+                PlanName = plan?.Name,
+                BranchId = invoice.BranchId
+            };
+        }
+
+        private async Task<SubscriptionPlan?> ResolvePlanFromInvoiceAsync(Invoice invoice, CancellationToken cancellationToken)
+        {
+            if (invoice.MemberSubscription?.SubscriptionPlan is not null)
+            {
+                return invoice.MemberSubscription.SubscriptionPlan;
+            }
+
+            if (invoice.MemberSubscriptionId.HasValue)
+            {
+                var subscriptionPlanId = await _db.MemberSubscriptions
+                    .AsNoTracking()
+                    .Where(subscription => subscription.Id == invoice.MemberSubscriptionId.Value)
+                    .Select(subscription => (int?)subscription.SubscriptionPlanId)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (subscriptionPlanId.HasValue)
+                {
+                    var linkedPlan = await _db.SubscriptionPlans
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(plan => plan.Id == subscriptionPlanId.Value, cancellationToken);
+                    if (linkedPlan is not null)
+                    {
+                        return linkedPlan;
+                    }
+                }
+            }
+
+            var planId = ExtractPlanIdFromInvoiceNotes(invoice.Notes);
+            if (!planId.HasValue)
+            {
+                return null;
+            }
+
+            return await _db.SubscriptionPlans
+                .AsNoTracking()
+                .FirstOrDefaultAsync(plan => plan.Id == planId.Value, cancellationToken);
+        }
+
+        private async Task<string?> ResolveSelectedHomeBranchIdAsync(
+            string memberUserId,
+            string? selectedHomeBranchId,
+            CancellationToken cancellationToken)
+        {
+            var normalizedSelectedBranchId = BranchNaming.NormalizeBranchId(selectedHomeBranchId);
+            if (!string.IsNullOrWhiteSpace(normalizedSelectedBranchId))
+            {
+                var selectedBranch = await _db.BranchRecords
+                    .AsNoTracking()
+                    .Where(branch => branch.IsActive && branch.BranchId == normalizedSelectedBranchId)
+                    .Select(branch => branch.BranchId)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (string.IsNullOrWhiteSpace(selectedBranch))
+                {
+                    return null;
+                }
+
+                var memberUser = await _userManager.FindByIdAsync(memberUserId);
+                if (memberUser is null)
+                {
+                    return null;
+                }
+
+                await MemberBranchAssignment.AssignHomeBranchAsync(
+                    _db,
+                    _userManager,
+                    memberUser,
+                    selectedBranch,
+                    cancellationToken: cancellationToken);
+
+                await _db.SaveChangesAsync(cancellationToken);
+                return selectedBranch.Trim();
+            }
+
+            var existingBranchId = await MemberBranchAssignment.ResolveHomeBranchIdAsync(
+                _db,
+                memberUserId,
+                cancellationToken);
+            if (!string.IsNullOrWhiteSpace(existingBranchId))
+            {
+                return existingBranchId;
+            }
+
+            var activeBranchIds = await _db.BranchRecords
+                .AsNoTracking()
+                .Where(branch => branch.IsActive)
+                .OrderBy(branch => branch.BranchId)
+                .Select(branch => branch.BranchId)
+                .ToListAsync(cancellationToken);
+
+            if (activeBranchIds.Count == 1 && !string.IsNullOrWhiteSpace(activeBranchIds[0]))
+            {
+                return activeBranchIds[0].Trim();
+            }
+
+            if (activeBranchIds.Count > 1)
+            {
+                return null;
+            }
+
+            await EnsureDefaultBranchExistsAsync(cancellationToken);
+
+            return await _db.BranchRecords
                 .AsNoTracking()
                 .Where(branch => branch.IsActive)
                 .OrderBy(branch => branch.BranchId)
                 .Select(branch => branch.BranchId)
                 .FirstOrDefaultAsync(cancellationToken);
+        }
 
-            if (string.IsNullOrWhiteSpace(resolvedBranchId))
+        private async Task<IReadOnlyList<BranchSelectionOption>> LoadAvailableBranchesAsync(CancellationToken cancellationToken)
+        {
+            var activeBranches = await _db.BranchRecords
+                .AsNoTracking()
+                .Where(branch => branch.IsActive)
+                .OrderBy(branch => branch.BranchId)
+                .ToListAsync(cancellationToken);
+
+            if (activeBranches.Count > 0)
             {
-                resolvedBranchId = await _db.BranchRecords
-                    .AsNoTracking()
-                    .OrderBy(branch => branch.BranchId)
-                    .Select(branch => branch.BranchId)
-                    .FirstOrDefaultAsync(cancellationToken);
-            }
-
-            if (string.IsNullOrWhiteSpace(resolvedBranchId))
-            {
-                resolvedBranchId = await _db.UserClaims
-                    .AsNoTracking()
-                    .Where(claim =>
-                        claim.ClaimType == BranchAccess.BranchIdClaimType &&
-                        claim.ClaimValue != null)
-                    .OrderByDescending(claim => claim.Id)
-                    .Select(claim => claim.ClaimValue)
-                    .FirstOrDefaultAsync(cancellationToken);
-            }
-
-            if (string.IsNullOrWhiteSpace(resolvedBranchId))
-            {
-                const string bootstrapBranchId = "BR-CENTRAL";
-                const string bootstrapBranchName = "EJC Central Branch";
-
-                try
-                {
-                    _db.BranchRecords.Add(new EJCFitnessGym.Models.Admin.BranchRecord
+                return activeBranches
+                    .Select(branch => new BranchSelectionOption
                     {
-                        BranchId = bootstrapBranchId,
-                        Name = bootstrapBranchName,
-                        IsActive = true,
-                        CreatedUtc = DateTime.UtcNow,
-                        UpdatedUtc = DateTime.UtcNow
-                    });
-                    await _db.SaveChangesAsync(cancellationToken);
-                    resolvedBranchId = bootstrapBranchId;
-                }
-                catch (DbUpdateException)
+                        BranchId = branch.BranchId,
+                        LocationName = BranchNaming.NormalizeLocationName(branch.Name),
+                        DisplayName = BranchNaming.BuildDisplayName(branch.Name)
+                    })
+                    .ToList();
+            }
+
+            await EnsureDefaultBranchExistsAsync(cancellationToken);
+
+            return await _db.BranchRecords
+                .AsNoTracking()
+                .Where(branch => branch.IsActive)
+                .OrderBy(branch => branch.BranchId)
+                .Select(branch => new BranchSelectionOption
                 {
-                    resolvedBranchId = await _db.BranchRecords
-                        .AsNoTracking()
-                        .Where(branch => branch.BranchId == bootstrapBranchId)
-                        .Select(branch => branch.BranchId)
-                        .FirstOrDefaultAsync(cancellationToken);
+                    BranchId = branch.BranchId,
+                    LocationName = BranchNaming.NormalizeLocationName(branch.Name),
+                    DisplayName = BranchNaming.BuildDisplayName(branch.Name)
+                })
+                .ToListAsync(cancellationToken);
+        }
+
+        private async Task EnsureDefaultBranchExistsAsync(CancellationToken cancellationToken)
+        {
+            var bootstrapBranchId = BranchNaming.DefaultBranchId;
+            var bootstrapLocationName = BranchNaming.DefaultLocationName;
+
+            var existingBranch = await _db.BranchRecords
+                .FirstOrDefaultAsync(branch => branch.BranchId == bootstrapBranchId, cancellationToken);
+
+            if (existingBranch is not null)
+            {
+                if (!existingBranch.IsActive)
+                {
+                    existingBranch.IsActive = true;
+                    existingBranch.UpdatedUtc = DateTime.UtcNow;
+                    await _db.SaveChangesAsync(cancellationToken);
                 }
+
+                return;
             }
 
-            if (string.IsNullOrWhiteSpace(resolvedBranchId))
+            _db.BranchRecords.Add(new BranchRecord
             {
-                return null;
-            }
+                BranchId = bootstrapBranchId,
+                Name = bootstrapLocationName,
+                IsActive = true,
+                CreatedUtc = DateTime.UtcNow,
+                UpdatedUtc = DateTime.UtcNow
+            });
 
-            var user = await _userManager.FindByIdAsync(memberUserId);
-            if (user is null)
-            {
-                return null;
-            }
-
-            var branchClaimResult = await _userManager.AddClaimAsync(
-                user,
-                new Claim(BranchAccess.BranchIdClaimType, resolvedBranchId.Trim()));
-
-            if (!branchClaimResult.Succeeded)
-            {
-                return null;
-            }
-
-            return resolvedBranchId.Trim();
+            await _db.SaveChangesAsync(cancellationToken);
         }
 
         public sealed class PendingCheckoutSummary
@@ -636,6 +854,44 @@ namespace EJCFitnessGym.Pages.Public
             public string InvoiceNumber { get; init; } = string.Empty;
             public DateTime StartedAtUtc { get; init; }
             public DateTime DueDateUtc { get; init; }
+        }
+
+        public sealed class InvoiceCheckoutSummary
+        {
+            public int InvoiceId { get; init; }
+            public string InvoiceNumber { get; init; } = string.Empty;
+            public decimal Amount { get; init; }
+            public DateTime DueDateUtc { get; init; }
+            public InvoiceStatus Status { get; init; }
+            public string? Notes { get; init; }
+            public int? PlanId { get; init; }
+            public string? PlanName { get; init; }
+            public string? BranchId { get; init; }
+        }
+
+        public sealed class BranchSelectionOption
+        {
+            public string BranchId { get; init; } = string.Empty;
+            public string LocationName { get; init; } = string.Empty;
+            public string DisplayName { get; init; } = string.Empty;
+        }
+
+        private static int? ExtractPlanIdFromInvoiceNotes(string? notes)
+        {
+            if (string.IsNullOrWhiteSpace(notes))
+            {
+                return null;
+            }
+
+            var match = PlanTokenRegex.Match(notes);
+            if (!match.Success)
+            {
+                return null;
+            }
+
+            return int.TryParse(match.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+                ? parsed
+                : null;
         }
     }
 }

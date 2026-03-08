@@ -42,7 +42,7 @@ public class LoginModel(
         public bool RememberMe { get; set; }
     }
 
-    public async Task<IActionResult> OnGetAsync(string? returnUrl = null)
+    public async Task<IActionResult> OnGetAsync(string? returnUrl = null, string? googleError = null)
     {
         if (User?.Identity?.IsAuthenticated == true)
         {
@@ -65,6 +65,10 @@ public class LoginModel(
         {
             ModelState.AddModelError(string.Empty, ErrorMessage);
         }
+        else if (!string.IsNullOrWhiteSpace(googleError))
+        {
+            ModelState.AddModelError(string.Empty, googleError);
+        }
 
         returnUrl = AccountFlowHelper.NormalizeMemberReturnUrl(Url, returnUrl);
 
@@ -78,6 +82,7 @@ public class LoginModel(
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
+        var requestedReturnUrl = returnUrl;
         returnUrl = AccountFlowHelper.NormalizeMemberReturnUrl(Url, returnUrl);
 
         ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
@@ -132,7 +137,7 @@ public class LoginModel(
                     ErrorMessage = "Back-office accounts must use the back-office login page.";
                     return RedirectToPage("./BackOfficeLogin", new
                     {
-                        returnUrl = AccountFlowHelper.NormalizeBackOfficeReturnUrl(Url, returnUrl, roles)
+                        returnUrl = AccountFlowHelper.NormalizeBackOfficeReturnUrl(Url, requestedReturnUrl, roles)
                     });
                 }
 

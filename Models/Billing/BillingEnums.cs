@@ -1,5 +1,12 @@
 namespace EJCFitnessGym.Models.Billing
 {
+    public enum PlanTier
+    {
+        Basic = 1,
+        Pro = 2,
+        Elite = 3
+    }
+
     public enum BillingCycle
     {
         Monthly = 1,

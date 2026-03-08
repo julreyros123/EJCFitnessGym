@@ -1,0 +1,74 @@
+@{
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+
+    string ActiveIf(string prefix)
+    {
+        return currentPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? "active"
+            : string.Empty;
+    }
+
+    // Notification dots - read from ViewData if available
+    var overdueCount = ViewData["OverdueInvoiceCount"] as int? ?? 0;
+    var profileIncomplete = (ViewData["ProfileCompletionPercent"] as int? ?? 100) < 100;
+}
+
+<div class="ejc-member-nav-cluster mb-3">
+    <nav class="ejc-member-tab-nav d-none d-md-grid" aria-label="Member sections">
+        <a class="ejc-member-tab-link @ActiveIf("/Member/Dashboard")" asp-page="/Member/Dashboard">
+            <i class="bi bi-house-door"></i>
+            <span>Home</span>
+        </a>
+        <a class="ejc-member-tab-link @ActiveIf("/Member/Payments")" asp-page="/Member/Payments">
+            <i class="bi bi-receipt"></i>
+            <span>Payments</span>
+            @if (overdueCount > 0)
+            {
+                <span class="mp-nav-dot mp-nav-dot-danger" title="@overdueCount overdue invoice(s)">@overdueCount</span>
+            }
+        </a>
+        <a class="ejc-member-tab-link @ActiveIf("/Member/Subscriptions")" asp-page="/Member/Subscriptions">
+            <i class="bi bi-card-checklist"></i>
+            <span>My Plan</span>
+        </a>
+        <a class="ejc-member-tab-link @ActiveIf("/Member/Profile")" asp-page="/Member/Profile">
+            <i class="bi bi-person-circle"></i>
+            <span>Profile</span>
+            @if (profileIncomplete)
+            {
+                <span class="mp-nav-dot mp-nav-dot-warning" title="Profile incomplete">!</span>
+            }
+        </a>
+    </nav>
+</div>
+
+<nav class="ejc-member-bottom-nav d-md-none" aria-label="Member quick navigation">
+    <a class="ejc-member-bottom-link @ActiveIf("/Member/Dashboard")" asp-page="/Member/Dashboard">
+        <i class="bi bi-house-door"></i>
+        <span>Home</span>
+    </a>
+    <a class="ejc-member-bottom-link @ActiveIf("/Member/Payments")" asp-page="/Member/Payments">
+        <i class="bi bi-receipt"></i>
+        <span>Payments</span>
+        @if (overdueCount > 0)
+        {
+            <span class="mp-nav-dot mp-nav-dot-danger">@overdueCount</span>
+        }
+    </a>
+    <a class="ejc-member-bottom-link @ActiveIf("/Member/PaymentMethods")" asp-page="/Member/PaymentMethods">
+        <i class="bi bi-credit-card"></i>
+        <span>Cards</span>
+    </a>
+    <a class="ejc-member-bottom-link @ActiveIf("/Member/Subscriptions")" asp-page="/Member/Subscriptions">
+        <i class="bi bi-card-checklist"></i>
+        <span>My Plan</span>
+    </a>
+    <a class="ejc-member-bottom-link @ActiveIf("/Member/Profile")" asp-page="/Member/Profile">
+        <i class="bi bi-person-circle"></i>
+        <span>Profile</span>
+        @if (profileIncomplete)
+        {
+            <span class="mp-nav-dot mp-nav-dot-warning">!</span>
+        }
+    </a>
+</nav>

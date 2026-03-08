@@ -1,6 +1,5 @@
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Billing;
-using EJCFitnessGym.Security;
 using EJCFitnessGym.Services.Integration;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
@@ -325,26 +324,10 @@ namespace EJCFitnessGym.Services.Memberships
                     .Distinct(StringComparer.Ordinal)
                     .ToList();
 
-                var branchByMemberId = await _db.UserClaims
-                    .AsNoTracking()
-                    .Where(claim =>
-                        claim.ClaimType == BranchAccess.BranchIdClaimType &&
-                        claim.ClaimValue != null &&
-                        activeMemberIds.Contains(claim.UserId))
-                    .GroupBy(claim => claim.UserId)
-                    .Select(group => new
-                    {
-                        MemberUserId = group.Key,
-                        BranchId = group
-                            .OrderByDescending(claim => claim.Id)
-                            .Select(claim => claim.ClaimValue)
-                            .FirstOrDefault()
-                    })
-                    .ToDictionaryAsync(
-                        item => item.MemberUserId,
-                        item => item.BranchId,
-                        StringComparer.Ordinal,
-                        cancellationToken);
+                var branchByMemberId = await MemberBranchAssignment.ResolveHomeBranchMapAsync(
+                    _db,
+                    activeMemberIds,
+                    cancellationToken);
 
                 var existingInvoiceKeys = await _db.Invoices
                     .AsNoTracking()
@@ -556,11 +539,45 @@ namespace EJCFitnessGym.Services.Memberships
             var dueLocal = invoice.DueDateUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz");
             var amountLabel = invoice.Amount.ToString("N2");
             var subject = $"Payment due reminder - {invoice.InvoiceNumber}";
-            var htmlMessage =
-                $"Your invoice <strong>{invoice.InvoiceNumber}</strong> is due in <strong>{daysUntilDue}</strong> day(s).<br/>" +
-                $"Due date: <strong>{dueLocal}</strong><br/>" +
-                $"Amount due: <strong>PHP {amountLabel}</strong><br/>" +
-                "Please settle before the due date to keep your membership active.";
+            var htmlMessage = $@"
+<div style=""font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8fafc; padding: 40px 20px; border-radius: 12px;"">
+    <div style=""background-color: #ffffff; padding: 40px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);"">
+        <div style=""text-align: center; margin-bottom: 30px;"">
+            <h1 style=""color: #84cc16; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;"">Fitness Gym</h1>
+            <p style=""color: #64748b; margin-top: 8px; font-size: 15px; font-weight: 500;"">Payment Due Reminder</p>
+        </div>
+        
+        <div style=""background-color: #fffbeb; border-radius: 12px; padding: 25px; text-align: center; border: 1px solid #fde68a; margin-bottom: 30px;"">
+            <p style=""color: #b45309; font-size: 14px; margin: 0 0 5px 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;"">Action Required</p>
+            <h2 style=""color: #0f172a; font-size: 20px; margin: 0 0 10px 0; font-weight: 800;"">Invoice due in {daysUntilDue} day(s)</h2>
+            <p style=""color: #92400e; font-size: 15px; margin: 0; line-height: 1.5;"">Please settle your invoice before the due date to keep your membership active and avoid interruptions.</p>
+        </div>
+        
+        <table style=""width: 100%; border-collapse: collapse; margin-bottom: 30px;"">
+            <tr>
+                <td style=""padding: 14px 0; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 15px;"">Invoice Number</td>
+                <td style=""padding: 14px 0; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-size: 15px; font-weight: 700; text-align: right;"">{invoice.InvoiceNumber}</td>
+            </tr>
+            <tr>
+                <td style=""padding: 14px 0; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 15px;"">Due Date</td>
+                <td style=""padding: 14px 0; border-bottom: 1px solid #e2e8f0; color: #ef4444; font-size: 15px; font-weight: 700; text-align: right;"">{dueLocal}</td>
+            </tr>
+            <tr>
+                <td style=""padding: 14px 0; color: #64748b; font-size: 15px;"">Amount Due</td>
+                <td style=""padding: 14px 0; color: #0f172a; font-size: 15px; font-weight: 800; text-align: right;"">PHP {amountLabel}</td>
+            </tr>
+        </table>
+        
+        <div style=""text-align: center;"">
+            <a href=""#"" style=""display: inline-block; background-color: #84cc16; color: #ffffff; font-weight: 700; font-size: 15px; text-decoration: none; padding: 12px 24px; border-radius: 8px; box-shadow: 0 2px 4px rgba(132, 204, 22, 0.3);"">Login to Member Portal</a>
+        </div>
+    </div>
+    
+    <div style=""text-align: center; margin-top: 30px; color: #94a3b8; font-size: 13px; line-height: 1.5;"">
+        <p style=""margin: 0;"">&copy; {DateTime.UtcNow.Year} Fitness Gym. All rights reserved.</p>
+        <p style=""margin: 5px 0 0 0;"">This is an automated reminder. Please do not reply to this email.</p>
+    </div>
+</div>";
 
             try
             {

@@ -172,6 +172,36 @@ namespace EJCFitnessGym.Services.Payments
                 return AutoBillingChargeResult.Skipped("Auto-billing disabled for this payment method.");
             }
 
+            if (string.Equals(savedPaymentMethod.GatewayProvider, "PayMongo", StringComparison.OrdinalIgnoreCase) &&
+                !PayMongoBillingCapabilities.SupportsOffSessionAutoBilling)
+            {
+                savedPaymentMethod.AutoBillingEnabled = false;
+                await _db.SaveChangesAsync(cancellationToken);
+
+                if (_outbox is not null)
+                {
+                    await _outbox.EnqueueUserAsync(
+                        invoice.MemberUserId,
+                        eventType: "billing.auto.unavailable",
+                        message: PayMongoBillingCapabilities.ManualRenewalMessage,
+                        data: new
+                        {
+                            invoiceId = invoice.Id,
+                            invoiceNumber = invoice.InvoiceNumber,
+                            gatewayProvider = savedPaymentMethod.GatewayProvider
+                        },
+                        cancellationToken: cancellationToken);
+                }
+
+                _logger.LogInformation(
+                    "Disabled auto-billing for invoice {InvoiceId}, member {MemberUserId}: {Reason}",
+                    invoiceId,
+                    invoice.MemberUserId,
+                    PayMongoBillingCapabilities.UnsupportedAutoBillingReason);
+
+                return AutoBillingChargeResult.Skipped(PayMongoBillingCapabilities.UnsupportedAutoBillingReason);
+            }
+
             if (savedPaymentMethod.FailedAttempts >= MaxFailedAttempts)
             {
                 return AutoBillingChargeResult.Skipped("Payment method disabled due to repeated failures.");
@@ -375,6 +405,11 @@ namespace EJCFitnessGym.Services.Payments
             if (string.IsNullOrWhiteSpace(memberUserId))
             {
                 throw new ArgumentException("Member user ID is required.", nameof(memberUserId));
+            }
+
+            if (enableAutoBilling && !PayMongoBillingCapabilities.SupportsOffSessionAutoBilling)
+            {
+                enableAutoBilling = false;
             }
 
             // Deactivate existing default payment methods

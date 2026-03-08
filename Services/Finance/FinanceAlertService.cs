@@ -1,7 +1,7 @@
 using System.Text.Json;
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Finance;
-using EJCFitnessGym.Services.Realtime;
+using EJCFitnessGym.Services.Integration;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -12,7 +12,7 @@ namespace EJCFitnessGym.Services.Finance
     {
         private readonly ApplicationDbContext _db;
         private readonly IFinanceMetricsService _financeMetricsService;
-        private readonly IErpEventPublisher _erpEventPublisher;
+        private readonly IIntegrationOutbox _integrationOutbox;
         private readonly IEmailSender _emailSender;
         private readonly FinanceAlertOptions _options;
         private readonly ILogger<FinanceAlertService> _logger;
@@ -20,14 +20,14 @@ namespace EJCFitnessGym.Services.Finance
         public FinanceAlertService(
             ApplicationDbContext db,
             IFinanceMetricsService financeMetricsService,
-            IErpEventPublisher erpEventPublisher,
+            IIntegrationOutbox integrationOutbox,
             IEmailSender emailSender,
             IOptions<FinanceAlertOptions> options,
             ILogger<FinanceAlertService> logger)
         {
             _db = db;
             _financeMetricsService = financeMetricsService;
-            _erpEventPublisher = erpEventPublisher;
+            _integrationOutbox = integrationOutbox;
             _emailSender = emailSender;
             _options = options.Value;
             _logger = logger;
@@ -177,28 +177,28 @@ namespace EJCFitnessGym.Services.Finance
                 return false;
             }
 
-            var realtimePublished = false;
+            var realtimeQueued = false;
             var emailAttempted = false;
             var emailSucceeded = false;
 
             try
             {
-                await _erpEventPublisher.PublishToRoleAsync(
+                await _integrationOutbox.EnqueueRoleAsync(
                     "Finance",
                     "finance.alert",
                     message,
                     payload,
                     cancellationToken);
-                await _erpEventPublisher.PublishToBackOfficeAsync(
+                await _integrationOutbox.EnqueueBackOfficeAsync(
                     "finance.alert",
                     message,
                     payload,
                     cancellationToken);
-                realtimePublished = true;
+                realtimeQueued = true;
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to publish finance alert '{AlertType}' via realtime channel.", alertType);
+                _logger.LogWarning(ex, "Failed to enqueue finance alert '{AlertType}' to integration outbox.", alertType);
             }
 
             var recipients = (_options.EmailRecipients ?? Array.Empty<string>())
@@ -238,7 +238,7 @@ namespace EJCFitnessGym.Services.Finance
                 Trigger = trigger,
                 Severity = severity,
                 Message = message,
-                RealtimePublished = realtimePublished,
+                RealtimePublished = realtimeQueued,
                 EmailAttempted = emailAttempted,
                 EmailSucceeded = emailSucceeded,
                 PayloadJson = JsonSerializer.Serialize(payload),
@@ -253,7 +253,7 @@ namespace EJCFitnessGym.Services.Finance
             });
 
             await _db.SaveChangesAsync(cancellationToken);
-            return realtimePublished || emailSucceeded;
+            return realtimeQueued || emailSucceeded;
         }
     }
 }

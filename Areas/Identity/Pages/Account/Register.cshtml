@@ -1,7 +1,11 @@
 @page
 @model RegisterModel
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
     ViewData["Title"] = "Register";
+    var googleClientId = Configuration["Authentication:Google:ClientId"]?.Trim();
+    var googleEnabled = !string.IsNullOrWhiteSpace(googleClientId);
+    var googleLoginUri = Url.Action("signin", "GoogleAuth", null, "https");
 }
 
 <section class="ejc-auth ejc-auth-register">
@@ -9,26 +13,26 @@
         <div class="ejc-auth-form">
             <div class="ejc-auth-brand">
                 <div>
-                    <span class="ejc-eyebrow">Join EJC Fitness</span>
-                    <h1 class="h2 mb-1">Create your account</h1>
-                    <p class="ejc-muted mb-0">Create your member identity and start using your member portal.</p>
+                    <span class="ejc-eyebrow">Start your journey</span>
+                    <h1 class="h2 mb-1">Create an account</h1>
+                    <p class="ejc-muted mb-0">Join our community and start training today.</p>
                 </div>
             </div>
 
-            <form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
-                <div asp-validation-summary="ModelOnly" class="text-danger ejc-auth-validation"></div>
-                <div class="row g-3 mb-3">
-                    <div class="col-md-6">
+            <form id="registerForm" method="post" asp-route-returnUrl="@Model.ReturnUrl">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
                         <div class="form-floating ejc-auth-input">
-                            <input asp-for="Input.FirstName" class="form-control" autocomplete="given-name" aria-required="true" placeholder="First name" />
-                            <label asp-for="Input.FirstName"></label>
+                            <input asp-for="Input.FirstName" class="form-control" autocomplete="given-name" aria-required="true" placeholder="First Name" />
+                            <label asp-for="Input.FirstName">First name</label>
                             <span asp-validation-for="Input.FirstName" class="text-danger"></span>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-6">
                         <div class="form-floating ejc-auth-input">
-                            <input asp-for="Input.LastName" class="form-control" autocomplete="family-name" aria-required="true" placeholder="Last name" />
-                            <label asp-for="Input.LastName"></label>
+                            <input asp-for="Input.LastName" class="form-control" autocomplete="family-name" aria-required="true" placeholder="Last Name" />
+                            <label asp-for="Input.LastName">Last name</label>
                             <span asp-validation-for="Input.LastName" class="text-danger"></span>
                         </div>
                     </div>
@@ -39,8 +43,8 @@
                     <span asp-validation-for="Input.Email" class="text-danger"></span>
                 </div>
                 <div class="form-floating mb-3 ejc-auth-input">
-                    <input asp-for="Input.PhoneNumber" class="form-control" autocomplete="tel" placeholder="+63 900 000 0000" />
-                    <label asp-for="Input.PhoneNumber"></label>
+                    <input asp-for="Input.PhoneNumber" class="form-control" autocomplete="tel" placeholder="Phone" />
+                    <label asp-for="Input.PhoneNumber">Phone number (optional)</label>
                     <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
                 </div>
                 <div class="form-floating mb-3 ejc-auth-input ejc-password-field">
@@ -51,21 +55,69 @@
                     </button>
                     <span asp-validation-for="Input.Password" class="text-danger"></span>
                 </div>
-                <div class="form-floating mb-4 ejc-auth-input ejc-password-field">
-                    <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="Confirm password" />
+                <div class="form-floating mb-4 ejc-auth-input">
+                    <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="Confirm Password" />
                     <label asp-for="Input.ConfirmPassword">Confirm password</label>
-                    <button type="button" class="btn btn-outline-light ejc-password-toggle" data-password-toggle aria-label="Show password">
-                        <i class="bi bi-eye"></i>
-                    </button>
                     <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
                 </div>
-                <button id="registerSubmit" type="submit" class="btn btn-primary w-100 ejc-auth-submit">Create account</button>
-                <div class="ejc-auth-links">
-                    <span class="ejc-muted">Already have an account?</span>
-                    <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Sign in</a>
-                </div>
+                <button type="submit" class="btn btn-primary w-100 ejc-auth-submit">Create account</button>
             </form>
 
+            <div class="ejc-auth-divider"><span>or</span></div>
+            <div class="ejc-auth-external">
+                @if (googleEnabled)
+                {
+                    <div id="g_id_onload"
+                         data-client_id="@googleClientId"
+                         data-context="signup"
+                         data-ux_mode="redirect"
+                         data-login_uri="@googleLoginUri"
+                         data-auto_prompt="false"></div>
+                    <div class="ejc-google-gsi-host mb-3" id="gsi-container">
+                        <div class="g_id_signin"
+                             data-type="standard"
+                             data-shape="pill"
+                             data-theme="filled_black"
+                             data-text="signup_with"
+                             data-size="large"
+                             data-logo_alignment="left"
+                             data-width="392"></div>
+                    </div>
+
+                    <form asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" method="post" class="w-100" id="google-fallback-form">
+                        <button type="submit" name="provider" value="Google" class="ejc-google-fallback-btn" id="google-fallback-btn" title="Sign up with Google">
+                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24'%3E%3Cpath fill='%234285F4' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/%3E%3Cpath fill='%2334A853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/%3E%3Cpath fill='%23FBBC05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z'/%3E%3Cpath fill='%23EA4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'/%3E%3C/svg%3E" alt="Google" style="width: 18px; margin-right: 12px;" />
+                            Sign up with Google
+                        </button>
+                    </form>
+
+                    <script>
+                        (function() {
+                            const checkGsi = () => {
+                                const container = document.querySelector('.g_id_signin');
+                                const fallbackBtn = document.getElementById('google-fallback-btn');
+                                if (container && container.children.length === 0) {
+                                    fallbackBtn.classList.add('is-visible');
+                                }
+                            };
+                            setTimeout(checkGsi, 2000);
+                        })();
+                    </script>
+                }
+                else
+                {
+                    <div class="ejc-auth-provider-note">
+                        Google sign-up is unavailable because the Google client ID is missing.
+                    </div>
+                }
+                <div class="ejc-auth-provider-note">
+                    Create a member account with Google and finish setup in one pass.
+                </div>
+            </div>
+            <div class="ejc-auth-links">
+                <span class="ejc-muted">Already have an account?</span>
+                <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Sign in</a>
+            </div>
         </div>
 
         <div class="ejc-auth-aside">

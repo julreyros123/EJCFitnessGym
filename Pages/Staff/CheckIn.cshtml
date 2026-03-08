@@ -4,6 +4,18 @@
     ViewData["Title"] = "Check-In / Out";
 }
 
+@section Styles {
+    <style>
+        /* Force the QR scanner video to NOT be mirrored.
+           Html5Qrcode often mirrors the preview for user-facing cameras.
+        */
+        #checkin-qr-reader video {
+            transform: scaleX(1) !important;
+            -webkit-transform: scaleX(1) !important;
+        }
+    </style>
+}
+
 <div class="py-4">
     <div class="ejc-page-header">
         <div>
@@ -56,8 +68,8 @@
                     @if (Model.SelectedMember is not null)
                     {
                         var member = Model.SelectedMember;
-                        var membershipEndLocal = member.MembershipEndDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "-";
-                        var nextBillingLocal = member.NextBillingDateUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "-";
+                        var membershipEndLocal = member.MembershipEndDateUtc?.ToLocalTime().ToString("MMMM d, yyyy h:mm tt") ?? "-";
+                        var nextBillingLocal = member.NextBillingDateUtc?.ToLocalTime().ToString("MMMM d, yyyy h:mm tt") ?? "-";
                         var canCheckIn = member.HasActiveMembership && !member.HasPendingPayMongoPayment;
 
                         <div class="border rounded p-3 mt-4">
@@ -198,7 +210,7 @@
                             @foreach (var activity in Model.RecentActivities)
                             {
                                 <tr>
-                                    <td>@activity.TimeLocal.ToString("yyyy-MM-dd HH:mm zzz")</td>
+                                    <td>@activity.TimeLocal.ToString("MMMM d, yyyy h:mm tt")</td>
                                     <td>@activity.MemberDisplayName</td>
                                     <td>@activity.Action</td>
                                     <td>@activity.HandledBy</td>
