@@ -30,6 +30,9 @@ namespace EJCFitnessGym.Pages.Admin
 
         public IReadOnlyList<SupplyRequestViewModel> WorkflowEntries { get; private set; } = [];
 
+        [BindProperty]
+        public CreateProductInput NewProduct { get; set; } = new();
+
         [TempData]
         public string? FlashMessage { get; set; }
 
@@ -198,6 +201,42 @@ namespace EJCFitnessGym.Pages.Admin
             return RedirectToPage();
         }
 
+        public async Task<IActionResult> OnPostCreateProductAsync()
+        {
+            if (!ModelState.IsValid)
+            {
+                await OnGetAsync();
+                return Page();
+            }
+
+            try
+            {
+                var branchId = User.GetBranchId();
+                var product = new RetailProduct
+                {
+                    Name = NewProduct.Name,
+                    Sku = NewProduct.Sku,
+                    Category = NewProduct.Category,
+                    UnitPrice = NewProduct.UnitPrice,
+                    CostPrice = NewProduct.CostPrice,
+                    StockQuantity = NewProduct.InitialStock,
+                    ReorderLevel = NewProduct.ReorderLevel,
+                    BranchId = branchId,
+                    IsActive = true
+                };
+
+                await _productSalesService.CreateProductAsync(product);
+                FlashMessage = $"Product '{product.Name}' created successfully.";
+                FlashType = "success";
+            }
+            catch (Exception ex)
+            {
+                FlashMessage = ex.Message;
+                FlashType = "error";
+            }
+            return RedirectToPage();
+        }
+
         private static string GetStockStatus(int stock, int reorder)
         {
             if (stock <= 0) return "Out";
@@ -279,5 +318,30 @@ namespace EJCFitnessGym.Pages.Admin
             string CurrentOwner,
             string NextOwner,
             string LastUpdated);
+
+        public class CreateProductInput
+        {
+            [System.ComponentModel.DataAnnotations.Required]
+            [System.ComponentModel.DataAnnotations.StringLength(100)]
+            public string Name { get; set; } = string.Empty;
+
+            [System.ComponentModel.DataAnnotations.StringLength(50)]
+            public string? Sku { get; set; }
+
+            [System.ComponentModel.DataAnnotations.StringLength(50)]
+            public string Category { get; set; } = "General";
+
+            [System.ComponentModel.DataAnnotations.Range(0, 999999)]
+            public decimal UnitPrice { get; set; }
+
+            [System.ComponentModel.DataAnnotations.Range(0, 999999)]
+            public decimal CostPrice { get; set; }
+
+            [System.ComponentModel.DataAnnotations.Range(0, 999999)]
+            public int InitialStock { get; set; }
+
+            [System.ComponentModel.DataAnnotations.Range(0, 1000)]
+            public int ReorderLevel { get; set; } = 10;
+        }
     }
 }

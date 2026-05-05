@@ -16,12 +16,14 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EJCFitnessGym.Controllers
 {
     [ApiController]
     [Route("api/webhooks/paymongo")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingOptions.PolicyName)]
     public class PayMongoWebhookController : ControllerBase
     {
         private readonly ApplicationDbContext _db;

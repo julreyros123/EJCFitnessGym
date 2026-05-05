@@ -2363,8 +2363,9 @@ body.ejc-manage .btn-primary:hover {
   text-transform: uppercase;
   letter-spacing: 0.3em;
   font-size: 0.72rem;
-  color: var(--ejc-muted);
-  font-weight: 600;
+  color: #ffffff;
+  font-weight: 700;
+  opacity: 0.95;
 }
 
 .ejc-member-title {
@@ -2474,8 +2475,8 @@ body.ejc-manage .btn-primary:hover {
 
 .ejc-member-tab-link.active {
   border-color: rgba(203, 248, 42, 0.72);
-  background: linear-gradient(180deg, rgba(203, 248, 42, 0.18) 0%, rgba(15, 23, 42, 0.52) 100%);
-  color: #ecfccb;
+  background: linear-gradient(180deg, rgba(203, 248, 42, 0.2) 0%, rgba(15, 23, 42, 0.52) 100%);
+  color: #ffffff;
 }
 
 .ejc-member-hero-card {
@@ -2597,7 +2598,7 @@ body.ejc-manage .btn-primary:hover {
 }
 
 .ejc-member-bottom-link.active {
-  color: #ecfccb;
+  color: #ffffff;
   background: rgba(203, 248, 42, 0.14);
 }
 
@@ -3045,7 +3046,7 @@ body.ejc-manage .btn-primary:hover {
 }
 
 .ejc-auth-card {
-  width: min(960px, 100%);
+  width: min(960px, 100vw);
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
   background: #0f1114;
@@ -3550,7 +3551,18 @@ body.ejc-manage .btn-primary:hover {
 
   .ejc-auth-form,
   .ejc-auth-aside {
-    padding: 1.5rem;
+    padding: clamp(1rem, 5vw, 1.5rem);
+  }
+
+  .ejc-auth-remember-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  .ejc-auth-remember-row .ejc-auth-link {
+    margin-left: 1.6rem;
+    font-size: 0.85rem;
   }
 
   .ejc-auth-brand {
@@ -10036,10 +10048,10 @@ table th,
 
 /* --- Glassmorphic Navbar --- */
 .navbar.ejc-navbar {
-  background: rgba(11, 20, 2, 0.85) !important;
+  background: rgba(0, 0, 0, 0.95) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
-  border-bottom: 1px solid rgba(203, 248, 42, 0.15) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 /* --- Hero Text Glow & Enhancements --- */
@@ -10632,4 +10644,47 @@ body:has(.enterprise-landing) .app-shell {
 
 body:has(.enterprise-landing) main {
   padding-bottom: 0 !important;
+}
+
+/* Back to Top Button */
+.back-to-top {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 1050;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease-in-out;
+  background-color: var(--ejc-primary) !important;
+  color: var(--ejc-primary-ink) !important;
+  border: none;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.back-to-top.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.back-to-top:hover {
+  transform: translateY(-5px);
+  background-color: #65a30d !important;
+  color: #fff !important;
+}
+
+@media (max-width: 768px) {
+  .back-to-top {
+    bottom: 1.5rem;
+    right: 1.5rem;
+    width: 44px;
+    height: 44px;
+  }
 }

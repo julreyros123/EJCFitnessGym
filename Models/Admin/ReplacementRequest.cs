@@ -51,7 +51,8 @@ namespace EJCFitnessGym.Models.Admin
         Supplies = 2,
         Facility = 3,
         MemberConcern = 4,
-        Other = 5
+        RetailProduct = 5,
+        Other = 6
     }
 
     public enum ReplacementRequestPriority

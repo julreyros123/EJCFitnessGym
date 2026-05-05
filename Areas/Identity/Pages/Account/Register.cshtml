@@ -6,6 +6,8 @@
     var googleClientId = Configuration["Authentication:Google:ClientId"]?.Trim();
     var googleEnabled = !string.IsNullOrWhiteSpace(googleClientId);
     var googleLoginUri = Url.Action("signin", "GoogleAuth", null, "https");
+    // Ensure we tell Google which page we're on for the fallback redirect
+    var googleLoginUriWithOrigin = googleLoginUri + "?origin=register";
 }
 
 <section class="ejc-auth ejc-auth-register">
@@ -60,6 +62,15 @@
                     <label asp-for="Input.ConfirmPassword">Confirm password</label>
                     <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
                 </div>
+                <div class="mb-4 d-flex align-items-center gap-2 px-1">
+                    <input asp-for="Input.AcceptTerms" class="form-check-input mt-0" style="width: 1.25rem; height: 1.25rem; cursor: pointer;" />
+                    <label asp-for="Input.AcceptTerms" class="small mb-0 ms-2 cursor-pointer">
+                        I accept the <a asp-area="" asp-controller="Home" asp-action="Terms" target="_blank" class="text-decoration-underline" style="color: var(--ejc-primary);">Terms and Conditions</a> and <a asp-area="" asp-controller="Home" asp-action="Privacy" target="_blank" class="text-decoration-underline" style="color: var(--ejc-primary);">Privacy Policy</a>
+                    </label>
+                </div>
+                <div class="mb-3 ps-1">
+                    <span asp-validation-for="Input.AcceptTerms" class="text-danger small"></span>
+                </div>
                 <button type="submit" class="btn btn-primary w-100 ejc-auth-submit">Create account</button>
             </form>
 
@@ -70,8 +81,8 @@
                     <div id="g_id_onload"
                          data-client_id="@googleClientId"
                          data-context="signup"
-                         data-ux_mode="redirect"
-                         data-login_uri="@googleLoginUri"
+                         data-ux_mode="popup"
+                         data-login_uri="@googleLoginUriWithOrigin"
                          data-auto_prompt="false"></div>
                     <div class="ejc-google-gsi-host mb-3" id="gsi-container">
                         <div class="g_id_signin"
@@ -81,7 +92,7 @@
                              data-text="signup_with"
                              data-size="large"
                              data-logo_alignment="left"
-                             data-width="392"></div>
+                             data-width="300"></div>
                     </div>
 
                     <form asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" method="post" class="w-100" id="google-fallback-form">
@@ -110,10 +121,8 @@
                         Google sign-up is unavailable because the Google client ID is missing.
                     </div>
                 }
-                <div class="ejc-auth-provider-note">
-                    Create a member account with Google and finish setup in one pass.
-                </div>
             </div>
+
             <div class="ejc-auth-links">
                 <span class="ejc-muted">Already have an account?</span>
                 <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Sign in</a>

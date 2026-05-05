@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using EJCFitnessGym.Data;
 using EJCFitnessGym.Models.Admin;
+using EJCFitnessGym.Models.Finance;
+using EJCFitnessGym.Models.Inventory;
 using EJCFitnessGym.Security;
 using EJCFitnessGym.Services.Integration;
 using Microsoft.AspNetCore.Authorization;
@@ -38,6 +40,8 @@ namespace EJCFitnessGym.Pages.Staff
         public int EscalatedCount { get; private set; }
 
         public int ClosedCount { get; private set; }
+        public IReadOnlyList<string> EquipmentOptions { get; private set; } = Array.Empty<string>();
+        public IReadOnlyList<string> RetailProductOptions { get; private set; } = Array.Empty<string>();
 
         [TempData]
         public string? FlashMessage { get; set; }
@@ -141,6 +145,7 @@ namespace EJCFitnessGym.Pages.Staff
                 ReplacementRequestType.Equipment => "badge ejc-badge",
                 ReplacementRequestType.Supplies => "badge bg-primary",
                 ReplacementRequestType.Facility => "badge bg-warning text-dark",
+                ReplacementRequestType.RetailProduct => "badge bg-success",
                 _ => "badge bg-secondary"
             };
 
@@ -173,6 +178,8 @@ namespace EJCFitnessGym.Pages.Staff
             string? currentUserId,
             CancellationToken cancellationToken)
         {
+            await LoadFormOptionsAsync(isSuperAdmin, branchId, cancellationToken);
+
             var query = _db.ReplacementRequests
                 .AsNoTracking()
                 .AsQueryable();
@@ -254,6 +261,39 @@ namespace EJCFitnessGym.Pages.Staff
             ClosedCount = Requests.Count(row =>
                 row.Status == ReplacementRequestStatus.Completed ||
                 row.Status == ReplacementRequestStatus.Rejected);
+        }
+
+        private async Task LoadFormOptionsAsync(bool isSuperAdmin, string? branchId, CancellationToken cancellationToken)
+        {
+            var equipmentQuery = _db.GymEquipmentAssets
+                .AsNoTracking()
+                .Where(e => e.IsActive);
+
+            if (!isSuperAdmin && !string.IsNullOrWhiteSpace(branchId))
+            {
+                equipmentQuery = equipmentQuery.Where(e => e.BranchId == branchId);
+            }
+
+            EquipmentOptions = await equipmentQuery
+                .Select(e => e.Name)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync(cancellationToken);
+
+            var productQuery = _db.RetailProducts
+                .AsNoTracking()
+                .Where(p => p.IsActive);
+
+            if (!isSuperAdmin && !string.IsNullOrWhiteSpace(branchId))
+            {
+                productQuery = productQuery.Where(p => p.BranchId == branchId);
+            }
+
+            RetailProductOptions = await productQuery
+                .Select(p => p.Name)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync(cancellationToken);
         }
 
         private bool TryResolveScope(out bool isSuperAdmin, out string? branchId)

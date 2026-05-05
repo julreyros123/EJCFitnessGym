@@ -2,15 +2,15 @@
 @model EJCFitnessGym.Pages.Finance.OperatingExpensesModel
 @{
     ViewData["Title"] = "Operating Expenses";
-    var currentSubPageLabel = Model.IsRecordsView ? "Expense Records" : "Add Operating Expense";
+    var currentSubPageLabel = Model.IsRecordsView ? "Cost Records" : "Add Running Cost";
 }
 
 <div class="py-4">
     <div class="ejc-page-header">
         <div>
             <span class="ejc-eyebrow">Finance Module</span>
-            <h1 class="h2 mb-1">Operating Expenses</h1>
-            <p class="ejc-muted mb-0">Maintain clean operating costs for reliable profit and forecast reporting.</p>
+            <h1 class="h2 mb-1">Running Costs</h1>
+            <p class="ejc-muted mb-0">Maintain clean running costs for reliable profit and forecast reporting.</p>
         </div>
         <div class="ejc-actions d-flex gap-2">
             <a class="btn @(Model.IsAddView ? "btn-primary" : "btn-outline-primary")"
@@ -41,16 +41,16 @@
 
     <div class="row g-3 mb-4">
         <div class="col-md-6 col-xl-3">
-            <div class="card h-100"><div class="card-body"><div class="small text-muted">Expense (Last 30 Days)</div><div class="h4 mb-0" title="@($"PHP {Model.TotalExpenseLast30Days:N2}")">@Model.TotalExpenseLast30Days.ToCompactCurrency()</div></div></div>
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Costs (Last 30 Days)</div><div class="h4 mb-0" title="@($"PHP {Model.TotalExpenseLast30Days:N2}")">@Model.TotalExpenseLast30Days.ToCompactCurrency()</div></div></div>
         </div>
         <div class="col-md-6 col-xl-3">
-            <div class="card h-100"><div class="card-body"><div class="small text-muted">Expense (Current Month)</div><div class="h4 mb-0" title="@($"PHP {Model.TotalExpenseCurrentMonth:N2}")">@Model.TotalExpenseCurrentMonth.ToCompactCurrency()</div></div></div>
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Costs (Current Month)</div><div class="h4 mb-0" title="@($"PHP {Model.TotalExpenseCurrentMonth:N2}")">@Model.TotalExpenseCurrentMonth.ToCompactCurrency()</div></div></div>
         </div>
         <div class="col-md-6 col-xl-3">
-            <div class="card h-100"><div class="card-body"><div class="small text-muted">Recurring (Current Month)</div><div class="h4 mb-0" title="@($"PHP {Model.RecurringExpenseCurrentMonth:N2}")">@Model.RecurringExpenseCurrentMonth.ToCompactCurrency()</div></div></div>
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Fixed Costs (Current Month)</div><div class="h4 mb-0" title="@($"PHP {Model.RecurringExpenseCurrentMonth:N2}")">@Model.RecurringExpenseCurrentMonth.ToCompactCurrency()</div></div></div>
         </div>
         <div class="col-md-6 col-xl-3">
-            <div class="card h-100"><div class="card-body"><div class="small text-muted">One-Time (Current Month)</div><div class="h4 mb-0" title="@($"PHP {Model.OneTimeExpenseCurrentMonth:N2}")">@Model.OneTimeExpenseCurrentMonth.ToCompactCurrency()</div></div></div>
+            <div class="card h-100"><div class="card-body"><div class="small text-muted">Variable Costs (Current Month)</div><div class="h4 mb-0" title="@($"PHP {Model.OneTimeExpenseCurrentMonth:N2}")">@Model.OneTimeExpenseCurrentMonth.ToCompactCurrency()</div></div></div>
         </div>
     </div>
 
@@ -90,7 +90,7 @@
         <div class="row g-4 mb-4">
             <div class="col-12 col-xxl-8">
                 <div class="card h-100">
-                    <div class="card-header"><h5 class="mb-0">Add Operating Expense</h5></div>
+                    <div class="card-header"><h5 class="mb-0">Add Running Cost</h5></div>
                     <div class="card-body">
                         <form method="post" asp-page-handler="Add" asp-route-view="add" class="row g-3">
                             <input asp-for="Input.Id" type="hidden" />
@@ -240,7 +240,7 @@
 
         <div class="card mb-4">
             <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="mb-0">Expense Records</h5>
+                <h5 class="mb-0">Running Cost Records</h5>
                 <span class="text-muted small">@Model.Expenses.Count item(s)</span>
             </div>
             <div class="card-body p-0">

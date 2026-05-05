@@ -10,8 +10,8 @@
     <div class="ejc-page-header">
         <div>
             <span class="ejc-eyebrow">Finance Module</span>
-            <h1 class="h2 mb-1">Revenue &amp; Profit</h1>
-            <p class="ejc-muted mb-0">Track monthly revenue performance, gross profit, net profit, and margin trend.</p>
+            <h1 class="h2 mb-1">Income &amp; Earnings</h1>
+            <p class="ejc-muted mb-0">Track monthly income performance, profit before costs, and net earnings.</p>
         </div>
         <div class="ejc-actions d-flex flex-wrap gap-2">
             <button type="button"
@@ -102,7 +102,7 @@
         <div class="col-6 col-xl-3">
             <article class="ejc-admin-metric ejc-rp-kpi h-100">
                 <div class="ejc-admin-metric-link">
-                    <span class="ejc-admin-metric-label">Current Revenue</span>
+                    <span class="ejc-admin-metric-label">Total Income</span>
                     <strong title="@($"PHP {Model.CurrentCycle.Revenue:N2}")">@Model.CurrentCycle.Revenue.ToCompactCurrency()</strong>
                     <span class="ejc-rp-kpi-trend @TrendClass(monthOverMonthRevenueDelta)">
                         <i class="bi @TrendIcon(monthOverMonthRevenueDelta)"></i>
@@ -115,7 +115,7 @@
         <div class="col-6 col-xl-3">
             <article class="ejc-admin-metric ejc-rp-kpi h-100">
                 <div class="ejc-admin-metric-link">
-                    <span class="ejc-admin-metric-label">Gross Profit</span>
+                    <span class="ejc-admin-metric-label">Profit Before Costs</span>
                     <strong title="@($"PHP {Model.CurrentCycle.GrossProfit:N2}")">@Model.CurrentCycle.GrossProfit.ToCompactCurrency()</strong>
                     <span class="ejc-rp-kpi-trend @TrendClass(monthOverMonthGrossProfitDelta)">
                         <i class="bi @TrendIcon(monthOverMonthGrossProfitDelta)"></i>
@@ -128,7 +128,7 @@
         <div class="col-6 col-xl-3">
             <article class="ejc-admin-metric ejc-rp-kpi h-100">
                 <div class="ejc-admin-metric-link">
-                    <span class="ejc-admin-metric-label">Net Profit</span>
+                    <span class="ejc-admin-metric-label">Net Earnings</span>
                     <strong class="@(Model.CurrentCycle.NetProfit >= 0m ? "text-success" : "text-danger")"
                             title="@($"PHP {Model.CurrentCycle.NetProfit:N2}")">
                         @Model.CurrentCycle.NetProfit.ToCompactCurrency()
@@ -163,15 +163,15 @@
         </div>
         <div class="ejc-rp-kpi-trend-grid">
             <article class="ejc-rp-kpi-trend-pill @TrendClass(monthOverMonthRevenueDelta)">
-                <span>Revenue</span>
+                <span>Income</span>
                 <strong>@MoneyDeltaText(monthOverMonthRevenueDelta)</strong>
             </article>
             <article class="ejc-rp-kpi-trend-pill @TrendClass(monthOverMonthGrossProfitDelta)">
-                <span>Gross Profit</span>
+                <span>Profit Before Costs</span>
                 <strong>@MoneyDeltaText(monthOverMonthGrossProfitDelta)</strong>
             </article>
             <article class="ejc-rp-kpi-trend-pill @TrendClass(monthOverMonthNetProfitDelta)">
-                <span>Net Profit</span>
+                <span>Net Earnings</span>
                 <strong>@MoneyDeltaText(monthOverMonthNetProfitDelta)</strong>
             </article>
             <article class="ejc-rp-kpi-trend-pill @TrendClass(monthOverMonthNetMarginDelta)">
@@ -194,7 +194,7 @@
                         <strong title="@($"PHP {Model.CurrentCycle.CostOfServices:N2}")">@Model.CurrentCycle.CostOfServices.ToCompactCurrency()</strong>
                     </div>
                     <div class="ejc-finance-stat">
-                        <span class="ejc-muted">Operating Expenses</span>
+                        <span class="ejc-muted">Running Costs</span>
                         <strong title="@($"PHP {Model.CurrentCycle.OperatingExpenses:N2}")">@Model.CurrentCycle.OperatingExpenses.ToCompactCurrency()</strong>
                     </div>
                     <div class="ejc-finance-stat mb-3">
@@ -235,7 +235,7 @@
                 </div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="ejc-muted">Net profit trend vs previous month</span>
+                        <span class="ejc-muted">Net earnings trend vs previous month</span>
                         @if (monthOverMonthNetProfitDelta.HasValue)
                         {
                             <span class="badge @(monthOverMonthNetProfitDelta.Value >= 0m ? "bg-success" : "bg-danger")">
@@ -275,7 +275,7 @@
     <div class="collapse mt-2" id="monthlyDetailTable">
         <div class="card">
             <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="mb-0">Revenue, Gross Profit, and Net Profit Analytics</h5>
+                <h5 class="mb-0">Income &amp; Earnings Analytics</h5>
                 <span class="text-muted small">Last 6 months + next month projection</span>
             </div>
             <div class="card-body p-0">
@@ -286,9 +286,9 @@
                         <thead>
                             <tr>
                                 <th>Period</th>
-                                <th class="text-end">Revenue</th>
-                                <th class="text-end">Gross Profit</th>
-                                <th class="text-end">Net Profit</th>
+                                <th class="text-end">Income</th>
+                                <th class="text-end">Profit Before Costs</th>
+                                <th class="text-end">Net Earnings</th>
                                 <th class="text-end">Net Margin</th>
                                 <th>Trend</th>
                             </tr>

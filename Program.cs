@@ -1,5 +1,6 @@
 using EJCFitnessGym.Data;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using EJCFitnessGym.Hubs;
 using EJCFitnessGym.Services.Memberships;
 using EJCFitnessGym.Services.Payments;
@@ -175,6 +176,16 @@ var authBuilder = builder.Services.AddAuthentication(options =>
 
 if (jwtBearerAuthenticationEnabled)
 {
+    if (!builder.Environment.IsDevelopment() && !jwtBearerAuthenticationEnabled)
+    {
+        throw new InvalidOperationException("JWT:SigningKey must be configured in production.");
+    }
+
+    if (!builder.Environment.IsDevelopment() && !googleIsConfigured)
+    {
+        throw new InvalidOperationException("Authentication:Google secrets must be configured in production.");
+    }
+
     authBuilder
         .AddPolicyScheme("IdentityOrJwt", "Identity cookie or JWT bearer", options =>
         {
@@ -361,6 +372,25 @@ else
 }
 builder.Services.AddScoped<IEmailVerificationCodeService, EmailVerificationCodeService>();
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    
+    options.AddFixedWindowLimiter(RateLimitingOptions.PolicyName, opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+
+    options.AddFixedWindowLimiter(RateLimitingOptions.AnonymousPolicy, opt =>
+    {
+        opt.PermitLimit = 10;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+});
 
 // Session for POS cart state
 builder.Services.AddDistributedMemoryCache();
@@ -608,6 +638,7 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseSession();
+app.UseRateLimiter();
 app.UseMiddleware<BranchScopeMiddleware>();
 app.UseAuthorization();
 
@@ -676,10 +707,9 @@ using (var scope = app.Services.CreateScope())
                     "Skipping General Ledger default account seeding because pending migrations were detected: {PendingMigrations}.",
                     string.Join(", ", pendingMigrations));
             }
-            else
-            {
+            /*
                 await generalLedgerService.EnsureDefaultAccountsAsync(defaultBranchId);
-            }
+            */
         }
         catch (Exception ex)
         {
@@ -741,103 +771,108 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
-        var hasAnyActivePlans = await db.SubscriptionPlans.AnyAsync(plan => plan.IsActive);
-        if (!hasAnyActivePlans)
-        {
-            var defaultPlans = SubscriptionPlanCatalog.DefaultPresets
-                .Select(preset => (preset.Name, preset.Description, preset.Price))
-                .ToArray();
+        await DatabaseSeeder.SeedInventoryAsync(db);
 
-            var defaultPlanNames = defaultPlans.Select(plan => plan.Name).ToArray();
-            var existingDefaultPlans = await db.SubscriptionPlans
-                .Where(plan => defaultPlanNames.Contains(plan.Name) || plan.Name == "Starter")
-                .ToDictionaryAsync(plan => plan.Name, StringComparer.OrdinalIgnoreCase);
-
-            var plansChanged = false;
-
-            foreach (var preset in SubscriptionPlanCatalog.DefaultPresets)
+            /*
+            var hasAnyActivePlans = await db.SubscriptionPlans.AnyAsync(plan => plan.IsActive);
+            if (!hasAnyActivePlans)
             {
-                var existingPlan = existingDefaultPlans.TryGetValue(preset.Name, out var planByName)
-                    ? planByName
-                    : preset.Tier == PlanTier.Basic && existingDefaultPlans.TryGetValue("Starter", out var starterPlan)
-                        ? starterPlan
-                        : null;
+                var defaultPlans = SubscriptionPlanCatalog.DefaultPresets
+                    .Select(preset => (preset.Name, preset.Description, preset.Price))
+                    .ToArray();
 
-                if (existingPlan is not null)
+                var defaultPlanNames = defaultPlans.Select(plan => plan.Name).ToArray();
+                var existingDefaultPlans = await db.SubscriptionPlans
+                    .Where(plan => defaultPlanNames.Contains(plan.Name) || plan.Name == "Starter")
+                    .ToDictionaryAsync(plan => plan.Name, StringComparer.OrdinalIgnoreCase);
+
+                var plansChanged = false;
+
+                foreach (var preset in SubscriptionPlanCatalog.DefaultPresets)
                 {
-                    if (!string.Equals(existingPlan.Name, preset.Name, StringComparison.Ordinal))
+                    var existingPlan = existingDefaultPlans.TryGetValue(preset.Name, out var planByName)
+                        ? planByName
+                        : preset.Tier == PlanTier.Basic && existingDefaultPlans.TryGetValue("Starter", out var starterPlan)
+                            ? starterPlan
+                            : null;
+
+                    if (existingPlan is not null)
                     {
-                        existingPlan.Name = preset.Name;
-                        plansChanged = true;
+                        if (!string.Equals(existingPlan.Name, preset.Name, StringComparison.Ordinal))
+                        {
+                            existingPlan.Name = preset.Name;
+                            plansChanged = true;
+                        }
+
+                        if (existingPlan.Tier != preset.Tier)
+                        {
+                            existingPlan.Tier = preset.Tier;
+                            plansChanged = true;
+                        }
+
+                        if (!existingPlan.IsActive)
+                        {
+                            existingPlan.IsActive = true;
+                            plansChanged = true;
+                        }
+
+                        if (existingPlan.BillingCycle != BillingCycle.Monthly)
+                        {
+                            existingPlan.BillingCycle = BillingCycle.Monthly;
+                            plansChanged = true;
+                        }
+
+                        if (!string.Equals(existingPlan.Description, preset.Description, StringComparison.Ordinal))
+                        {
+                            existingPlan.Description = preset.Description;
+                            plansChanged = true;
+                        }
+
+                        if (existingPlan.Price <= 0)
+                        {
+                            existingPlan.Price = preset.Price;
+                            plansChanged = true;
+                        }
+
+                        if (existingPlan.AllowsAllBranchAccess != preset.AllowsAllBranchAccess ||
+                            existingPlan.IncludesBasicEquipment != preset.IncludesBasicEquipment ||
+                            existingPlan.IncludesCardioAccess != preset.IncludesCardioAccess ||
+                            existingPlan.IncludesGroupClasses != preset.IncludesGroupClasses ||
+                            existingPlan.IncludesFreeTowel != preset.IncludesFreeTowel ||
+                            existingPlan.IncludesPersonalTrainer != preset.IncludesPersonalTrainer ||
+                            existingPlan.IncludesFitnessPlan != preset.IncludesFitnessPlan ||
+                            existingPlan.IncludesFullFacilityAccess != preset.IncludesFullFacilityAccess)
+                        {
+                            existingPlan.AllowsAllBranchAccess = preset.AllowsAllBranchAccess;
+                            existingPlan.IncludesBasicEquipment = preset.IncludesBasicEquipment;
+                            existingPlan.IncludesCardioAccess = preset.IncludesCardioAccess;
+                            existingPlan.IncludesGroupClasses = preset.IncludesGroupClasses;
+                            existingPlan.IncludesFreeTowel = preset.IncludesFreeTowel;
+                            existingPlan.IncludesPersonalTrainer = preset.IncludesPersonalTrainer;
+                            existingPlan.IncludesFitnessPlan = preset.IncludesFitnessPlan;
+                            existingPlan.IncludesFullFacilityAccess = preset.IncludesFullFacilityAccess;
+                            plansChanged = true;
+                        }
+
+                        continue;
                     }
 
-                    if (existingPlan.Tier != preset.Tier)
-                    {
-                        existingPlan.Tier = preset.Tier;
-                        plansChanged = true;
-                    }
-
-                    if (!existingPlan.IsActive)
-                    {
-                        existingPlan.IsActive = true;
-                        plansChanged = true;
-                    }
-
-                    if (existingPlan.BillingCycle != BillingCycle.Monthly)
-                    {
-                        existingPlan.BillingCycle = BillingCycle.Monthly;
-                        plansChanged = true;
-                    }
-
-                    if (!string.Equals(existingPlan.Description, preset.Description, StringComparison.Ordinal))
-                    {
-                        existingPlan.Description = preset.Description;
-                        plansChanged = true;
-                    }
-
-                    if (existingPlan.Price <= 0)
-                    {
-                        existingPlan.Price = preset.Price;
-                        plansChanged = true;
-                    }
-
-                    if (existingPlan.AllowsAllBranchAccess != preset.AllowsAllBranchAccess ||
-                        existingPlan.IncludesBasicEquipment != preset.IncludesBasicEquipment ||
-                        existingPlan.IncludesCardioAccess != preset.IncludesCardioAccess ||
-                        existingPlan.IncludesGroupClasses != preset.IncludesGroupClasses ||
-                        existingPlan.IncludesFreeTowel != preset.IncludesFreeTowel ||
-                        existingPlan.IncludesPersonalTrainer != preset.IncludesPersonalTrainer ||
-                        existingPlan.IncludesFitnessPlan != preset.IncludesFitnessPlan ||
-                        existingPlan.IncludesFullFacilityAccess != preset.IncludesFullFacilityAccess)
-                    {
-                        existingPlan.AllowsAllBranchAccess = preset.AllowsAllBranchAccess;
-                        existingPlan.IncludesBasicEquipment = preset.IncludesBasicEquipment;
-                        existingPlan.IncludesCardioAccess = preset.IncludesCardioAccess;
-                        existingPlan.IncludesGroupClasses = preset.IncludesGroupClasses;
-                        existingPlan.IncludesFreeTowel = preset.IncludesFreeTowel;
-                        existingPlan.IncludesPersonalTrainer = preset.IncludesPersonalTrainer;
-                        existingPlan.IncludesFitnessPlan = preset.IncludesFitnessPlan;
-                        existingPlan.IncludesFullFacilityAccess = preset.IncludesFullFacilityAccess;
-                        plansChanged = true;
-                    }
-
-                    continue;
+                    db.SubscriptionPlans.Add(SubscriptionPlanCatalog.CreateDefaultPlan(preset));
+                    plansChanged = true;
                 }
 
-                db.SubscriptionPlans.Add(SubscriptionPlanCatalog.CreateDefaultPlan(preset));
-                plansChanged = true;
+                if (plansChanged)
+                {
+                    await db.SaveChangesAsync();
+                }
             }
-
-            if (plansChanged)
-            {
-                await db.SaveChangesAsync();
-            }
-        }
+            */
 
         if (app.Environment.IsDevelopment())
         {
-            const string seedPassword = "123456";
+            // const string seedPassword = "123456";
 
+            /*
             var hasActiveMonthlyPlans = await db.SubscriptionPlans
                 .AnyAsync(plan => plan.IsActive && plan.BillingCycle == BillingCycle.Monthly);
 
@@ -866,7 +901,9 @@ using (var scope = app.Services.CreateScope())
 
                 await db.SaveChangesAsync();
             }
+            */
 
+            /*
             var seedUsers = new (string Email, string Role)[]
             {
                 ("member@ejcfit.local", "Member"),
@@ -947,6 +984,7 @@ using (var scope = app.Services.CreateScope())
                     await db.SaveChangesAsync();
                 }
             }
+            */
         }
     }
     catch (Exception ex)

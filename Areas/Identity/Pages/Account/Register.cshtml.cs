@@ -88,6 +88,11 @@ public class RegisterModel : PageModel
         [Display(Name = "Confirm password")]
         [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
         public string ConfirmPassword { get; set; } = string.Empty;
+
+        [Required]
+        [Range(typeof(bool), "true", "true", ErrorMessage = "You must accept the terms to create an account.")]
+        [Display(Name = "I accept the Terms and Conditions and Privacy Policy")]
+        public bool AcceptTerms { get; set; }
     }
 
     public async Task OnGetAsync(string? returnUrl = null, int? planId = null, string? googleError = null)
@@ -212,12 +217,25 @@ public class RegisterModel : PageModel
             {
                 try
                 {
-                    await _emailVerificationCodeService.SendVerificationCodeAsync(user);
+                    // Enforce a strict timeout on email sending to prevent the UI from hanging
+                    // for the default 100s SMTP timeout.
+                    var sendTask = _emailVerificationCodeService.SendVerificationCodeAsync(user);
+                    var timeoutTask = Task.Delay(TimeSpan.FromSeconds(12));
+                    var completedTask = await Task.WhenAny(sendTask, timeoutTask);
+
+                    if (completedTask == timeoutTask)
+                    {
+                        _logger.LogWarning("Email verification sending timed out for {Email}.", Input.Email);
+                        TempData["StatusMessage"] = "Account created, but the confirmation email is taking longer than usual. It should arrive shortly.";
+                        return RedirectToPage("RegisterConfirmation", new { email = Input.Email, returnUrl = postRegistrationReturnUrl });
+                    }
+                    
+                    await sendTask; // Ensure exceptions are thrown if it completed with error
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Failed to send verification code to {Email}.", Input.Email);
-                    TempData["StatusMessage"] = "Account created, but we couldn't send the verification code yet. Use resend verification code after SMTP is configured.";
+                    TempData["StatusMessage"] = "Account created, but we couldn't send the verification code yet. Please try again later to resend.";
                     return RedirectToPage("RegisterConfirmation", new { email = Input.Email, returnUrl = postRegistrationReturnUrl });
                 }
             }

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EJCFitnessGym.Controllers
 {
@@ -46,6 +47,7 @@ namespace EJCFitnessGym.Controllers
         }
 
         [AllowAnonymous]
+        [EnableRateLimiting(RateLimitingOptions.PolicyName)]
         [HttpPost("token")]
         public async Task<IActionResult> IssueToken([FromBody] TokenRequest request, CancellationToken cancellationToken)
         {
@@ -115,6 +117,7 @@ namespace EJCFitnessGym.Controllers
         }
 
         [AllowAnonymous]
+        [EnableRateLimiting(RateLimitingOptions.PolicyName)]
         [HttpPost("refresh")]
         public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
         {
@@ -198,6 +201,7 @@ namespace EJCFitnessGym.Controllers
         }
 
         [AllowAnonymous]
+        [EnableRateLimiting(RateLimitingOptions.PolicyName)]
         [HttpPost("revoke")]
         public async Task<IActionResult> Revoke([FromBody] RevokeTokenRequest request, CancellationToken cancellationToken)
         {

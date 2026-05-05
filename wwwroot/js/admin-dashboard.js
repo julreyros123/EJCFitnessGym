@@ -22,7 +22,6 @@
     const kpiValueElements = {
         activeMembers: dashboard.querySelector('[data-kpi-value="activeMembers"]'),
         checkIns: dashboard.querySelector('[data-kpi-value="checkIns"]'),
-        followUps: dashboard.querySelector('[data-kpi-value="followUps"]'),
         expiringPlans: dashboard.querySelector('[data-kpi-value="expiringPlans"]'),
         auditAlerts: dashboard.querySelector('[data-kpi-value="auditAlerts"]')
     };
@@ -30,7 +29,6 @@
     const kpiMetaElements = {
         activeMembers: dashboard.querySelector('[data-kpi-meta="activeMembers"]'),
         checkIns: dashboard.querySelector('[data-kpi-meta="checkIns"]'),
-        followUps: dashboard.querySelector('[data-kpi-meta="followUps"]'),
         expiringPlans: dashboard.querySelector('[data-kpi-meta="expiringPlans"]'),
         auditAlerts: dashboard.querySelector('[data-kpi-meta="auditAlerts"]')
     };
@@ -38,7 +36,6 @@
     const kpiBadgeElements = {
         activeMembers: dashboard.querySelector('[data-kpi-badge="activeMembers"]'),
         checkIns: dashboard.querySelector('[data-kpi-badge="checkIns"]'),
-        followUps: dashboard.querySelector('[data-kpi-badge="followUps"]'),
         expiringPlans: dashboard.querySelector('[data-kpi-badge="expiringPlans"]'),
         auditAlerts: dashboard.querySelector('[data-kpi-badge="auditAlerts"]')
     };
@@ -636,7 +633,6 @@
 
         setKpi('activeMembers', kpis.activeMembers, 'active in selected scope', 'Active');
         setKpi('checkIns', kpis.checkIns, `${dayCount}-day total`, 'Total');
-        setKpi('followUps', kpis.followUps, 'open follow-ups', 'Open');
         setKpi('expiringPlans', kpis.expiringPlans, 'ending in next 7 days', '7D');
         setKpi('auditAlerts', kpis.auditAlerts, 'highest daily count', 'Peak');
 

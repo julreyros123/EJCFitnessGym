@@ -6,6 +6,7 @@
     var googleClientId = Configuration["Authentication:Google:ClientId"]?.Trim();
     var googleEnabled = !string.IsNullOrWhiteSpace(googleClientId);
     var googleLoginUri = Url.Action("signin", "GoogleAuth", null, "https");
+    var googleLoginUriWithOrigin = googleLoginUri + "?origin=login";
 }
 
 <section class="ejc-auth ejc-auth-login">
@@ -37,7 +38,7 @@
                 <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2 ejc-auth-remember-row">
                     <div class="form-check mb-0">
                         <input class="form-check-input" asp-for="Input.RememberMe" />
-                        <label class="form-check-label" asp-for="Input.RememberMe"></label>
+                        <label class="form-check-label" asp-for="Input.RememberMe">Remember me</label>
                     </div>
                     <a asp-page="./ForgotPassword" class="ejc-auth-link">Forgot password?</a>
                 </div>
@@ -51,8 +52,8 @@
                     <div id="g_id_onload"
                          data-client_id="@googleClientId"
                          data-context="signin"
-                         data-ux_mode="redirect"
-                         data-login_uri="@googleLoginUri"
+                         data-ux_mode="popup"
+                         data-login_uri="@googleLoginUriWithOrigin"
                          data-auto_prompt="false"></div>
                     <div class="ejc-google-gsi-host mb-3" id="gsi-container">
                         <div class="g_id_signin"
@@ -62,7 +63,7 @@
                              data-text="continue_with"
                              data-size="large"
                              data-logo_alignment="left"
-                             data-width="392"></div>
+                             data-width="300"></div>
                     </div>
 
                     <form asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" method="post" class="w-100" id="google-fallback-form">
@@ -91,10 +92,8 @@
                         Google sign-in is unavailable because the Google client ID is missing.
                     </div>
                 }
-                <div class="ejc-auth-provider-note">
-                    Use your Google account without typing a separate password here.
-                </div>
             </div>
+
             <div class="ejc-auth-links ejc-auth-links-centered">
                 <span class="ejc-muted">Don't have an account?</span>
                 <a asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">Sign up</a>

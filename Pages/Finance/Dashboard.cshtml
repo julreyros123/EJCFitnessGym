@@ -61,7 +61,7 @@
         <article class="ejc-admin-metric ejc-finance-metric">
             <div class="ejc-admin-metric-link">
                 <div class="d-flex justify-content-between align-items-start mb-2">
-                    <span class="ejc-admin-metric-label">Gross Revenue</span>
+                    <span class="ejc-admin-metric-label">Total Income</span>
                     <span class="ejc-admin-metric-icon ejc-finance-icon-revenue"><i class="bi bi-currency-exchange"></i></span>
                 </div>
                 <strong class="ejc-finance-kpi-value" data-fin-kpi-value="grossRevenue">
@@ -75,7 +75,7 @@
         <article class="ejc-admin-metric ejc-finance-metric">
             <div class="ejc-admin-metric-link">
                 <div class="d-flex justify-content-between align-items-start mb-2">
-                    <span class="ejc-admin-metric-label">Gross Profit</span>
+                    <span class="ejc-admin-metric-label">Profit Before Costs</span>
                     <span class="ejc-admin-metric-icon ejc-finance-icon-profit"><i class="bi bi-graph-up"></i></span>
                 </div>
                 <strong class="ejc-finance-kpi-value" data-fin-kpi-value="grossProfit">
@@ -89,7 +89,7 @@
         <article class="ejc-admin-metric ejc-finance-metric">
             <div class="ejc-admin-metric-link">
                 <div class="d-flex justify-content-between align-items-start mb-2">
-                    <span class="ejc-admin-metric-label">Net Profit</span>
+                    <span class="ejc-admin-metric-label">Net Earnings</span>
                     <span class="ejc-admin-metric-icon ejc-finance-icon-net"><i class="bi bi-wallet2"></i></span>
                 </div>
                 <strong class="ejc-finance-kpi-value" data-fin-kpi-value="netProfit">
@@ -103,7 +103,7 @@
         <article class="ejc-admin-metric ejc-finance-metric">
             <div class="ejc-admin-metric-link">
                 <div class="d-flex justify-content-between align-items-start mb-2">
-                    <span class="ejc-admin-metric-label">Projected Net Profit</span>
+                    <span class="ejc-admin-metric-label">Estimated Result</span>
                     <span class="ejc-admin-metric-icon ejc-finance-icon-forecast"><i class="bi bi-calculator"></i></span>
                 </div>
                 <strong class="ejc-finance-kpi-value" data-fin-kpi-value="projectedNetProfit">
@@ -120,7 +120,7 @@
         <div class="col-xxl-8">
             <div class="card h-100">
                 <div class="card-header d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Revenue vs Net Profit Trend</h5>
+                    <h5 class="mb-0">Income vs Earnings Trend</h5>
                     <span class="text-muted small" data-fin-trend-subtitle>Sep 2025 to Mar 2026</span>
                 </div>
                 <div class="card-body">
@@ -135,7 +135,7 @@
         <div class="col-xxl-4">
             <div class="card h-100">
                 <div class="card-header d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">Profit Composition</h5>
+                    <h5 class="mb-0">Earnings Breakdown</h5>
                     <span class="text-muted small" data-fin-mix-subtitle>Current cycle</span>
                 </div>
                 <div class="card-body">
@@ -147,11 +147,11 @@
                         <strong data-fin-mix-value="cogsShare">40.5%</strong>
                     </div>
                     <div class="ejc-finance-stat">
-                        <span class="ejc-muted">Operating Expenses</span>
+                        <span class="ejc-muted">Running Costs</span>
                         <strong data-fin-mix-value="opexShare">26.3%</strong>
                     </div>
                     <div class="ejc-finance-stat mb-0">
-                        <span class="ejc-muted">Net Profit Margin</span>
+                        <span class="ejc-muted">Net Earnings Margin</span>
                         <strong class="text-success" data-fin-mix-value="netMargin">33.2%</strong>
                     </div>
                 </div>
@@ -232,14 +232,14 @@
                         </a>
                         <a class="ejc-finance-module-link" asp-page="/Finance/OperatingExpenses" asp-route-view="records">
                             <span class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="fw-semibold">Operating Expenses</span>
+                                <span class="fw-semibold">Running Costs</span>
                                 <i class="bi bi-wallet-fill"></i>
                             </span>
                             <span class="ejc-muted small">Maintain expense records and variance checks by category.</span>
                         </a>
                         <a class="ejc-finance-module-link" asp-page="/Finance/RevenueProfit">
                             <span class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="fw-semibold">Revenue &amp; Profit</span>
+                                <span class="fw-semibold">Income &amp; Earnings</span>
                                 <i class="bi bi-graph-up-arrow"></i>
                             </span>
                             <span class="ejc-muted small">Track actual margins and financial outcomes.</span>
@@ -253,10 +253,10 @@
                         </a>
                         <a class="ejc-finance-module-link" asp-page="/Finance/GeneralLedger">
                             <span class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="fw-semibold">General Ledger</span>
+                                <span class="fw-semibold">Financial Audit Trail</span>
                                 <i class="bi bi-journal-bookmark-fill"></i>
                             </span>
-                            <span class="ejc-muted small">Post journals and review branch trial balance.</span>
+                            <span class="ejc-muted small">View every transaction and manual adjustment recorded.</span>
                         </a>
                     </div>
                 </div>

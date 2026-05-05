@@ -73,19 +73,7 @@ namespace EJCFitnessGym.Controllers
                 subscription.EndDateUtc.Value.Date >= endUtc &&
                 subscription.EndDateUtc.Value.Date <= expiringWindowEndUtc);
 
-            var followUpsQuery = _db.MemberRetentionActions
-                .AsNoTracking()
-                .Where(action =>
-                    action.Status == MemberRetentionActionStatus.Open ||
-                    action.Status == MemberRetentionActionStatus.InProgress);
 
-            if (!isSuperAdmin)
-            {
-                followUpsQuery = followUpsQuery
-                    .Where(action => scopedMemberLookup.Contains(action.MemberUserId));
-            }
-
-            var openFollowUps = await followUpsQuery.CountAsync(cancellationToken);
 
             var revenueRows = await (
                 from payment in _db.Payments.AsNoTracking()
@@ -213,7 +201,6 @@ namespace EJCFitnessGym.Controllers
                 {
                     ActiveMembers = activeMembers,
                     CheckIns = totalCheckIns,
-                    FollowUps = openFollowUps,
                     ExpiringPlans = expiringPlans,
                     AuditAlerts = auditAlertsPeak
                 },
@@ -412,7 +399,6 @@ namespace EJCFitnessGym.Controllers
         {
             public int ActiveMembers { get; init; }
             public int CheckIns { get; init; }
-            public int FollowUps { get; init; }
             public int ExpiringPlans { get; init; }
             public int AuditAlerts { get; init; }
         }

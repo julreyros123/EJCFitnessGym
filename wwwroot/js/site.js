@@ -868,13 +868,21 @@ document.addEventListener('click', (event) => {
                 return;
             }
 
-            queueMicrotask(() => {
+            // Small delay to allow jQuery validation or other listeners to run and preventDefault if needed
+            setTimeout(() => {
                 if (event.defaultPrevented) {
                     return;
                 }
 
+                // If jQuery validation is present, check if form is valid
+                if (typeof jQuery !== 'undefined' && typeof jQuery.fn.valid === 'function') {
+                    if (!jQuery(form).valid()) {
+                        return;
+                    }
+                }
+
                 applyButtonLoading(button);
-            });
+            }, 1);
         });
     });
 })();
@@ -890,13 +898,13 @@ document.addEventListener('click', (event) => {
         const step = (timestamp) => {
             if (!startTimestamp) startTimestamp = timestamp;
             const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-            
+
             // easeOutQuart curve
             const easeProgress = 1 - Math.pow(1 - progress, 4);
             const current = progress === 1 ? end : start + (end - start) * easeProgress;
-            
+
             obj.innerHTML = formatNumber(current) + suffix;
-            
+
             if (progress < 1) {
                 window.requestAnimationFrame(step);
             }
@@ -913,15 +921,15 @@ document.addEventListener('click', (event) => {
         (entries) => {
             entries.forEach((entry) => {
                 if (!entry.isIntersecting) return;
-                
+
                 const target = entry.target;
                 const endValue = parseInt(target.getAttribute('data-count-up'), 10);
                 const suffix = target.getAttribute('data-count-suffix') || '';
-                
+
                 if (!isNaN(endValue)) {
                     animateValue(target, 0, endValue, 2500, suffix);
                 }
-                
+
                 observer.unobserve(target);
             });
         },
@@ -1167,7 +1175,7 @@ document.addEventListener('click', (event) => {
 
         summary.addEventListener('click', (e) => {
             e.preventDefault();
-            
+
             // Close other open FAQs
             faqs.forEach(otherFaq => {
                 if (otherFaq !== faq && otherFaq.hasAttribute('open')) {

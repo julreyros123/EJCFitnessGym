@@ -41,7 +41,7 @@
         <details class="ejc-admin-nav-module" @(isOperatingExpensesPath ? "open" : null)>
             <summary class="ejc-admin-nav-module-trigger" title="Operating Expenses">
                 <i class="bi bi-wallet2"></i>
-                <span class="ejc-admin-nav-text">Operating Expenses</span>
+                <span class="ejc-admin-nav-text">Running Costs</span>
                 <i class="bi bi-chevron-down ejc-admin-nav-module-caret" aria-hidden="true"></i>
             </summary>
             <div class="ejc-admin-nav-module-links">
@@ -63,15 +63,15 @@
         </details>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/RevenueProfit")" asp-page="/Finance/RevenueProfit" title="Revenue & Profit">
             <i class="bi bi-graph-up-arrow"></i>
-            <span class="ejc-admin-nav-text">Revenue &amp; Profit</span>
+            <span class="ejc-admin-nav-text">Income &amp; Earnings</span>
         </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/NetForecast")" asp-page="/Finance/NetForecast" title="Net Forecast">
             <i class="bi bi-calculator"></i>
             <span class="ejc-admin-nav-text">Net Forecast</span>
         </a>
-        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/GeneralLedger")" asp-page="/Finance/GeneralLedger" title="General Ledger">
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/Finance/GeneralLedger")" asp-page="/Finance/GeneralLedger" title="Financial Audit Trail">
             <i class="bi bi-journal-bookmark"></i>
-            <span class="ejc-admin-nav-text">General Ledger</span>
+            <span class="ejc-admin-nav-text">Financial Audit Trail</span>
         </a>
     </div>
 

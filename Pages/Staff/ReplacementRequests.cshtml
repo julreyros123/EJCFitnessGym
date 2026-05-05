@@ -83,7 +83,8 @@
 
                         <div class="mb-3">
                             <label asp-for="Input.Subject" class="form-label">Subject</label>
-                            <input asp-for="Input.Subject" class="form-control" placeholder="Ex: Treadmill replacement request" />
+                            <input asp-for="Input.Subject" class="form-control" list="subject-options" placeholder="Ex: Treadmill replacement request" />
+                            <datalist id="subject-options"></datalist>
                             <span asp-validation-for="Input.Subject" class="text-danger small"></span>
                         </div>
 
@@ -215,6 +216,31 @@
 
             form.addEventListener('input', saveDraft);
             form.addEventListener('change', saveDraft);
+
+            const equipmentOptions = @Html.Raw(Json.Serialize(Model.EquipmentOptions));
+            const productOptions = @Html.Raw(Json.Serialize(Model.RetailProductOptions));
+            const subjectDatalist = document.getElementById('subject-options');
+
+            const updateSubjectOptions = () => {
+                const type = fields.requestType?.value;
+                subjectDatalist.innerHTML = '';
+                
+                let source = [];
+                if (type === '@ReplacementRequestType.Equipment') {
+                    source = equipmentOptions;
+                } else if (type === '@ReplacementRequestType.RetailProduct') {
+                    source = productOptions;
+                }
+
+                source.forEach(opt => {
+                    const o = document.createElement('option');
+                    o.value = opt;
+                    subjectDatalist.appendChild(o);
+                });
+            };
+
+            fields.requestType?.addEventListener('change', updateSubjectOptions);
+            updateSubjectOptions();
 
         })();
     </script>

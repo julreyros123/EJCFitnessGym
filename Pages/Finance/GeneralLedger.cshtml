@@ -10,8 +10,8 @@
     <div class="ejc-page-header">
         <div>
             <span class="ejc-eyebrow">Finance Module</span>
-            <h1 class="h2 mb-1">General Ledger</h1>
-            <p class="ejc-muted mb-0">Post journal entries, monitor account movements, and review trial balance.</p>
+            <h1 class="h2 mb-1">Financial Audit Trail</h1>
+            <p class="ejc-muted mb-0">Track every peso moving through your gym with full audit transparency.</p>
         </div>
         <div class="ejc-actions d-flex gap-2">
             <a class="btn btn-outline-primary" asp-page="/Finance/Dashboard">Back to Overview</a>
@@ -30,7 +30,7 @@
         <div class="col-xl-5">
             <div class="card h-100">
                 <div class="card-header">
-                    <h5 class="mb-0">Post Manual Entry</h5>
+                    <h5 class="mb-0">Log Manual Transaction</h5>
                 </div>
                 <div class="card-body">
                     <form method="post" asp-page-handler="CreateManual" class="row g-3">
@@ -51,7 +51,7 @@
                             <span asp-validation-for="Input.Description" class="text-danger small"></span>
                         </div>
                         <div class="col-md-6">
-                            <label asp-for="Input.DebitAccountId" class="form-label"></label>
+                            <label asp-for="Input.DebitAccountId" class="form-label">Transfer To (Increase)</label>
                             <select asp-for="Input.DebitAccountId" class="form-select">
                                 <option value="0">Select debit account</option>
                                 @foreach (var account in Model.Accounts)
@@ -61,7 +61,7 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label asp-for="Input.CreditAccountId" class="form-label"></label>
+                            <label asp-for="Input.CreditAccountId" class="form-label">Transfer From (Decrease)</label>
                             <select asp-for="Input.CreditAccountId" class="form-select">
                                 <option value="0">Select credit account</option>
                                 @foreach (var account in Model.Accounts)
@@ -76,7 +76,7 @@
                             <span asp-validation-for="Input.Memo" class="text-danger small"></span>
                         </div>
                         <div class="col-12">
-                            <button type="submit" class="btn btn-primary">Post Journal Entry</button>
+                            <button type="submit" class="btn btn-primary">Save Transaction</button>
                         </div>
                     </form>
                 </div>
@@ -86,7 +86,7 @@
         <div class="col-xl-7">
             <div class="card h-100">
                 <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
-                    <h5 class="mb-0">Trial Balance</h5>
+                    <h5 class="mb-0">Account Balances</h5>
                     <form method="get" class="d-flex flex-wrap align-items-center gap-2">
                         <label class="small text-muted" for="fromUtc">From</label>
                         <input id="fromUtc" name="fromUtc" type="date" class="form-control form-control-sm" value="@Model.FromUtc?.ToString("yyyy-MM-dd")" />
@@ -104,11 +104,11 @@
                             <thead>
                                 <tr>
                                     <th>Code</th>
-                                    <th>Account</th>
-                                    <th>Type</th>
-                                    <th class="text-end">Debit</th>
-                                    <th class="text-end">Credit</th>
-                                    <th class="text-end">Balance</th>
+                                    <th>Account Name</th>
+                                    <th>Category</th>
+                                    <th class="text-end">Added (+)</th>
+                                    <th class="text-end">Reduced (-)</th>
+                                    <th class="text-end">Current Balance</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -150,21 +150,20 @@
 
     <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
-            <h5 class="mb-0">Recent Journal Entries</h5>
-            <span class="text-muted small">@Model.RecentEntries.Count row(s)</span>
+            <h5 class="mb-0">Transaction Audit Trail</h5>
+            <span class="text-muted small">@Model.RecentEntries.Count entry(s)</span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-sm table-striped table-hover align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Entry #</th>
-                            <th>Date (UTC)</th>
+                            <th>ID</th>
+                            <th>Date &amp; Time</th>
                             <th>Description</th>
-                            <th>Source</th>
-                            <th class="text-end">Debit</th>
-                            <th class="text-end">Credit</th>
-                            <th>Lines</th>
+                            <th>Auto-Source</th>
+                            <th class="text-end">Value</th>
+                            <th>Movement Details</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -185,28 +184,29 @@
                                         : $"{entry.SourceType}:{entry.SourceId}";
 
                                 <tr>
-                                    <td class="text-nowrap fw-semibold">@entry.EntryNumber</td>
+                                    <td class="text-nowrap fw-semibold">#@entry.EntryNumber</td>
                                     <td class="text-nowrap">@entry.EntryDateUtc.ToString("yyyy-MM-dd HH:mm")</td>
                                     <td>
-                                        <div>@entry.Description</div>
+                                        <div class="fw-semibold">@entry.Description</div>
                                         @if (!string.IsNullOrWhiteSpace(entry.CreatedByUserId))
                                         {
-                                            <div class="small text-muted">By: @entry.CreatedByUserId</div>
+                                            <div class="small text-muted">User: @entry.CreatedByUserId</div>
                                         }
                                     </td>
-                                    <td class="text-nowrap">@sourceLabel</td>
-                                    <td class="text-end text-nowrap">PHP @entry.TotalDebit.ToString("N2")</td>
-                                    <td class="text-end text-nowrap">PHP @entry.TotalCredit.ToString("N2")</td>
+                                    <td class="text-nowrap"><span class="badge bg-light text-dark">@sourceLabel</span></td>
+                                    <td class="text-end text-nowrap fw-bold text-primary">PHP @entry.TotalDebit.ToString("N2")</td>
                                     <td>
-                                        <ul class="small mb-0 ps-3">
+                                        <div class="small">
                                             @foreach (var line in entry.Lines)
                                             {
-                                                <li>
-                                                    @line.AccountCode - @line.AccountName
-                                                    (D: @line.Debit.ToString("N2"), C: @line.Credit.ToString("N2"))
-                                                </li>
+                                                var movement = line.Debit > 0 ? "+" : "-";
+                                                var amount = line.Debit > 0 ? line.Debit : line.Credit;
+                                                <div class="text-nowrap">
+                                                    <span class="@(line.Debit > 0 ? "text-success" : "text-danger")">@movement</span>
+                                                    @line.AccountName (@amount.ToString("N2"))
+                                                </div>
                                             }
-                                        </ul>
+                                        </div>
                                     </td>
                                 </tr>
                             }
