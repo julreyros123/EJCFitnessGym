@@ -6,7 +6,7 @@ using EJCFitnessGym.Services.Finance;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;    
 
 namespace EJCFitnessGym.Pages.Finance
 {

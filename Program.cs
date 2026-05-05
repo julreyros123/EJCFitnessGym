@@ -56,7 +56,8 @@ var useSecureCookies = builder.Configuration.GetValue<bool?>("Security:UseSecure
 // Add services to the container.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString)
+           .AddInterceptors(new AuditableInterceptor()));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services
@@ -95,6 +96,12 @@ if (string.IsNullOrWhiteSpace(jwtSigningKey))
         jwtSigningKey = "dev-only-jwt-signing-key-change-this-before-production-32-bytes-min";
         jwtBearerAuthenticationEnabled = true;
     }
+    else
+    {
+        throw new InvalidOperationException(
+            "Jwt:SigningKey must be configured in production. " +
+            "Set the Jwt:SigningKey configuration value to a secure key of at least 32 bytes.");
+    }
 }
 
 var jwtIssuer = string.IsNullOrWhiteSpace(configuredJwtOptions.Issuer)
@@ -104,6 +111,7 @@ var jwtAudience = string.IsNullOrWhiteSpace(configuredJwtOptions.Audience)
     ? "EJCFitnessGymClients"
     : configuredJwtOptions.Audience.Trim();
 
+var googleAuthenticationEnabled = builder.Configuration.GetValue<bool?>("Authentication:Google:Enabled") ?? true;
 var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
 var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
 var isLocalDbConnection = connectionString.Contains("(localdb)", StringComparison.OrdinalIgnoreCase);
@@ -133,9 +141,38 @@ if (!string.IsNullOrWhiteSpace(googleClientSecret))
     builder.Configuration["Authentication:Google:ClientSecret"] = googleClientSecret;
 }
 
-var googleIsConfigured = !string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret);
+var payMongoSecretKey = builder.Configuration["PayMongo:SecretKey"];
+var payMongoPublicKey = builder.Configuration["PayMongo:PublicKey"];
+if (isLocalDbConnection && (string.IsNullOrWhiteSpace(payMongoSecretKey) || string.IsNullOrWhiteSpace(payMongoPublicKey)))
+{
+    var localDevelopmentConfig = new ConfigurationBuilder()
+        .SetBasePath(builder.Environment.ContentRootPath)
+        .AddJsonFile("appsettings.Development.json", optional: true)
+        .Build();
+
+    payMongoSecretKey = string.IsNullOrWhiteSpace(payMongoSecretKey)
+        ? localDevelopmentConfig["PayMongo:SecretKey"]
+        : payMongoSecretKey;
+    payMongoPublicKey = string.IsNullOrWhiteSpace(payMongoPublicKey)
+        ? localDevelopmentConfig["PayMongo:PublicKey"]
+        : payMongoPublicKey;
+}
+
+if (!string.IsNullOrWhiteSpace(payMongoSecretKey))
+{
+    builder.Configuration["PayMongo:SecretKey"] = payMongoSecretKey;
+}
+
+if (!string.IsNullOrWhiteSpace(payMongoPublicKey))
+{
+    builder.Configuration["PayMongo:PublicKey"] = payMongoPublicKey;
+}
+
+var googleIsConfigured =
+    googleAuthenticationEnabled &&
+    !string.IsNullOrWhiteSpace(googleClientId) &&
+    !string.IsNullOrWhiteSpace(googleClientSecret);
 var configuredPayMongoOptions = builder.Configuration.GetSection("PayMongo").Get<PayMongoOptions>() ?? new PayMongoOptions();
-var payMongoSecretKey = configuredPayMongoOptions.SecretKey?.Trim();
 var payMongoWebhookSecret = configuredPayMongoOptions.WebhookSecret?.Trim();
 var payMongoRequiresWebhookSignature =
     !builder.Environment.IsDevelopment() ||
@@ -181,7 +218,7 @@ if (jwtBearerAuthenticationEnabled)
         throw new InvalidOperationException("JWT:SigningKey must be configured in production.");
     }
 
-    if (!builder.Environment.IsDevelopment() && !googleIsConfigured)
+    if (!builder.Environment.IsDevelopment() && googleAuthenticationEnabled && !googleIsConfigured)
     {
         throw new InvalidOperationException("Authentication:Google secrets must be configured in production.");
     }
@@ -234,7 +271,7 @@ if (googleIsConfigured)
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.HttpOnly = true;
-    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SameSite = SameSiteMode.Strict;
     options.Cookie.SecurePolicy = useSecureCookies
         ? CookieSecurePolicy.Always
         : CookieSecurePolicy.SameAsRequest;
@@ -285,18 +322,14 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy("FinanceAccess", policy =>
     {
-        policy.RequireRole("Finance");
-        policy.RequireAssertion(context =>
-            context.User.HasBranchScope() &&
-            !context.User.IsInRole("SuperAdmin"));
+        policy.RequireRole("Finance", "SuperAdmin");
+        policy.RequireAssertion(context => context.User.HasBranchScope());
     });
 
     options.AddPolicy("FinanceApiAccess", policy =>
     {
-        policy.RequireRole("Finance", "Admin");
-        policy.RequireAssertion(context =>
-            context.User.HasBranchScope() &&
-            !context.User.IsInRole("SuperAdmin"));
+        policy.RequireRole("Finance", "Admin", "SuperAdmin");
+        policy.RequireAssertion(context => context.User.HasBranchScope());
     });
 
     options.AddPolicy("StaffAccess", policy =>
@@ -373,22 +406,60 @@ else
 builder.Services.AddScoped<IEmailVerificationCodeService, EmailVerificationCodeService>();
 builder.Services.AddControllersWithViews();
 
+var publicBaseUrl = builder.Configuration["App:PublicBaseUrl"]?.Trim();
+if (string.IsNullOrWhiteSpace(publicBaseUrl) || publicBaseUrl.StartsWith("https://your-domain", StringComparison.OrdinalIgnoreCase))
+{
+    if (!builder.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException(
+            "App:PublicBaseUrl must be configured in production to generate correct email links and redirects.");
+    }
+}
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+        else if (!string.IsNullOrWhiteSpace(publicBaseUrl))
+        {
+            policy.WithOrigins(publicBaseUrl.TrimEnd('/'))
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
+    });
+});
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     
     options.AddFixedWindowLimiter(RateLimitingOptions.PolicyName, opt =>
     {
-        opt.PermitLimit = 5;
+        opt.PermitLimit = 30;
         opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 0;
+        opt.QueueLimit = 2;
     });
 
     options.AddFixedWindowLimiter(RateLimitingOptions.AnonymousPolicy, opt =>
     {
-        opt.PermitLimit = 10;
+        opt.PermitLimit = 20;
         opt.Window = TimeSpan.FromMinutes(1);
         opt.QueueLimit = 0;
+    });
+
+    // General API rate limit: protect non-auth endpoints from abuse
+    options.AddFixedWindowLimiter("api", opt =>
+    {
+        opt.PermitLimit = 100;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 5;
     });
 });
 
@@ -396,7 +467,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromHours(4);
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
@@ -413,6 +484,23 @@ if (!jwtBearerAuthenticationEnabled)
 {
     app.Logger.LogWarning(
         "JWT bearer authentication is disabled because Jwt:SigningKey is not configured. Cookie-based sign-in remains available.");
+}
+
+// Validate production security configuration at startup
+if (!app.Environment.IsDevelopment())
+{
+    if (string.IsNullOrWhiteSpace(jwtSigningKey) || jwtSigningKey == "dev-only-jwt-signing-key-change-this-before-production-32-bytes-min")
+    {
+        app.Logger.LogError("SECURITY: JWT:SigningKey is not configured or using development default. This is a CRITICAL issue in production.");
+    }
+    if (string.IsNullOrWhiteSpace(payMongoWebhookSecret))
+    {
+        app.Logger.LogWarning("SECURITY: PayMongo:WebhookSecret is not configured. Webhook signature validation is disabled.");
+    }
+    if (!googleIsConfigured)
+    {
+        app.Logger.LogWarning("SECURITY: Google OAuth is not configured. External authentication is disabled.");
+    }
 }
 
 if (args.Any(arg => string.Equals(arg, "--bulk-repair-paymongo", StringComparison.OrdinalIgnoreCase)))
@@ -595,8 +683,9 @@ if (args.Any(arg => string.Equals(arg, "--bulk-repair-paymongo", StringCompariso
         voidedFailedCheckoutInvoices,
         totalChanges);
 
-    Console.WriteLine(
-        $"Bulk PayMongo reconciliation completed. Processed members: {processedMembers}, updated members: {updatedMembers}, repaired paid-invoice links: {repairedPaidInvoiceLinks}, voided failed checkout invoices: {voidedFailedCheckoutInvoices}, total repaired records: {totalChanges}.");
+    logger.LogInformation(
+        "Bulk PayMongo reconciliation summary output: Processed={ProcessedMembers}, Updated={UpdatedMembers}, RepairedLinks={RepairedPaidInvoiceLinks}, Voided={VoidedFailedCheckoutInvoices}, Total={TotalChanges}.",
+        processedMembers, updatedMembers, repairedPaidInvoiceLinks, voidedFailedCheckoutInvoices, totalChanges);
     return;
 }
 
@@ -621,9 +710,11 @@ app.UseHttpsRedirection();
 
 app.Use((context, next) =>
 {
+    // Content Security Policy: Restrict inline scripts to reduce XSS attack surface.
+    // Note: 'unsafe-inline' and 'unsafe-eval' are minimized; consider extracting inline scripts to external files.
     context.Response.Headers.Append("Content-Security-Policy",
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://*.google.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " +
+        "script-src 'self' https://accounts.google.com https://*.google.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " +
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " +
         "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; " +
         "img-src 'self' data: https: https://*.googleusercontent.com; " +
@@ -635,6 +726,7 @@ app.Use((context, next) =>
 app.UseStaticFiles();
 
 app.UseRouting();
+app.UseCors();
 
 app.UseAuthentication();
 app.UseSession();
@@ -700,16 +792,7 @@ using (var scope = app.Services.CreateScope())
 
         try
         {
-            var pendingMigrations = await db.Database.GetPendingMigrationsAsync();
-            if (pendingMigrations.Any())
-            {
-                startupLogger.LogWarning(
-                    "Skipping General Ledger default account seeding because pending migrations were detected: {PendingMigrations}.",
-                    string.Join(", ", pendingMigrations));
-            }
-            /*
-                await generalLedgerService.EnsureDefaultAccountsAsync(defaultBranchId);
-            */
+            await generalLedgerService.EnsureDefaultAccountsAsync(defaultBranchId);
         }
         catch (Exception ex)
         {
@@ -773,7 +856,6 @@ using (var scope = app.Services.CreateScope())
 
         await DatabaseSeeder.SeedInventoryAsync(db);
 
-            /*
             var hasAnyActivePlans = await db.SubscriptionPlans.AnyAsync(plan => plan.IsActive);
             if (!hasAnyActivePlans)
             {
@@ -866,7 +948,6 @@ using (var scope = app.Services.CreateScope())
                     await db.SaveChangesAsync();
                 }
             }
-            */
 
         if (app.Environment.IsDevelopment())
         {

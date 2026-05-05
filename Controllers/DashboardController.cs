@@ -547,7 +547,9 @@ namespace EJCFitnessGym.Controllers
 
             var invoicesQuery = _db.Invoices
                 .AsNoTracking()
-                .Where(i => i.MemberUserId == user.Id);
+                .Where(i =>
+                    i.MemberUserId == user.Id &&
+                    i.Status != InvoiceStatus.Voided);
 
             var lifetimeSpend = await invoicesQuery
                 .Where(i => i.Status == InvoiceStatus.Paid)

@@ -5,12 +5,14 @@ using EJCFitnessGym.Security;
 using EJCFitnessGym.Services.Finance;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace EJCFitnessGym.Controllers
 {
     [ApiController]
     [Authorize(Policy = "FinanceApiAccess")]
+    [EnableRateLimiting("api")]
     [Route("api/finance")]
     public class FinanceMetricsController : ControllerBase
     {

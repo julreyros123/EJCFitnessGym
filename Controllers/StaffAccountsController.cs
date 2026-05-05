@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using EJCFitnessGym.Areas.Identity.Pages.Account;
 
 namespace EJCFitnessGym.Controllers
@@ -25,15 +26,8 @@ namespace EJCFitnessGym.Controllers
         private const string StaffLastLoginUtcClaimType = "staff_last_login_utc";
         private const string StaffArchiveStatusActiveValue = "active";
         private const string StaffArchiveStatusArchivedValue = "archived";
-        private const string StaffEmailDomain = "gmail.com";
-        private static readonly string[] StaffPositionOptions =
-        {
-            "Front Desk",
-            "Coach",
-            "Trainer",
-            "Sales",
-            "Maintenance"
-        };
+        private readonly string _staffEmailDomain;
+        private readonly string[] _staffPositionOptions;
 
         private readonly ApplicationDbContext _db;
         private readonly UserManager<IdentityUser> _userManager;
@@ -44,12 +38,20 @@ namespace EJCFitnessGym.Controllers
             ApplicationDbContext db,
             UserManager<IdentityUser> userManager,
             IEmailSender emailSender,
-            ILogger<StaffAccountsController> logger)
+            ILogger<StaffAccountsController> logger,
+            IConfiguration configuration)
         {
             _db = db;
             _userManager = userManager;
             _emailSender = emailSender;
             _logger = logger;
+
+            _staffEmailDomain = configuration.GetValue<string>("StaffAccounts:EmailDomain")?.Trim()
+                ?? "gmail.com";
+            var configuredPositions = configuration.GetSection("StaffAccounts:Positions").Get<string[]>();
+            _staffPositionOptions = configuredPositions is { Length: > 0 }
+                ? configuredPositions
+                : new[] { "Front Desk", "Coach", "Trainer", "Sales", "Maintenance" };
         }
 
         [HttpGet("/Admin/StaffAccounts")]
@@ -743,7 +745,7 @@ namespace EJCFitnessGym.Controllers
             formInput.Position = NormalizePosition(formInput.Position) ?? string.Empty;
             if (string.IsNullOrWhiteSpace(formInput.Position))
             {
-                formInput.Position = StaffPositionOptions[0];
+                formInput.Position = _staffPositionOptions[0];
             }
 
             if (!isSuperAdmin)
@@ -805,7 +807,7 @@ namespace EJCFitnessGym.Controllers
                         : null,
                 CreateInput = formInput,
                 BranchOptions = branchOptions,
-                PositionOptions = StaffPositionOptions
+                PositionOptions = _staffPositionOptions
                     .Select(position => new StaffPositionOptionViewModel
                     {
                         Value = position,
@@ -925,7 +927,7 @@ namespace EJCFitnessGym.Controllers
             return new string(chars.ToArray());
         }
 
-        private static (bool IsValid, string? Email, string? ErrorMessage) NormalizeStaffEmail(string? rawEmail)
+        private (bool IsValid, string? Email, string? ErrorMessage) NormalizeStaffEmail(string? rawEmail)
         {
             if (string.IsNullOrWhiteSpace(rawEmail))
             {
@@ -933,9 +935,9 @@ namespace EJCFitnessGym.Controllers
             }
 
             var value = rawEmail.Trim().ToLowerInvariant();
-            if (value.EndsWith($"@{StaffEmailDomain}", StringComparison.Ordinal))
+            if (value.EndsWith($"@{_staffEmailDomain}", StringComparison.Ordinal))
             {
-                value = value[..^($"@{StaffEmailDomain}".Length)];
+                value = value[..^($"@{_staffEmailDomain}".Length)];
             }
 
             var localPart = value.Contains('@', StringComparison.Ordinal)
@@ -956,7 +958,7 @@ namespace EJCFitnessGym.Controllers
                 return (false, null, "Enter a valid Gmail username.");
             }
 
-            var email = $"{sanitizedLocalPart}@{StaffEmailDomain}";
+            var email = $"{sanitizedLocalPart}@{_staffEmailDomain}";
             return (true, email, null);
         }
 
@@ -1005,9 +1007,9 @@ namespace EJCFitnessGym.Controllers
             }
         }
 
-        private static bool IsSupportedPosition(string position)
+        private bool IsSupportedPosition(string position)
         {
-            return StaffPositionOptions.Any(option =>
+            return _staffPositionOptions.Any(option =>
                 string.Equals(option, position, StringComparison.OrdinalIgnoreCase));
         }
 

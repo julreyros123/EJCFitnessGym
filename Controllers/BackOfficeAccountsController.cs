@@ -25,11 +25,16 @@ namespace EJCFitnessGym.Controllers
 
         private readonly ApplicationDbContext _db;
         private readonly UserManager<IdentityUser> _userManager;
+        private readonly ILogger<BackOfficeAccountsController> _logger;
 
-        public BackOfficeAccountsController(ApplicationDbContext db, UserManager<IdentityUser> userManager)
+        public BackOfficeAccountsController(
+            ApplicationDbContext db,
+            UserManager<IdentityUser> userManager,
+            ILogger<BackOfficeAccountsController> logger)
         {
             _db = db;
             _userManager = userManager;
+            _logger = logger;
         }
 
         [HttpGet("/Admin/BackOfficeAccounts")]
@@ -149,6 +154,9 @@ namespace EJCFitnessGym.Controllers
             }
 
             TempData["StatusMessage"] = "Back office account created successfully.";
+            _logger.LogInformation(
+                "Back office account created: {Email}, Role={Role}, Branch={BranchId}, CreatedBy={ActorUserId}.",
+                input.Email, input.Role, input.BranchId, _userManager.GetUserId(User));
             return RedirectToAction(nameof(Index));
         }
 
@@ -243,6 +251,9 @@ namespace EJCFitnessGym.Controllers
             }
 
             var statusText = isActive ? "deactivated" : "activated";
+            _logger.LogInformation(
+                "Back office account {StatusText}: {Email} (UserId={UserId}), by {ActorUserId}.",
+                statusText, targetUser.Email ?? targetUser.Id, targetUser.Id, actorUserId);
             TempData["StatusMessage"] = $"Account '{targetUser.Email ?? targetUser.UserName ?? targetUser.Id}' is now {statusText}.";
             return RedirectToAction(nameof(Index));
         }
