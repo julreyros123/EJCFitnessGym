@@ -5,14 +5,12 @@ using EJCFitnessGym.Models.Billing;
 using EJCFitnessGym.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace EJCFitnessGym.Controllers
 {
     [ApiController]
     [Authorize(Roles = "Admin,SuperAdmin")]
-    [EnableRateLimiting("api")]
     [Route("api/admin/dashboard")]
     public class AdminDashboardMetricsController : ControllerBase
     {

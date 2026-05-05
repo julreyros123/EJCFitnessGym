@@ -62,9 +62,7 @@ namespace EJCFitnessGym.Pages.Member
                 .Include(i => i.Payments)
                 .Include(i => i.MemberSubscription)
                     .ThenInclude(s => s!.SubscriptionPlan)
-                .Where(i =>
-                    i.MemberUserId == user.Id &&
-                    i.Status != InvoiceStatus.Voided)
+                .Where(i => i.MemberUserId == user.Id)
                 .OrderByDescending(i => i.IssueDateUtc)
                 .ToListAsync();
 

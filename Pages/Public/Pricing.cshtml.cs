@@ -7,14 +7,12 @@ using EJCFitnessGym.Services.Payments;
 using EJCFitnessGym.Services.Realtime;
 using EJCFitnessGym.Security;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Globalization;
 using System.Security.Claims;
-using System.Text.Encodings.Web;
 using System.Text.RegularExpressions;
 
 namespace EJCFitnessGym.Pages.Public
@@ -29,8 +27,6 @@ namespace EJCFitnessGym.Pages.Public
         private readonly PayMongoOptions _payMongoOptions;
         private readonly IErpEventPublisher _erpEventPublisher;
         private readonly ILogger<PricingModel> _logger;
-        private readonly IConfiguration _configuration;
-        private readonly IEmailSender _emailSender;
         private readonly IPayMongoMembershipReconciliationService? _payMongoMembershipReconciliationService;
 
         public PricingModel(
@@ -40,8 +36,6 @@ namespace EJCFitnessGym.Pages.Public
             IOptions<PayMongoOptions> payMongoOptions,
             IErpEventPublisher erpEventPublisher,
             ILogger<PricingModel> logger,
-            IConfiguration configuration,
-            IEmailSender emailSender,
             IPayMongoMembershipReconciliationService? payMongoMembershipReconciliationService = null)
         {
             _db = db;
@@ -50,8 +44,6 @@ namespace EJCFitnessGym.Pages.Public
             _payMongoOptions = payMongoOptions.Value;
             _erpEventPublisher = erpEventPublisher;
             _logger = logger;
-            _configuration = configuration;
-            _emailSender = emailSender;
             _payMongoMembershipReconciliationService = payMongoMembershipReconciliationService;
         }
 
@@ -198,15 +190,8 @@ namespace EJCFitnessGym.Pages.Public
                 return Challenge();
             }
 
-            var payMongoSecretKey = _payMongoOptions.SecretKey;
-            if (string.IsNullOrWhiteSpace(payMongoSecretKey))
+            if (string.IsNullOrWhiteSpace(_payMongoOptions.SecretKey))
             {
-                payMongoSecretKey = _configuration["PayMongo:SecretKey"];
-            }
-
-            if (string.IsNullOrWhiteSpace(payMongoSecretKey))
-            {
-                _logger.LogError("PayMongo SecretKey is still missing in PricingModel despite configuration check.");
                 TempData["StatusMessage"] = "Online payment is currently unavailable. Please contact support.";
                 return RedirectToPage("/Public/Pricing", new { planId, invoiceId });
             }
@@ -433,7 +418,6 @@ namespace EJCFitnessGym.Pages.Public
                             }
                         },
                         ReferenceNumber = invoice.InvoiceNumber,
-                        SendEmailReceipt = true,
                         Metadata = checkoutMetadata
                     }
                 }
@@ -487,36 +471,7 @@ namespace EJCFitnessGym.Pages.Public
                 "A member started a new membership checkout.",
                 realtimePayload);
 
-            // Notify user via Email that checkout has started - Background task to avoid blocking the redirect
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    var user = await _userManager.FindByIdAsync(memberUserId);
-                    if (user != null && !string.IsNullOrWhiteSpace(user.Email))
-                    {
-                        await _emailSender.SendEmailAsync(
-                            user.Email,
-                            "Membership Checkout Details - EJC Fitness Gym",
-                            $"<h3>Membership Checkout Started</h3>" +
-                            $"<p>Hi {user.UserName ?? "Member"},</p>" +
-                            $"<p>You have started a checkout for: <strong>{planName}</strong></p>" +
-                            $"<p><strong>Amount:</strong> PHP {invoice.Amount:N2}</p>" +
-                            $"<p>To complete your payment and activate your membership, please visit the link below:</p>" +
-                            $"<p><a href='{checkout.CheckoutUrl}' style='padding: 10px 20px; background-color: #f7941d; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;'>Complete Payment</a></p>" +
-                            $"<br/><p>If the button doesn't work, copy and paste this URL into your browser:</p>" +
-                            $"<p>{checkout.CheckoutUrl}</p>" +
-                            $"<p>Thank you for choosing EJC Fitness Gym!</p>");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // Using a static logger or capturing one is safer for background tasks but logger is usually thread safe
-                    _logger.LogWarning(ex, "Failed to send checkout notification email to user {UserId} in background.", memberUserId);
-                }
-            });
-
-            return BuildCheckoutLaunchResult(checkout.CheckoutUrl);
+            return Redirect(checkout.CheckoutUrl);
         }
 
         public async Task<IActionResult> OnPostCancelPendingCheckoutAsync(int paymentId, int? planId = null, int? invoiceId = null, CancellationToken cancellationToken = default)
@@ -673,88 +628,6 @@ namespace EJCFitnessGym.Pages.Public
             }
 
             return result;
-        }
-
-        private IActionResult BuildCheckoutLaunchResult(string checkoutUrl)
-        {
-            if (string.IsNullOrWhiteSpace(checkoutUrl))
-            {
-                throw new InvalidOperationException("PayMongo checkout URL is required.");
-            }
-
-            if (!Uri.TryCreate(checkoutUrl, UriKind.Absolute, out var parsedCheckoutUrl) ||
-                (parsedCheckoutUrl.Scheme != Uri.UriSchemeHttps &&
-                 parsedCheckoutUrl.Scheme != Uri.UriSchemeHttp))
-            {
-                return Redirect(checkoutUrl);
-            }
-
-            var normalizedCheckoutUrl = parsedCheckoutUrl.AbsoluteUri;
-            var encodedHtmlUrl = HtmlEncoder.Default.Encode(normalizedCheckoutUrl);
-            var encodedScriptUrl = JavaScriptEncoder.Default.Encode(normalizedCheckoutUrl);
-
-            Response.Headers["Cache-Control"] = "no-store, no-cache, max-age=0";
-            Response.Headers["Pragma"] = "no-cache";
-
-            var redirectHtml = $$"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta http-equiv="refresh" content="0;url={{encodedHtmlUrl}}" />
-    <title>Redirecting to PayMongo</title>
-    <style>
-        body {
-            margin: 0;
-            min-height: 100vh;
-            display: grid;
-            place-items: center;
-            background: #05070d;
-            color: #f8fafc;
-            font-family: Arial, sans-serif;
-        }
-
-        .checkout-redirect {
-            width: min(32rem, calc(100% - 2rem));
-            padding: 2rem;
-            border: 1px solid rgba(191, 219, 254, 0.18);
-            border-radius: 1rem;
-            background: rgba(15, 23, 42, 0.92);
-            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.45);
-            text-align: center;
-        }
-
-        h1 {
-            margin: 0 0 0.75rem;
-            font-size: 1.5rem;
-        }
-
-        p {
-            margin: 0 0 1rem;
-            line-height: 1.5;
-        }
-
-        a {
-            color: #c7f70b;
-            font-weight: 700;
-        }
-    </style>
-</head>
-<body>
-    <main class="checkout-redirect">
-        <h1>Redirecting to PayMongo...</h1>
-        <p>Your checkout is ready. If automatic redirect does not start, use the link below.</p>
-        <p><a href="{{encodedHtmlUrl}}" rel="noopener noreferrer">Continue to PayMongo</a></p>
-    </main>
-    <script>
-        window.location.replace("{{encodedScriptUrl}}");
-    </script>
-</body>
-</html>
-""";
-
-            return Content(redirectHtml, "text/html; charset=utf-8");
         }
 
         private IQueryable<Invoice> BuildInvoiceCheckoutQuery(string memberUserId, int invoiceId)

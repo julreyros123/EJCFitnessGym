@@ -826,21 +826,6 @@ document.addEventListener('click', (event) => {
         return;
     }
 
-    const restoreButton = (button) => {
-        if (!button || !button.classList.contains('ejc-submit-loading')) {
-            return;
-        }
-        button.disabled = false;
-        button.classList.remove('ejc-submit-loading');
-        button.removeAttribute('aria-busy');
-        if (button.dataset.ejcOriginalHtml) {
-            button.innerHTML = button.dataset.ejcOriginalHtml;
-        }
-        if (button.tagName === 'INPUT' && button.dataset.ejcOriginalValue) {
-            button.value = button.dataset.ejcOriginalValue;
-        }
-    };
-
     const applyButtonLoading = (button) => {
         if (!button || button.classList.contains('ejc-submit-loading')) {
             return;
@@ -851,17 +836,15 @@ document.addEventListener('click', (event) => {
             button.value = 'Processing...';
             button.classList.add('ejc-submit-loading');
             button.disabled = true;
-        } else {
-            const original = button.innerHTML;
-            button.dataset.ejcOriginalHtml = original;
-            button.innerHTML = `<span class="ejc-btn-label">${original}</span>`;
-            button.classList.add('ejc-submit-loading');
-            button.setAttribute('aria-busy', 'true');
-            button.disabled = true;
+            return;
         }
 
-        // Safety: If the page doesn't unload within 8 seconds, re-enable the button
-        setTimeout(() => restoreButton(button), 8000);
+        const original = button.innerHTML;
+        button.dataset.ejcOriginalHtml = original;
+        button.innerHTML = `<span class="ejc-btn-label">${original}</span>`;
+        button.classList.add('ejc-submit-loading');
+        button.setAttribute('aria-busy', 'true');
+        button.disabled = true;
     };
 
     forms.forEach((form) => {
@@ -869,53 +852,37 @@ document.addEventListener('click', (event) => {
 
         form.addEventListener('click', (event) => {
             const button = event.target.closest('button[type="submit"], input[type="submit"]');
-            if (button && form.contains(button)) {
-                pendingButton = button;
+            if (!button || !form.contains(button)) {
+                return;
             }
+
+            pendingButton = button;
         });
 
         form.addEventListener('submit', (event) => {
             const button = pendingButton
                 || form.querySelector('button[type="submit"]:not([disabled]), input[type="submit"]:not([disabled])');
 
+            pendingButton = null;
             if (!button) {
                 return;
             }
 
-            // 1. Check jQuery validation
-            if (typeof jQuery !== 'undefined' && typeof jQuery.fn.valid === 'function') {
-                if (!jQuery(form).valid()) {
-                    pendingButton = null;
-                    return;
-                }
-            }
-
-            // 2. Check special required checkboxes (Terms)
-            const termsBox = form.querySelector('input[name*="AcceptTerms"]');
-            if (termsBox && !termsBox.checked) {
-                pendingButton = null;
-                return;
-            }
-
-            // 3. Apply loading state
-            // We use a small timeout to allow other event listeners to potentially cancel the submit
+            // Small delay to allow jQuery validation or other listeners to run and preventDefault if needed
             setTimeout(() => {
                 if (event.defaultPrevented) {
-                    restoreButton(button);
                     return;
                 }
-                applyButtonLoading(button);
-            }, 10);
-        });
 
-        // If the user interacts with the form again, might be a sign they need to fix something
-        ['input', 'change'].forEach(type => {
-            form.addEventListener(type, () => {
-                const button = form.querySelector('.ejc-submit-loading');
-                if (button) {
-                    restoreButton(button);
+                // If jQuery validation is present, check if form is valid
+                if (typeof jQuery !== 'undefined' && typeof jQuery.fn.valid === 'function') {
+                    if (!jQuery(form).valid()) {
+                        return;
+                    }
                 }
-            });
+
+                applyButtonLoading(button);
+            }, 1);
         });
     });
 })();

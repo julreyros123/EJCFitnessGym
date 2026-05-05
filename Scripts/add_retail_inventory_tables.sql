@@ -2,12 +2,10 @@
 -- For: EJCFitnessGym - Product Sales & Supply Request features
 -- Created: 2026-03-02
 
-DECLARE @DefaultBranchId nvarchar(32) = N'BR-CENTRAL';
-
 -- =====================================================
 -- Table: RetailProducts - Product catalog for POS
 -- =====================================================
-IF OBJECT_ID(N'dbo.RetailProducts', N'U') IS NULL
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='RetailProducts' AND xtype='U')
 BEGIN
     CREATE TABLE [RetailProducts] (
         [Id] INT NOT NULL IDENTITY(1,1),
@@ -44,7 +42,7 @@ GO
 -- =====================================================
 -- Table: ProductSales - Sale transactions from POS
 -- =====================================================
-IF OBJECT_ID(N'dbo.ProductSales', N'U') IS NULL
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ProductSales' AND xtype='U')
 BEGIN
     CREATE TABLE [ProductSales] (
         [Id] INT NOT NULL IDENTITY(1,1),
@@ -86,7 +84,7 @@ GO
 -- =====================================================
 -- Table: SupplyRequests - Supply request workflow
 -- =====================================================
-IF OBJECT_ID(N'dbo.SupplyRequests', N'U') IS NULL
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='SupplyRequests' AND xtype='U')
 BEGIN
     CREATE TABLE [SupplyRequests] (
         [Id] INT NOT NULL IDENTITY(1,1),
@@ -134,14 +132,14 @@ BEGIN
     INSERT INTO [RetailProducts] 
         ([Name], [Sku], [Category], [Unit], [UnitPrice], [CostPrice], [StockQuantity], [ReorderLevel], [BranchId], [IsActive], [CreatedAtUtc])
     VALUES
-        ('Resistance Band', 'ACC-001', 'Accessories', 'piece', 350.00, 180.00, 42, 15, @DefaultBranchId, 1, GETUTCDATE()),
-        ('Bottled Water (500ml)', 'HYD-001', 'Hydration', 'bottle', 35.00, 15.00, 96, 50, @DefaultBranchId, 1, GETUTCDATE()),
-        ('Creatine Monohydrate', 'SUP-001', 'Supplements', 'tub', 950.00, 650.00, 18, 10, @DefaultBranchId, 1, GETUTCDATE()),
-        ('Whey Protein (2 lbs)', 'SUP-002', 'Supplements', 'pack', 2100.00, 1500.00, 11, 8, @DefaultBranchId, 1, GETUTCDATE()),
-        ('Protein Bar', 'NUT-001', 'Nutrition', 'bar', 120.00, 70.00, 57, 30, @DefaultBranchId, 1, GETUTCDATE()),
-        ('Gym Towel', 'ACC-002', 'Accessories', 'piece', 250.00, 120.00, 35, 20, @DefaultBranchId, 1, GETUTCDATE()),
-        ('Pre-Workout Drink', 'SUP-003', 'Supplements', 'sachet', 85.00, 45.00, 80, 40, @DefaultBranchId, 1, GETUTCDATE()),
-        ('Sports Drink (1L)', 'HYD-002', 'Hydration', 'bottle', 65.00, 35.00, 60, 30, @DefaultBranchId, 1, GETUTCDATE());
+        ('Resistance Band', 'ACC-001', 'Accessories', 'piece', 350.00, 180.00, 42, 15, 'BR-CENTRAL', 1, GETUTCDATE()),
+        ('Bottled Water (500ml)', 'HYD-001', 'Hydration', 'bottle', 35.00, 15.00, 96, 50, 'BR-CENTRAL', 1, GETUTCDATE()),
+        ('Creatine Monohydrate', 'SUP-001', 'Supplements', 'tub', 950.00, 650.00, 18, 10, 'BR-CENTRAL', 1, GETUTCDATE()),
+        ('Whey Protein (2 lbs)', 'SUP-002', 'Supplements', 'pack', 2100.00, 1500.00, 11, 8, 'BR-CENTRAL', 1, GETUTCDATE()),
+        ('Protein Bar', 'NUT-001', 'Nutrition', 'bar', 120.00, 70.00, 57, 30, 'BR-CENTRAL', 1, GETUTCDATE()),
+        ('Gym Towel', 'ACC-002', 'Accessories', 'piece', 250.00, 120.00, 35, 20, 'BR-CENTRAL', 1, GETUTCDATE()),
+        ('Pre-Workout Drink', 'SUP-003', 'Supplements', 'sachet', 85.00, 45.00, 80, 40, 'BR-CENTRAL', 1, GETUTCDATE()),
+        ('Sports Drink (1L)', 'HYD-002', 'Hydration', 'bottle', 65.00, 35.00, 60, 30, 'BR-CENTRAL', 1, GETUTCDATE());
         
     PRINT 'Seeded sample retail products';
 END

@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace EJCFitnessGym.Models;
 
-public class MemberProfile : IAuditable
+public class MemberProfile
 {
     public int Id { get; set; }
 

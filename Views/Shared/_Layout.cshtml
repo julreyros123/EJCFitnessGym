@@ -24,13 +24,7 @@
     var mobileAccountName = "Account";
     var configuration = Context?.RequestServices.GetService(typeof(Microsoft.Extensions.Configuration.IConfiguration)) as Microsoft.Extensions.Configuration.IConfiguration;
     var googleClientId = configuration?["Authentication:Google:ClientId"]?.Trim();
-    var googleClientSecret = configuration?["Authentication:Google:ClientSecret"]?.Trim();
-    var googleFeatureEnabled = !bool.TryParse(configuration?["Authentication:Google:Enabled"], out var parsedGoogleEnabled)
-        || parsedGoogleEnabled;
-    var googleIdentityEnabled =
-        googleFeatureEnabled &&
-        !string.IsNullOrWhiteSpace(googleClientId) &&
-        !string.IsNullOrWhiteSpace(googleClientSecret);
+    var googleIdentityEnabled = !string.IsNullOrWhiteSpace(googleClientId);
     if (isAuthenticated && !string.IsNullOrWhiteSpace(rawMobileAccountName))
     {
         var mobileNameParts = rawMobileAccountName.Split('@', 2, StringSplitOptions.RemoveEmptyEntries);

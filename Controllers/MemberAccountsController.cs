@@ -50,24 +50,7 @@ namespace EJCFitnessGym.Controllers
                 return Forbid();
             }
 
-            var memberRoleId = await _db.Roles
-                .AsNoTracking()
-                .Where(r => r.Name == "Member")
-                .Select(r => r.Id)
-                .FirstOrDefaultAsync();
-
-            if (string.IsNullOrWhiteSpace(memberRoleId))
-            {
-                return View(new MemberAccountIndexViewModel());
-            }
-
-            var memberUsers = await (
-                from userRole in _db.UserRoles.AsNoTracking()
-                join user in _db.Users.AsNoTracking() on userRole.UserId equals user.Id
-                where userRole.RoleId == memberRoleId
-                select user)
-                .ToListAsync();
-
+            var memberUsers = (await _userManager.GetUsersInRoleAsync("Member")).ToList();
             var memberIds = memberUsers.Select(u => u.Id).ToList();
             var homeBranchByUserId = await MemberBranchAssignment.ResolveHomeBranchMapAsync(_db, memberIds);
             if (!isSuperAdmin)

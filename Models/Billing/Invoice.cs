@@ -11,7 +11,6 @@ namespace EJCFitnessGym.Models.Billing
         public string InvoiceNumber { get; set; } = string.Empty;
 
         [Required]
-        [MaxLength(450)]
         public string MemberUserId { get; set; } = string.Empty;
 
         [StringLength(32)]
@@ -28,7 +27,6 @@ namespace EJCFitnessGym.Models.Billing
 
         public InvoiceStatus Status { get; set; } = InvoiceStatus.Unpaid;
 
-        [MaxLength(2000)]
         public string? Notes { get; set; }
 
         public MemberSubscription? MemberSubscription { get; set; }

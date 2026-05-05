@@ -121,9 +121,7 @@ namespace EJCFitnessGym.Pages.Member
 
             var recentInvoices = await _db.Invoices
                 .AsNoTracking()
-                .Where(i =>
-                    i.MemberUserId == userId &&
-                    i.Status != InvoiceStatus.Voided)
+                .Where(i => i.MemberUserId == userId)
                 .OrderByDescending(i => i.IssueDateUtc)
                 .Take(5)
                 .Select(i => new DashboardInvoiceView

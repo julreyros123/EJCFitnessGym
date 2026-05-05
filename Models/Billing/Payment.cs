@@ -20,16 +20,12 @@ namespace EJCFitnessGym.Models.Billing
 
         public DateTime PaidAtUtc { get; set; } = DateTime.UtcNow;
 
-        [MaxLength(100)]
         public string? ReferenceNumber { get; set; }
 
-        [MaxLength(450)]
         public string? ReceivedByUserId { get; set; }
 
-        [MaxLength(50)]
         public string? GatewayProvider { get; set; }
 
-        [MaxLength(200)]
         public string? GatewayPaymentId { get; set; }
 
         public Invoice? Invoice { get; set; }
