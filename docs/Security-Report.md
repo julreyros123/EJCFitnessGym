@@ -98,7 +98,126 @@ Get-Content .\appsettings.Production.json
 curl https://your-app/health
 ```
 
-- Capture unauthorized behavior: log in as a normal Member and request an Admin URL; observe redirect/403.
+ - Capture unauthorized behavior: log in as a normal Member and request an Admin URL; observe redirect/403.
+
+## A. Config snippets observed in the repo
+
+- `appsettings.Production.json` (placeholders observed):
+
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "REPLACE_WITH_PRODUCTION_CONNECTION_STRING"
+  },
+  "Jwt": {
+    "SigningKey": "REPLACE_WITH_LONG_SECURE_KEY",
+    "Issuer": "EJCFitnessGym",
+    "Audience": "EJCFitnessGymClients"
+  },
+  "PayMongo": {
+    "SecretKey": "REPLACE_WITH_PAYMONGO_SECRET",
+    "WebhookSecret": "REPLACE_WITH_WEBHOOK_SECRET",
+    "RequireWebhookSignature": true
+  },
+  "Authentication": {
+    "Google": {
+      "ClientId": "REPLACE_WITH_GOOGLE_CLIENT_ID",
+      "ClientSecret": "REPLACE_WITH_GOOGLE_CLIENT_SECRET"
+    }
+  }
+}
+```
+
+- JWT configuration (how app reads it in `Program.cs`):
+
+```csharp
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+var configuredJwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
+var jwtSigningKey = configuredJwtOptions.SigningKey?.Trim();
+var jwtBearerAuthenticationEnabled = !string.IsNullOrWhiteSpace(jwtSigningKey);
+```
+
+- PayMongo options are configured with `builder.Services.Configure<PayMongoOptions>(...)` and consumed by `PayMongoClient` and webhook controller.
+
+- Content Security Policy header (from `Program.cs`):
+
+```csharp
+context.Response.Headers.Append("Content-Security-Policy",
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://*.google.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; ...");
+```
+
+## B. Evidence capture — expanded checklist and commands
+Use these commands and queries to capture reproducible evidence for audits or incident investigations. Run them from the project root where appropriate. When connecting to the production database, ensure you use readonly credentials and follow change-control rules.
+
+- Run unit tests and save output:
+```bash
+dotnet test EJCFitnessGym.sln --logger "trx;LogFileName=TestResults.trx" | tee docs/test-output.txt
+```
+
+- Dump `appsettings.Production.json` (do NOT commit secrets):
+```powershell
+Get-Content .\appsettings.Production.json | Out-File docs/appsettings.Production.snapshot.txt
+```
+
+- Show effective environment variables used by the running process (Windows PowerShell):
+```powershell
+Get-ChildItem Env: | Sort-Object Name | Out-File docs/env-vars.snapshot.txt
+```
+
+- Check EF Core migrations applied (SQL query against the application's database):
+```sql
+SELECT MigrationId, ProductVersion FROM __EFMigrationsHistory ORDER BY MigrationId;
+```
+
+- Check pending migrations programmatically (run from the app environment):
+```bash
+dotnet run --project EJCFitnessGym.csproj -- --check-migrations
+# (If you don't have a custom switch, run a small diagnostic tool or query the DB directly)
+```
+
+- Query seeded roles and counts:
+```sql
+SELECT Name, COUNT(*) OVER () as Total FROM AspNetRoles WHERE Name IN ('Member','Staff','Finance','Admin','SuperAdmin');
+```
+
+- Verify presence of an admin user and branch claim example:
+```sql
+SELECT u.Id, u.UserName, c.ClaimType, c.ClaimValue
+FROM AspNetUsers u
+JOIN AspNetUserClaims c ON u.Id = c.UserId
+WHERE c.ClaimType = 'branch_id' -- replace with actual claim type constant if needed
+```
+
+- Inspect PayMongo webhook handling: capture recent webhook events table or logs (example log grep):
+```powershell
+Select-String -Path .\Logs\*.log -Pattern "PayMongo" -SimpleMatch | Out-File docs/paymongo-events.txt
+```
+
+- Capture health endpoint and HTTP response headers (shows CSP header presence):
+```bash
+curl -I https://your-app/health | tee docs/health-headers.txt
+```
+
+- Capture effective authentication configuration in running app (local dev):
+```bash
+# Inspect configuration keys at runtime by adding a small diagnostic endpoint or using the existing logs
+dotnet run --project EJCFitnessGym.csproj
+# then check console/logs for lines where Jwt or Google settings were read (Program.cs logs warnings)
+```
+
+- Export database schema for review (SQL Server example):
+```sql
+-- run in SSMS or sqlcmd
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+ORDER BY TABLE_SCHEMA, TABLE_NAME;
+```
+
+## C. Quick remediation suggestions (actionable items you can apply now)
+- Move production secrets into environment variables or a secrets manager (Azure Key Vault or similar).
+- Do not fail startup on missing optional integrations; instead log an error and continue with degraded functionality (or make the checks gated by a `RequireProductionSecrets` flag).
+- Add structured logging (Serilog) and a retention/rotation policy for logs.
+- Add a non-destructive startup dry-run for migrations to report pending work without applying changes automatically during audits.
 
 ## Changes omitted because they are NOT used in this repo
 - Next.js / React: not present — the frontend is server-rendered Razor pages and plain JS assets under `wwwroot`.
