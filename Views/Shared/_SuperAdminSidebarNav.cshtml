@@ -114,6 +114,19 @@
             <i class="bi bi-journal-text"></i>
             <span class="ejc-admin-nav-text">Plans</span>
         </a>
+
+        <div class="ejc-admin-nav-heading mt-4">Security</div>
+        <a class="ejc-admin-nav-link @ActiveIfPrefix("/SecurityAudit")"
+           asp-controller="SecurityAudit"
+           asp-action="Index"
+           title="Activity Logs"
+           data-superadmin-nav-item
+           data-superadmin-nav-label="Activity Logs"
+           data-superadmin-nav-description="Monitor login attempts and system security events"
+           data-superadmin-nav-shortcut="Alt+6">
+            <i class="bi bi-shield-lock"></i>
+            <span class="ejc-admin-nav-text">Activity Logs</span>
+        </a>
         <a class="ejc-admin-nav-link @ActiveIfPrefix("/Staff")"
            asp-page="/Staff/Reports"
            title="Operations"

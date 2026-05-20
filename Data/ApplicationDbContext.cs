@@ -37,6 +37,8 @@ namespace EJCFitnessGym.Data
         public DbSet<ProductSale> ProductSales => Set<ProductSale>();
         public DbSet<ProductSaleLine> ProductSaleLines => Set<ProductSaleLine>();
         public DbSet<SupplyRequest> SupplyRequests => Set<SupplyRequest>();
+        public DbSet<SecurityAuditLog> SecurityAuditLogs => Set<SecurityAuditLog>();
+
         public DbSet<SavedPaymentMethod> SavedPaymentMethods => Set<SavedPaymentMethod>();
         public DbSet<AutoBillingAttempt> AutoBillingAttempts => Set<AutoBillingAttempt>();
 

@@ -198,7 +198,8 @@ public class AuthPageModelsTests
                 Services.GetRequiredService<SignInManager<IdentityUser>>(),
                 Services.GetRequiredService<UserManager<IdentityUser>>(),
                 NullLogger<LoginModel>.Instance,
-                new TestWebHostEnvironment());
+                new TestWebHostEnvironment(),
+                default(EJCFitnessGym.Services.Security.ISecurityAuditService)!);
 
             InitializePageModel(model);
             return model;

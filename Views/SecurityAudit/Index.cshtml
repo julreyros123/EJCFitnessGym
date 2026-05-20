@@ -1,0 +1,230 @@
+@model EJCFitnessGym.Models.Admin.SecurityAuditLogListViewModel
+@{
+    ViewData["Title"] = "Security Audit Log";
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-3">
+                <i class="bi bi-shield-lock me-2"></i>Security Audit Log
+            </h1>
+            <p class="text-muted">Monitor all security events and login attempts</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-activity fs-2 text-primary"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Total Login Attempts</h6>
+                            <h3 class="mb-0">@Model.TotalLoginAttempts</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-check-circle fs-2 text-success"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Successful Logins</h6>
+                            <h3 class="mb-0">@Model.SuccessfulLogins</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-x-circle fs-2 text-danger"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Failed Logins</h6>
+                            <h3 class="mb-0">@Model.FailedLogins</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-lock fs-2 text-warning"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="text-muted mb-1">Account Lockouts</h6>
+                            <h3 class="mb-0">@Model.AccountLockouts</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" asp-action="Index" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Event Type</label>
+                    <select name="eventType" class="form-select">
+                        <option value="">All Events</option>
+                        <option value="LoginSuccess" selected="@(Model.FilterEventType == "LoginSuccess")">Login Success</option>
+                        <option value="LoginFailure" selected="@(Model.FilterEventType == "LoginFailure")">Login Failure</option>
+                        <option value="Logout" selected="@(Model.FilterEventType == "Logout")">Logout</option>
+                        <option value="AccountLockout" selected="@(Model.FilterEventType == "AccountLockout")">Account Lockout</option>
+                        <option value="UnauthorizedAccess" selected="@(Model.FilterEventType == "UnauthorizedAccess")">Unauthorized Access</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select name="eventStatus" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="Success" selected="@(Model.FilterEventStatus == "Success")">Success</option>
+                        <option value="Failure" selected="@(Model.FilterEventStatus == "Failure")">Failure</option>
+                        <option value="Warning" selected="@(Model.FilterEventStatus == "Warning")">Warning</option>
+                        <option value="Critical" selected="@(Model.FilterEventStatus == "Critical")">Critical</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Email</label>
+                    <input type="text" name="email" class="form-control" value="@Model.FilterEmail" placeholder="Search email...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">From Date</label>
+                    <input type="date" name="fromDate" class="form-control" value="@Model.FilterFromDate?.ToString("yyyy-MM-dd")">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">To Date</label>
+                    <input type="date" name="toDate" class="form-control" value="@Model.FilterToDate?.ToString("yyyy-MM-dd")">
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i> Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Audit Log Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Email</th>
+                            <th>Event Type</th>
+                            <th>Status</th>
+                            <th>IP Address</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Logs.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                    No security events found
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var log in Model.Logs)
+                            {
+                                <tr>
+                                    <td>
+                                        <small class="text-muted">
+                                            @log.EventTimestampUtc.ToString("yyyy-MM-dd HH:mm:ss") UTC
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <strong>@(log.Email ?? "N/A")</strong>
+                                        @if (!string.IsNullOrEmpty(log.UserId))
+                                        {
+                                            <br><small class="text-muted">ID: @log.UserId.Substring(0, Math.Min(8, log.UserId.Length))...</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge @log.EventTypeBadgeClass">
+                                            @log.EventType
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @log.EventStatusBadgeClass">
+                                            @log.EventStatus
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <code class="small">@(log.IpAddress ?? "N/A")</code>
+                                    </td>
+                                    <td>
+                                        <small>@(log.EventDetails ?? "-")</small>
+                                        @if (!string.IsNullOrEmpty(log.UserAgent))
+                                        {
+                                            <br><small class="text-muted" title="@log.UserAgent">
+                                                @(log.UserAgent.Length > 50 ? log.UserAgent.Substring(0, 50) + "..." : log.UserAgent)
+                                            </small>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            @if (Model.TotalPages > 1)
+            {
+                <nav aria-label="Page navigation" class="mt-3">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item @(Model.PageNumber == 1 ? "disabled" : "")">
+                            <a class="page-link" href="@Url.Action("Index", new { page = Model.PageNumber - 1, eventType = Model.FilterEventType, eventStatus = Model.FilterEventStatus, email = Model.FilterEmail, fromDate = Model.FilterFromDate, toDate = Model.FilterToDate })">
+                                Previous
+                            </a>
+                        </li>
+                        
+                        @for (int i = Math.Max(1, Model.PageNumber - 2); i <= Math.Min(Model.TotalPages, Model.PageNumber + 2); i++)
+                        {
+                            <li class="page-item @(i == Model.PageNumber ? "active" : "")">
+                                <a class="page-link" href="@Url.Action("Index", new { page = i, eventType = Model.FilterEventType, eventStatus = Model.FilterEventStatus, email = Model.FilterEmail, fromDate = Model.FilterFromDate, toDate = Model.FilterToDate })">
+                                    @i
+                                </a>
+                            </li>
+                        }
+                        
+                        <li class="page-item @(Model.PageNumber == Model.TotalPages ? "disabled" : "")">
+                            <a class="page-link" href="@Url.Action("Index", new { page = Model.PageNumber + 1, eventType = Model.FilterEventType, eventStatus = Model.FilterEventStatus, email = Model.FilterEmail, fromDate = Model.FilterFromDate, toDate = Model.FilterToDate })">
+                                Next
+                            </a>
+                        </li>
+                    </ul>
+                    <p class="text-center text-muted">
+                        Showing @((Model.PageNumber - 1) * Model.PageSize + 1) to @Math.Min(Model.PageNumber * Model.PageSize, Model.TotalCount) of @Model.TotalCount events
+                    </p>
+                </nav>
+            }
+        </div>
+    </div>
+</div>

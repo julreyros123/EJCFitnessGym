@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using EJCFitnessGym.Services.Security;
 
 namespace EJCFitnessGym.Areas.Identity.Pages.Account;
 
@@ -11,12 +12,14 @@ public class LoginModel(
     SignInManager<IdentityUser> signInManager,
     UserManager<IdentityUser> userManager,
     ILogger<LoginModel> logger,
-    IWebHostEnvironment environment) : PageModel
+    IWebHostEnvironment environment,
+    ISecurityAuditService securityAuditService) : PageModel
 {
     private readonly SignInManager<IdentityUser> _signInManager = signInManager;
     private readonly UserManager<IdentityUser> _userManager = userManager;
     private readonly ILogger<LoginModel> _logger = logger;
     private readonly IWebHostEnvironment _environment = environment;
+    private readonly ISecurityAuditService _securityAuditService = securityAuditService;
 
     [BindProperty]
     public InputModel Input { get; set; } = new();
@@ -90,15 +93,26 @@ public class LoginModel(
 
         if (ModelState.IsValid)
         {
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var userAgent = Request.Headers["User-Agent"].ToString();
+
             var user = await _userManager.FindByEmailAsync(Input.Email);
             if (user is null)
             {
+                if (_securityAuditService != null)
+                {
+                    await _securityAuditService.LogLoginFailureAsync(Input.Email, "User not found", ipAddress, userAgent);
+                }
                 ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                 return Page();
             }
 
             if (!await _userManager.HasPasswordAsync(user))
             {
+                if (_securityAuditService != null)
+                {
+                    await _securityAuditService.LogLoginFailureAsync(Input.Email, "External login required", ipAddress, userAgent);
+                }
                 // Accounts created via external providers (e.g., Google) may not have a local password.
                 ModelState.AddModelError(string.Empty, "This account does not have a password. Please sign in using Google, or set a password in your account settings.");
                 return Page();
@@ -112,6 +126,10 @@ public class LoginModel(
 
             if (result.Succeeded)
             {
+                if (_securityAuditService != null)
+                {
+                    await _securityAuditService.LogLoginSuccessAsync(user.Id, user.Email, ipAddress, userAgent);
+                }
                 _logger.LogInformation("User logged in.");
                 var roles = await _userManager.GetRolesAsync(user);
 
@@ -171,12 +189,20 @@ public class LoginModel(
             }
             if (result.IsLockedOut)
             {
+                if (_securityAuditService != null)
+                {
+                    await _securityAuditService.LogAccountLockoutAsync(user?.Id, user?.Email ?? Input.Email, ipAddress, userAgent);
+                }
                 _logger.LogWarning("User account locked out.");
                 return RedirectToPage("./Lockout", new { email = Input.Email });
             }
 
             if (result.IsNotAllowed)
             {
+                if (_securityAuditService != null)
+                {
+                    await _securityAuditService.LogLoginFailureAsync(user?.Email ?? Input.Email, "Not allowed", ipAddress, userAgent);
+                }
                 if (user is not null)
                 {
                     var isConfirmed = await _userManager.IsEmailConfirmedAsync(user);
@@ -195,6 +221,10 @@ public class LoginModel(
                 }
             }
 
+            if (_securityAuditService != null)
+            {
+                await _securityAuditService.LogLoginFailureAsync(user?.Email ?? Input.Email, "Invalid credentials", ipAddress, userAgent);
+            }
             ModelState.AddModelError(string.Empty, "Invalid login attempt.");
         }
 

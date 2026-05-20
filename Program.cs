@@ -371,6 +371,7 @@ else
     builder.Services.AddTransient<IEmailSender, LoggingEmailSender>();
 }
 builder.Services.AddScoped<IEmailVerificationCodeService, EmailVerificationCodeService>();
+builder.Services.AddScoped<EJCFitnessGym.Services.Security.ISecurityAuditService, EJCFitnessGym.Services.Security.SecurityAuditService>();
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddRateLimiter(options =>
