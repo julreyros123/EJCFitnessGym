@@ -54,9 +54,15 @@ var useSecureCookies = builder.Configuration.GetValue<bool?>("Security:UseSecure
     ?? !builder.Environment.IsDevelopment();
 
 // Add services to the container.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<EJCFitnessGym.Data.AuditableInterceptor>();
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
+{
+    options.UseSqlServer(connectionString)
+           .AddInterceptors(sp.GetRequiredService<EJCFitnessGym.Data.AuditableInterceptor>());
+});
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services
@@ -624,6 +630,8 @@ else
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
+
+app.UseMiddleware<EJCFitnessGym.Security.ErrorLoggingMiddleware>();
 
 app.UseHttpsRedirection();
 
