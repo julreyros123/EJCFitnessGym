@@ -231,6 +231,13 @@ if (googleIsConfigured)
     });
 }
 
+builder.Services.AddAntiforgery(options =>
+{
+    options.Cookie.SecurePolicy = useSecureCookies
+        ? CookieSecurePolicy.Always
+        : CookieSecurePolicy.SameAsRequest;
+});
+
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.HttpOnly = true;
