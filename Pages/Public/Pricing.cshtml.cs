@@ -213,21 +213,8 @@ namespace EJCFitnessGym.Pages.Public
 
             if (existingPendingPayment is not null)
             {
-                if (existingPendingPayment.PaidAtUtc < stalePendingThresholdUtc)
-                {
-                    await MarkPendingCheckoutAsFailedAsync(existingPendingPayment, nowUtc, cancellationToken);
-                }
-                else
-                {
-                    var pendingInvoice = existingPendingPayment.Invoice;
-                    var pendingInvoiceNumber = pendingInvoice?.InvoiceNumber ?? "N/A";
-                    var pendingDueLocal = pendingInvoice?.DueDateUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz") ?? "N/A";
-                    var pendingStartedLocal = existingPendingPayment.PaidAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm zzz");
-
-                    TempData["StatusMessage"] =
-                        $"You already have a pending PayMongo checkout (Invoice {pendingInvoiceNumber}, started {pendingStartedLocal}, due {pendingDueLocal}). Complete it, or cancel it from the pricing page before starting a new payment.";
-                    return RedirectToPage("/Public/Pricing", new { planId, invoiceId });
-                }
+                // Auto-cancel any existing pending payment to allow starting a new one instantly.
+                await MarkPendingCheckoutAsFailedAsync(existingPendingPayment, nowUtc, cancellationToken);
             }
 
             Invoice invoice;
