@@ -162,8 +162,21 @@ if (!string.IsNullOrWhiteSpace(payMongoSecretKey) &&
     string.IsNullOrWhiteSpace(payMongoWebhookSecret) &&
     !payMongoSecretKey.StartsWith("REPLACE_WITH_"))
 {
-    throw new InvalidOperationException(
-        "PayMongo:WebhookSecret is required whenever PayMongo is enabled outside Development.");
+    // Webhook secret is missing but PayMongo looks enabled. In strict mode this is a startup
+    // failure because webhook signature verification is critical in production. To make the
+    // runtime more forgiving during testing or constrained environments, support a config
+    // override `PayMongo:ForceStartupWhenMissingWebhookSecret` (default=false). When the
+    // override is not enabled we still fail to start to avoid silent misconfiguration.
+    var forceStartup = builder.Configuration.GetValue<bool>("PayMongo:ForceStartupWhenMissingWebhookSecret");
+    var message = "PayMongo:WebhookSecret is required whenever PayMongo is enabled outside Development.";
+    if (!forceStartup)
+    {
+        throw new InvalidOperationException(message + " To override set PayMongo:ForceStartupWhenMissingWebhookSecret = true in configuration.");
+    }
+
+    // If we reached here, startup override was requested. Emit a clear warning so operators
+    // know webhook signature verification will be disabled at runtime.
+    Console.Error.WriteLine("WARNING: " + message + " Startup forced by configuration; incoming webhooks will be rejected until a webhook secret is configured.");
 }
 
 var authBuilder = builder.Services.AddAuthentication(options =>
