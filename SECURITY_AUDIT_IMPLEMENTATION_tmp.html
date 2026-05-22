@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>SECURITY_AUDIT_IMPLEMENTATION.md</title>
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+    
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+html,footer,header{
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Custom MD PDF CSS
+ */
+html,footer,header{
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+
+ }
+body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+<link rel="stylesheet" href="file:///r%3A/2.Travail/1.Enseignement/Cours/_1.Outils/2.Developpement/1.SCSS/main.css" type="text/css"><link rel="stylesheet" href="file:///d%3A/rdaros/Cours/_1.Outils/2.Developpement/1.SCSS/main.css" type="text/css">
+</head>
+
+<body>
+    <h1 id="security-audit-log-implementation">Security Audit Log Implementation</h1>
+<h2 id="overview">Overview</h2>
+<p>A comprehensive security audit logging system has been added to track all security-related events including login attempts, account lockouts, and unauthorized access attempts.</p>
+<h2 id="what-was-added">What Was Added</h2>
+<h3 id="1-database-model">1. Database Model</h3>
+<p><strong>File:</strong> <code>Models/Admin/SecurityAuditLog.cs</code></p>
+<ul>
+<li>Stores security events with details</li>
+<li>Tracks user ID, email, IP address, user agent</li>
+<li>Records event type, status, and timestamp</li>
+<li>Includes enums for event types and statuses</li>
+</ul>
+<h3 id="2-database-configuration">2. Database Configuration</h3>
+<p><strong>File:</strong> <code>Data/ApplicationDbContext.cs</code></p>
+<ul>
+<li>Added <code>SecurityAuditLogs</code> DbSet</li>
+<li>Created indexes for efficient querying</li>
+<li>Configured relationships and constraints</li>
+</ul>
+<h3 id="3-security-audit-service">3. Security Audit Service</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li><code>Services/Security/ISecurityAuditService.cs</code> (Interface)</li>
+<li><code>Services/Security/SecurityAuditService.cs</code> (Implementation)</li>
+</ul>
+<p><strong>Features:</strong></p>
+<ul>
+<li><code>LogLoginSuccessAsync()</code> - Logs successful logins</li>
+<li><code>LogLoginFailureAsync()</code> - Logs failed login attempts</li>
+<li><code>LogLogoutAsync()</code> - Logs user logouts</li>
+<li><code>LogAccountLockoutAsync()</code> - Logs account lockouts</li>
+<li><code>LogUnauthorizedAccessAsync()</code> - Logs unauthorized access attempts</li>
+</ul>
+<h3 id="4-login-page-integration">4. Login Page Integration</h3>
+<p><strong>File:</strong> <code>Areas/Identity/Pages/Account/Login.cshtml.cs</code></p>
+<p><strong>Logging Points:</strong></p>
+<ul>
+<li>✅ User not found → Logs failed attempt</li>
+<li>✅ No password (external login required) → Logs failed attempt</li>
+<li>✅ Successful login → Logs success with IP and user agent</li>
+<li>✅ Account locked out → Logs lockout event</li>
+<li>✅ Invalid password → Logs failed attempt</li>
+</ul>
+<h3 id="5-superadmin-security-dashboard">5. SuperAdmin Security Dashboard</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li><code>Controllers/SecurityAuditController.cs</code> - Controller for viewing logs</li>
+<li><code>Views/SecurityAudit/Index.cshtml</code> - UI for security audit log</li>
+<li><code>Models/Admin/SecurityAuditLogViewModels.cs</code> - View models</li>
+</ul>
+<p><strong>Features:</strong></p>
+<ul>
+<li>📊 Statistics dashboard (total attempts, successes, failures, lockouts)</li>
+<li>🔍 Advanced filtering (event type, status, email, date range)</li>
+<li>📄 Paginated log view (50 entries per page)</li>
+<li>🎨 Color-coded badges for event types and statuses</li>
+<li>📱 Responsive design</li>
+</ul>
+<h3 id="6-service-registration">6. Service Registration</h3>
+<p><strong>File:</strong> <code>Program.cs</code></p>
+<ul>
+<li>Registered <code>ISecurityAuditService</code> as scoped service</li>
+</ul>
+<h2 id="how-to-use">How to Use</h2>
+<h3 id="1-create-database-migration">1. Create Database Migration</h3>
+<pre class="hljs"><code><div>dotnet ef migrations add AddSecurityAuditLog
+dotnet ef database update
+</div></code></pre>
+<h3 id="2-access-security-audit-log">2. Access Security Audit Log</h3>
+<ol>
+<li>Login as SuperAdmin</li>
+<li>Navigate to: <code>/SecurityAudit/Index</code></li>
+<li>View all security events with statistics</li>
+</ol>
+<h3 id="3-filter-events">3. Filter Events</h3>
+<ul>
+<li><strong>By Event Type:</strong> LoginSuccess, LoginFailure, Logout, AccountLockout, UnauthorizedAccess</li>
+<li><strong>By Status:</strong> Success, Failure, Warning, Critical</li>
+<li><strong>By Email:</strong> Search for specific user</li>
+<li><strong>By Date Range:</strong> Filter by date</li>
+</ul>
+<h2 id="security-events-tracked">Security Events Tracked</h2>
+<table>
+<thead>
+<tr>
+<th>Event Type</th>
+<th>When It's Logged</th>
+<th>Information Captured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LoginSuccess</td>
+<td>User logs in successfully</td>
+<td>User ID, Email, IP, User Agent</td>
+</tr>
+<tr>
+<td>LoginFailure</td>
+<td>Wrong password or user not found</td>
+<td>Email, IP, User Agent, Reason</td>
+</tr>
+<tr>
+<td>Logout</td>
+<td>User logs out</td>
+<td>User ID, Email, IP</td>
+</tr>
+<tr>
+<td>AccountLockout</td>
+<td>Account locked after 5 failed attempts</td>
+<td>User ID, Email, IP</td>
+</tr>
+<tr>
+<td>UnauthorizedAccess</td>
+<td>User tries to access forbidden page</td>
+<td>User ID, Email, IP, Resource</td>
+</tr>
+</tbody>
+</table>
+<h2 id="dashboard-statistics">Dashboard Statistics</h2>
+<p>The security audit dashboard shows:</p>
+<ul>
+<li><strong>Total Login Attempts</strong> - All login attempts (success + failure)</li>
+<li><strong>Successful Logins</strong> - Number of successful authentications</li>
+<li><strong>Failed Logins</strong> - Number of failed authentication attempts</li>
+<li><strong>Account Lockouts</strong> - Number of accounts locked due to failed attempts</li>
+</ul>
+<h2 id="security-benefits">Security Benefits</h2>
+<p>✅ <strong>Threat Detection</strong> - Identify brute force attacks and suspicious activity<br>
+✅ <strong>Compliance</strong> - Meet audit requirements for security logging<br>
+✅ <strong>Incident Response</strong> - Investigate security incidents with detailed logs<br>
+✅ <strong>User Monitoring</strong> - Track user authentication patterns<br>
+✅ <strong>IP Tracking</strong> - Identify suspicious IP addresses<br>
+✅ <strong>Forensics</strong> - Complete audit trail for security investigations</p>
+<h2 id="next-steps-optional-enhancements">Next Steps (Optional Enhancements)</h2>
+<ol>
+<li><strong>Add Email Alerts</strong> - Notify admins of suspicious activity</li>
+<li><strong>IP Blocking</strong> - Automatically block IPs with too many failed attempts</li>
+<li><strong>Export Functionality</strong> - Export logs to CSV/Excel</li>
+<li><strong>Real-time Dashboard</strong> - Use SignalR for live updates</li>
+<li><strong>Geolocation</strong> - Show login locations on a map</li>
+<li><strong>Advanced Analytics</strong> - Charts and graphs for security trends</li>
+</ol>
+<h2 id="documentation-updated">Documentation Updated</h2>
+<p>The following documentation files have been updated to reflect the new security audit logging:</p>
+<ol>
+<li>
+<p><strong>FINAL_SECURITY_DOCUMENTATION.md</strong></p>
+<ul>
+<li>Section 6: Error Handling and Logging</li>
+<li>Section 8: Code Auditing and Security Testing (Added Aikido Security)</li>
+<li>Section 9: Security Testing Procedures</li>
+</ul>
+</li>
+<li>
+<p><strong>SIMPLE_SECURITY_DOCUMENTATION.md</strong></p>
+<ul>
+<li>Section 8: Who Can Access What (Added Aikido monitoring)</li>
+</ul>
+</li>
+</ol>
+<h2 id="testing">Testing</h2>
+<p>To test the security audit log:</p>
+<ol>
+<li>
+<p><strong>Test Failed Login:</strong></p>
+<ul>
+<li>Try to login with wrong password</li>
+<li>Check security audit log for &quot;LoginFailure&quot; event</li>
+</ul>
+</li>
+<li>
+<p><strong>Test Successful Login:</strong></p>
+<ul>
+<li>Login with correct credentials</li>
+<li>Check security audit log for &quot;LoginSuccess&quot; event</li>
+</ul>
+</li>
+<li>
+<p><strong>Test Account Lockout:</strong></p>
+<ul>
+<li>Try wrong password 5 times</li>
+<li>Check security audit log for &quot;AccountLockout&quot; event</li>
+</ul>
+</li>
+<li>
+<p><strong>Test Filtering:</strong></p>
+<ul>
+<li>Use filters to search for specific events</li>
+<li>Verify pagination works correctly</li>
+</ul>
+</li>
+</ol>
+<h2 id="security-considerations">Security Considerations</h2>
+<ul>
+<li>✅ Only SuperAdmin can access security audit logs</li>
+<li>✅ Logs are stored securely in the database</li>
+<li>✅ IP addresses and user agents are captured for forensics</li>
+<li>✅ All timestamps are in UTC for consistency</li>
+<li>✅ Sensitive data (passwords) are never logged</li>
+<li>✅ User agents are truncated to 500 characters to prevent database issues</li>
+</ul>
+<h2 id="maintenance">Maintenance</h2>
+<p><strong>Log Retention:</strong></p>
+<ul>
+<li>Consider implementing automatic log cleanup for old entries</li>
+<li>Recommended: Keep logs for 90 days minimum</li>
+<li>Archive old logs for compliance if required</li>
+</ul>
+<p><strong>Performance:</strong></p>
+<ul>
+<li>Indexes are created for efficient querying</li>
+<li>Pagination prevents loading too many records</li>
+<li>Consider partitioning table if logs grow very large</li>
+</ul>
+<hr>
+<p><strong>Implementation Date:</strong> May 2026<br>
+<strong>Status:</strong> ✅ Complete and Ready for Use</p>
+
+</body>
+
+</html>

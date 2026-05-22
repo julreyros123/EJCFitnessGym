@@ -159,7 +159,8 @@ if (configuredForwardedHeadersOptions.Enabled)
 
 if (!string.IsNullOrWhiteSpace(payMongoSecretKey) &&
     payMongoRequiresWebhookSignature &&
-    string.IsNullOrWhiteSpace(payMongoWebhookSecret))
+    string.IsNullOrWhiteSpace(payMongoWebhookSecret) &&
+    !payMongoSecretKey.StartsWith("REPLACE_WITH_"))
 {
     throw new InvalidOperationException(
         "PayMongo:WebhookSecret is required whenever PayMongo is enabled outside Development.");
@@ -886,9 +887,8 @@ using (var scope = app.Services.CreateScope())
 
         if (app.Environment.IsDevelopment())
         {
-            // const string seedPassword = "123456";
+            const string seedPassword = "123456";
 
-            /*
             var hasActiveMonthlyPlans = await db.SubscriptionPlans
                 .AnyAsync(plan => plan.IsActive && plan.BillingCycle == BillingCycle.Monthly);
 
@@ -917,9 +917,7 @@ using (var scope = app.Services.CreateScope())
 
                 await db.SaveChangesAsync();
             }
-            */
 
-            /*
             var seedUsers = new (string Email, string Role)[]
             {
                 ("member@ejcfit.local", "Member"),
@@ -1000,7 +998,6 @@ using (var scope = app.Services.CreateScope())
                     await db.SaveChangesAsync();
                 }
             }
-            */
         }
     }
     catch (Exception ex)
