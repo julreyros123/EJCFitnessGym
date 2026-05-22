@@ -75,15 +75,14 @@ builder.Services
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
         options.SignIn.RequireConfirmedEmail = requireConfirmedEmail;
         options.SignIn.RequireConfirmedAccount = options.SignIn.RequireConfirmedEmail;
-        if (builder.Environment.IsDevelopment())
-        {
-            options.Password.RequiredLength = 6;
-            options.Password.RequireDigit = false;
-            options.Password.RequireLowercase = false;
-            options.Password.RequireUppercase = false;
-            options.Password.RequireNonAlphanumeric = false;
-            options.Password.RequiredUniqueChars = 1;
-        }
+        // Enforce strong password requirements for registration and account changes.
+        // These mirror the project's security handbook recommendations.
+        options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+        options.Password.RequiredUniqueChars = 4;
     })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
