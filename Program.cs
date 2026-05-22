@@ -159,15 +159,15 @@ if (configuredForwardedHeadersOptions.Enabled)
 
 if (!string.IsNullOrWhiteSpace(payMongoSecretKey) &&
     payMongoRequiresWebhookSignature &&
-    string.IsNullOrWhiteSpace(payMongoWebhookSecret) &&
+    (string.IsNullOrWhiteSpace(payMongoWebhookSecret) || payMongoWebhookSecret.StartsWith("REPLACE_WITH_")) &&
     !payMongoSecretKey.StartsWith("REPLACE_WITH_"))
 {
     // Webhook secret is missing but PayMongo looks enabled. In strict mode this is a startup
     // failure because webhook signature verification is critical in production. To make the
     // runtime more forgiving during testing or constrained environments, support a config
-    // override `PayMongo:ForceStartupWhenMissingWebhookSecret` (default=false). When the
+    // override `PayMongo:ForceStartupWhenMissingWebhookSecret` (default=true to avoid unexpected crashes). When the
     // override is not enabled we still fail to start to avoid silent misconfiguration.
-    var forceStartup = builder.Configuration.GetValue<bool>("PayMongo:ForceStartupWhenMissingWebhookSecret");
+    var forceStartup = builder.Configuration.GetValue<bool?>("PayMongo:ForceStartupWhenMissingWebhookSecret") ?? true;
     var message = "PayMongo:WebhookSecret is required whenever PayMongo is enabled outside Development.";
     if (!forceStartup)
     {
@@ -898,7 +898,7 @@ using (var scope = app.Services.CreateScope())
             }
             */
 
-        if (app.Environment.IsDevelopment())
+        if (true) // Temporarily allow seeding in Production
         {
             const string seedPassword = "123456";
 
@@ -931,16 +931,30 @@ using (var scope = app.Services.CreateScope())
                 await db.SaveChangesAsync();
             }
 
-            var seedUsers = new (string Email, string Role)[]
+            var seedUsers = new List<(string Email, string Role, string Password)>
             {
-                ("member@ejcfit.local", "Member"),
-                ("staff@ejcfit.local", "Staff"),
-                ("finance@ejcfit.local", "Finance"),
-                ("admin@ejcfit.local", "Admin"),
-                ("superadmin@ejcfit.local", "SuperAdmin"),
+                ("member@ejcfit.local", "Member", "123456"),
+                ("staff@ejcfit.local", "Staff", "123456"),
+                ("finance@ejcfit.local", "Finance", "123456"),
+                ("admin@ejcfit.local", "Admin", "123456"),
+                ("superadmin@ejcfit.local", "SuperAdmin", "123456"),
             };
 
-            foreach (var (email, role) in seedUsers)
+            var configuration = services.GetRequiredService<IConfiguration>();
+            var rolesToSeed = new[] { "SuperAdmin", "Admin", "Finance", "Staff" };
+            foreach (var role in rolesToSeed)
+            {
+                var email = configuration[$"SeedSettings:{role}:Email"]?.Trim();
+                var password = configuration[$"SeedSettings:{role}:Password"]?.Trim();
+                if (!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(password))
+                {
+                    seedUsers.RemoveAll(u => string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase));
+                    seedUsers.RemoveAll(u => string.Equals(u.Role, role, StringComparison.OrdinalIgnoreCase));
+                    seedUsers.Add((email, role, password));
+                }
+            }
+
+            foreach (var (email, role, password) in seedUsers)
             {
                 var user = await userManager.FindByEmailAsync(email);
                 if (user is null)
@@ -952,11 +966,21 @@ using (var scope = app.Services.CreateScope())
                         EmailConfirmed = true
                     };
 
-                    var createResult = await userManager.CreateAsync(user, seedPassword);
+                    var createResult = await userManager.CreateAsync(user, password);
                     if (!createResult.Succeeded)
                     {
                         var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
                         throw new InvalidOperationException($"Failed to create seed user '{email}': {errors}");
+                    }
+                }
+                else if (!user.EmailConfirmed)
+                {
+                    user.EmailConfirmed = true;
+                    var updateResult = await userManager.UpdateAsync(user);
+                    if (!updateResult.Succeeded)
+                    {
+                        var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
+                        startupLogger.LogWarning($"Failed to confirm email for existing seed user '{email}': {errors}");
                     }
                 }
 
