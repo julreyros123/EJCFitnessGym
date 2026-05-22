@@ -120,6 +120,14 @@ public class RegisterModel : PageModel
         Input.LastName = (Input.LastName ?? string.Empty).Trim();
         Input.PhoneNumber = string.IsNullOrWhiteSpace(Input.PhoneNumber) ? null : Input.PhoneNumber.Trim();
 
+        if (Request.HasFormContentType && Request.Form.TryGetValue("Input.AcceptTerms", out var acceptTermsValues))
+        {
+            Input.AcceptTerms = acceptTermsValues.Any(value =>
+                string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(value, "on", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(value, "1", StringComparison.OrdinalIgnoreCase));
+        }
+
         if (!Input.AcceptTerms)
         {
             ModelState.AddModelError("Input.AcceptTerms", "You must accept the terms to create an account.");
