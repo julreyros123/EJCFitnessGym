@@ -63,7 +63,7 @@
                     <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
                 </div>
                 <div class="mb-4 d-flex align-items-center gap-2 px-1">
-                    <input asp-for="Input.AcceptTerms" class="form-check-input mt-0" style="width: 1.25rem; height: 1.25rem; cursor: pointer;" />
+                    <input asp-for="Input.AcceptTerms" class="form-check-input mt-0" required style="width: 1.25rem; height: 1.25rem; cursor: pointer;" />
                     <label asp-for="Input.AcceptTerms" class="small mb-0 ms-2 cursor-pointer">
                         I accept the <a asp-area="" asp-controller="Home" asp-action="Terms" target="_blank" class="text-decoration-underline" style="color: var(--ejc-primary);">Terms and Conditions</a> and <a asp-area="" asp-controller="Home" asp-action="Privacy" target="_blank" class="text-decoration-underline" style="color: var(--ejc-primary);">Privacy Policy</a>
                     </label>

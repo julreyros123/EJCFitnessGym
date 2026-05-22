@@ -89,8 +89,6 @@ public class RegisterModel : PageModel
         [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
         public string ConfirmPassword { get; set; } = string.Empty;
 
-        [Required]
-        [Range(typeof(bool), "true", "true", ErrorMessage = "You must accept the terms to create an account.")]
         [Display(Name = "I accept the Terms and Conditions and Privacy Policy")]
         public bool AcceptTerms { get; set; }
     }
@@ -121,6 +119,11 @@ public class RegisterModel : PageModel
         Input.FirstName = (Input.FirstName ?? string.Empty).Trim();
         Input.LastName = (Input.LastName ?? string.Empty).Trim();
         Input.PhoneNumber = string.IsNullOrWhiteSpace(Input.PhoneNumber) ? null : Input.PhoneNumber.Trim();
+
+        if (!Input.AcceptTerms)
+        {
+            ModelState.AddModelError("Input.AcceptTerms", "You must accept the terms to create an account.");
+        }
 
         if (!ModelState.IsValid)
         {
